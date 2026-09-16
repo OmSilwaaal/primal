@@ -11,7 +11,7 @@ struct NutriCoreApp: App {
                 .preferredColorScheme(isWhiteTheme ? .light : .dark)
                 .animation(.easeInOut(duration: 0.4), value: isWhiteTheme)
         }
-        .modelContainer(for: [MealEntry.self, UserProfile.self])
+        .modelContainer(for: [MealEntry.self, UserProfile.self, FastingState.self, DailyHydration.self])
     }
 }
 

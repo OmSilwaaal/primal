@@ -5,6 +5,8 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var meals: [MealEntry]
     @Query private var profiles: [UserProfile]
+    @Query private var fastingStates: [FastingState]
+    @Query private var hydrations: [DailyHydration]
     
     private var goals: NutrientGoals {
         if let profile = profiles.first {
@@ -16,6 +18,23 @@ struct DashboardView: View {
     private var todaysMeals: [MealEntry] {
         let calendar = Calendar.current
         return meals.filter { calendar.isDateInToday($0.date) }
+    }
+    
+    private var currentFastingState: FastingState {
+        if let state = fastingStates.first { return state }
+        let newState = FastingState()
+        modelContext.insert(newState)
+        return newState
+    }
+    
+    private var todaysHydration: DailyHydration {
+        let calendar = Calendar.current
+        if let hydration = hydrations.first(where: { calendar.isDateInToday($0.date) }) {
+            return hydration
+        }
+        let newHydration = DailyHydration()
+        modelContext.insert(newHydration)
+        return newHydration
     }
     
     // Strict date formatter
@@ -110,6 +129,104 @@ struct DashboardView: View {
                                 TypographicMacro(title: "CARBS", current: todaysMeals.totalCarbs, goal: goals.carbohydrates)
                                 Spacer()
                                 TypographicMacro(title: "FAT", current: todaysMeals.totalFat, goal: goals.fat)
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        Divider().background(Color.white.opacity(0.2)).padding(.horizontal)
+                        
+                        // 3.5. Fasting Tracker
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("FASTING")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(2)
+                                .foregroundColor(.gray)
+                                .padding(.horizontal)
+                            
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    TimelineView(.periodic(from: .now, by: 60.0)) { context in
+                                        if currentFastingState.isFasting, let start = currentFastingState.startTime {
+                                            let duration = context.date.timeIntervalSince(start)
+                                            let hours = Int(duration) / 3600
+                                            let minutes = (Int(duration) % 3600) / 60
+                                            Text(String(format: "%02d:%02d", hours, minutes))
+                                                .font(.system(size: 32, weight: .bold))
+                                                .foregroundColor(.white)
+                                        } else {
+                                            Text("00:00")
+                                                .font(.system(size: 32, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                    
+                                    Text(currentFastingState.isFasting ? "FASTING" : "NOT FASTING")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(currentFastingState.isFasting ? .white : .gray)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    if currentFastingState.isFasting {
+                                        currentFastingState.isFasting = false
+                                        currentFastingState.startTime = nil
+                                    } else {
+                                        currentFastingState.isFasting = true
+                                        currentFastingState.startTime = Date()
+                                    }
+                                    try? modelContext.save()
+                                }) {
+                                    Text(currentFastingState.isFasting ? "END FAST" : "START FAST")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .tracking(1)
+                                        .foregroundColor(currentFastingState.isFasting ? .white : .black)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(currentFastingState.isFasting ? Color.clear : Color.white)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(currentFastingState.isFasting ? Color.white : Color.clear, lineWidth: 1)
+                                        )
+                                        .cornerRadius(8)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        Divider().background(Color.white.opacity(0.2)).padding(.horizontal)
+                        
+                        // 3.6. Electrolytes & Hydration
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("HYDRATION & ELECTROLYTES")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(2)
+                                .foregroundColor(.gray)
+                                .padding(.horizontal)
+                            
+                            HStack(spacing: 12) {
+                                HydrationButton(title: "WATER", amount: "\(Int(todaysHydration.waterOunces)) oz", icon: "drop.fill") {
+                                    todaysHydration.waterOunces += 8
+                                    try? modelContext.save()
+                                }
+                                
+                                HydrationButton(title: "SODIUM", amount: "\(Int(todaysHydration.addedSodiumMg)) mg", icon: "bolt.fill") {
+                                    todaysHydration.addedSodiumMg += 100
+                                    try? modelContext.save()
+                                }
+                            }
+                            .padding(.horizontal)
+                            
+                            HStack(spacing: 12) {
+                                HydrationButton(title: "POTASSIUM", amount: "\(Int(todaysHydration.addedPotassiumMg)) mg", icon: "bolt.fill") {
+                                    todaysHydration.addedPotassiumMg += 100
+                                    try? modelContext.save()
+                                }
+                                
+                                HydrationButton(title: "MAGNESIUM", amount: "\(Int(todaysHydration.addedMagnesiumMg)) mg", icon: "bolt.fill") {
+                                    todaysHydration.addedMagnesiumMg += 50
+                                    try? modelContext.save()
+                                }
                             }
                             .padding(.horizontal)
                         }
@@ -250,6 +367,35 @@ struct SwipeToDeleteRow<Content: View, Item: Equatable>: View {
                             }
                         }
                 )
+        }
+    }
+}
+
+// MARK: - Hydration Button
+struct HydrationButton: View {
+    let title: String
+    let amount: String
+    let icon: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: icon)
+                        .foregroundColor(.white)
+                    Text(title)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.gray)
+                }
+                Text(amount)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color.white.opacity(0.1))
+            .cornerRadius(12)
         }
     }
 }

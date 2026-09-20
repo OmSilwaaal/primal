@@ -6,7 +6,10 @@ import SwiftData
 final class UserProfile {
     var name: String = "PLAYER 1"
     var age: Int = 25
-    var sex: String = "male"          // "male" | "female"
+    var ageGroup: String = "18-35" // "Under 18" | "18-35" | "36-50" | "Over 50"
+    var sex: String = "Male"       // "Male" | "Female"
+    var pregnancyStatus: String = "None" // "None" | "Pregnant" | "Postpartum"
+    var location: String = ""
     var weightKg: Double = 70.0
     var goalWeightKg: Double = 70.0
     var heightCm: Double = 170.0

@@ -19,11 +19,16 @@ struct NutriCoreApp: App {
 struct RootView: View {
     @StateObject private var authManager = AuthManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @StateObject private var subManager = SubscriptionManager.shared
 
     var body: some View {
         if authManager.isAuthenticated {
             if hasCompletedOnboarding {
-                ContentView()
+                if subManager.isSubscribed {
+                    ContentView()
+                } else {
+                    PaywallView()
+                }
             } else {
                 ProfileSetupView()
             }

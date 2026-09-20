@@ -25,6 +25,7 @@
 		8B1B4409C53154BE5D8DC091 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */; };
 		917D2FCC77102B58DBEE0C39 /* USDAService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF698CFC82E7D0B43E582D3 /* USDAService.swift */; };
 		9A28B90AC9D6CC55E36219AE /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD6F4EC5D7730A444C40FE3 /* AuthManager.swift */; };
+		AB17BA9C480D45AE3E4102CA /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB52BDB580959B47AE585E14 /* SubscriptionManager.swift */; };
 		AF61CA4D3AE070996A739D69 /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251F0BEBCB947BC76AB847EC /* LocationManager.swift */; };
 		B3ECB307AEE36631A5E2397D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 2C5F05EA7ECBF9CDB81E583C /* Supabase */; };
 		B4ADAC018F86401C110042C1 /* FastingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC8F7DCB2BDBAFC4A0DEE8F /* FastingState.swift */; };
@@ -34,6 +35,7 @@
 		D0CCA8172B9F7CE11D248C2E /* MicronutrientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8553A6D92E1D4E7879A71878 /* MicronutrientsView.swift */; };
 		D4998CED088EB72135EC4FC6 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11083E0FCF5E27A542FD494F /* CameraView.swift */; };
 		E3E89EC70672CB4AF7E3F51D /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41EAA53C5C70EC0C6F57015 /* SearchView.swift */; };
+		FC4599923DF013A357DCEB5E /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F496E7479856A5090E10B5C1 /* PaywallView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,8 +63,10 @@
 		C41EAA53C5C70EC0C6F57015 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		CAD6F4EC5D7730A444C40FE3 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		D9A77EBAD8D87738E365240C /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		DB52BDB580959B47AE585E14 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		DD082626A804F4A3A2E08C21 /* PlacesMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacesMapView.swift; sourceTree = "<group>"; };
 		E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRing.swift; sourceTree = "<group>"; };
+		F496E7479856A5090E10B5C1 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		F78859EB1EF10E4D7B7F4E92 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -86,6 +90,7 @@
 				3C7736E564069E5E8A1822BA /* FoodSearchResult.swift */,
 				AB0712DDAAF60F9760150B04 /* MealEntry.swift */,
 				474856B080FB52DA4FFD872C /* NutrientGoals.swift */,
+				DB52BDB580959B47AE585E14 /* SubscriptionManager.swift */,
 				97522CB9E8D36549A45F50D7 /* UserProfile.swift */,
 			);
 			path = Models;
@@ -185,6 +190,7 @@
 			isa = PBXGroup;
 			children = (
 				5C9CB56696939BD9DC16FF9F /* OnboardingView.swift */,
+				F496E7479856A5090E10B5C1 /* PaywallView.swift */,
 				5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */,
 			);
 			path = Onboarding;
@@ -296,12 +302,14 @@
 				C3DBAB9B35225D2538E31F07 /* NutriCoreApp.swift in Sources */,
 				064DDF0FEE8E06C40F395580 /* NutrientGoals.swift in Sources */,
 				64B269FD1AAE01171778F0D2 /* OnboardingView.swift in Sources */,
+				FC4599923DF013A357DCEB5E /* PaywallView.swift in Sources */,
 				78BAAA27D7BFDC2A1C8A2756 /* PlacesMapView.swift in Sources */,
 				8B1B4409C53154BE5D8DC091 /* ProfileSetupView.swift in Sources */,
 				346DB15E16EDD928196A767F /* ProfileView.swift in Sources */,
 				BC8F61B2366BD2A2F53FC29D /* ProgressRing.swift in Sources */,
 				E3E89EC70672CB4AF7E3F51D /* SearchView.swift in Sources */,
 				22080D63D70DC8670293568C /* SettingsView.swift in Sources */,
+				AB17BA9C480D45AE3E4102CA /* SubscriptionManager.swift in Sources */,
 				917D2FCC77102B58DBEE0C39 /* USDAService.swift in Sources */,
 				25260171DFF845CA05C8ACE7 /* UserProfile.swift in Sources */,
 			);

@@ -394,7 +394,8 @@ struct HydrationButton: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(Color.white.opacity(0.1))
+            .background(.ultraThinMaterial)
+            .environment(\.colorScheme, .dark)
             .cornerRadius(12)
         }
     }

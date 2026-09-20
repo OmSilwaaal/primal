@@ -8,8 +8,10 @@ final class UserProfile {
     var age: Int = 25
     var sex: String = "male"          // "male" | "female"
     var weightKg: Double = 70.0
+    var goalWeightKg: Double = 70.0
     var heightCm: Double = 170.0
     var activityLevel: String = "moderate"  // sedentary|light|moderate|active|veryActive
+    var dietType: String = "Carnivore"
     var lastLogDate: Date = Date.distantPast
 
     init() {}

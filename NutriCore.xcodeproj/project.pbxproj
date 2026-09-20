@@ -22,6 +22,7 @@
 		6AA6BAFAB72F1F3AB70A3D46 /* DailyHydration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1082D74B25302B2EC64C638 /* DailyHydration.swift */; };
 		731AB24A35D0BC8DB7B9C0A7 /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */; };
 		78BAAA27D7BFDC2A1C8A2756 /* PlacesMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD082626A804F4A3A2E08C21 /* PlacesMapView.swift */; };
+		8B1B4409C53154BE5D8DC091 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */; };
 		917D2FCC77102B58DBEE0C39 /* USDAService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF698CFC82E7D0B43E582D3 /* USDAService.swift */; };
 		9A28B90AC9D6CC55E36219AE /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD6F4EC5D7730A444C40FE3 /* AuthManager.swift */; };
 		AF61CA4D3AE070996A739D69 /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251F0BEBCB947BC76AB847EC /* LocationManager.swift */; };
@@ -45,6 +46,7 @@
 		3C7736E564069E5E8A1822BA /* FoodSearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchResult.swift; sourceTree = "<group>"; };
 		3FBA9BC66A5E8719FDFECF6C /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		474856B080FB52DA4FFD872C /* NutrientGoals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutrientGoals.swift; sourceTree = "<group>"; };
+		5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
 		5C9CB56696939BD9DC16FF9F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		7004CAD6EE28C84C93837813 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		78C6BF77B8657F9B7ABC7D04 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
@@ -183,6 +185,7 @@
 			isa = PBXGroup;
 			children = (
 				5C9CB56696939BD9DC16FF9F /* OnboardingView.swift */,
+				5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -294,6 +297,7 @@
 				064DDF0FEE8E06C40F395580 /* NutrientGoals.swift in Sources */,
 				64B269FD1AAE01171778F0D2 /* OnboardingView.swift in Sources */,
 				78BAAA27D7BFDC2A1C8A2756 /* PlacesMapView.swift in Sources */,
+				8B1B4409C53154BE5D8DC091 /* ProfileSetupView.swift in Sources */,
 				346DB15E16EDD928196A767F /* ProfileView.swift in Sources */,
 				BC8F61B2366BD2A2F53FC29D /* ProgressRing.swift in Sources */,
 				E3E89EC70672CB4AF7E3F51D /* SearchView.swift in Sources */,

@@ -18,10 +18,15 @@ struct NutriCoreApp: App {
 // MARK: - Root routing view
 struct RootView: View {
     @StateObject private var authManager = AuthManager.shared
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
         if authManager.isAuthenticated {
-            ContentView()
+            if hasCompletedOnboarding {
+                ContentView()
+            } else {
+                ProfileSetupView()
+            }
         } else {
             OnboardingView()
         }

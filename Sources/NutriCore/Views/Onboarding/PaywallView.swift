@@ -36,9 +36,6 @@ struct PaywallView: View {
 
                     // ── Features ──────────────────────────────────────────
                     VStack(spacing: 0) {
-                        PaywallFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
-                                          label: "Fasting tracker", sub: "Live timer with adjustable target")
-                        Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                         PaywallFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
                                           label: "Food scanner", sub: "Barcode and AI photo logging")
                         Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)

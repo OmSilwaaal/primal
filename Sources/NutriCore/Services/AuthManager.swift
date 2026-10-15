@@ -107,6 +107,37 @@ class AuthManager: ObservableObject {
         isLoading = false
     }
 
+    var currentEmail: String? { supabase.auth.currentUser?.email }
+
+    /// Starts an email change; Supabase emails a confirmation link to the new address.
+    /// Returns an error message, or nil on success.
+    func updateEmail(_ email: String) async -> String? {
+        let trimmed = email.trimmingCharacters(in: .whitespaces).lowercased()
+        guard trimmed.contains("@"), trimmed.contains(".") else { return "Enter a valid email address." }
+        do {
+            _ = try await supabase.auth.update(user: UserAttributes(email: trimmed))
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// Permanently deletes the account on the server (and cancels billing), then clears local state.
+    /// Returns an error message, or nil on success.
+    func deleteAccount() async -> String? {
+        do {
+            try await supabase.functions.invoke("delete-account")
+        } catch {
+            return "Couldn't delete your account. Check your connection and try again."
+        }
+        try? await supabase.auth.signOut()
+        UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
+        UserDefaults.standard.removeObject(forKey: "accountDisplayName")
+        SubscriptionManager.shared.clearOnSignOut()
+        SocialService.shared.reset()
+        return nil
+    }
+
     func signOut() async {
         do {
             try await supabase.auth.signOut()
@@ -114,6 +145,8 @@ class AuthManager: ObservableObject {
             // Wipe user defaults so the next user starts fresh
             UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
             SubscriptionManager.shared.clearOnSignOut()
+            SocialService.shared.reset()
+            UserDefaults.standard.removeObject(forKey: "accountDisplayName")
             
         } catch {
             print("SignOut Error: \(error)")

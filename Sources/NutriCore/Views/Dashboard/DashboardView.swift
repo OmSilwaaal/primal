@@ -7,7 +7,6 @@ struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query private var meals: [MealEntry]
     @Query private var profiles: [UserProfile]
-    @Query private var fastingStates: [FastingState]
     @Query private var hydrations: [DailyHydration]
     @StateObject private var healthManager = HealthKitManager.shared
 
@@ -36,9 +35,8 @@ struct DashboardView: View {
         hydrations.first(where: { Calendar.current.isDateInToday($0.date) })
     }
 
-    /// Creates the singleton fasting row and today's hydration row if they don't exist yet.
+    /// Creates today's hydration row if it doesn't exist yet.
     private func ensureRecords() {
-        if fastingStates.isEmpty { modelContext.insert(FastingState()) }
         if todaysHydration == nil { modelContext.insert(DailyHydration()) }
         try? modelContext.save()
     }
@@ -56,34 +54,8 @@ struct DashboardView: View {
                             .padding(.horizontal, 16)
                             .padding(.bottom, 4)
 
-                        // ── Daily Insight ──────────────────────────────
-                        DailyInsightCard(
-                            calories: todaysMeals.totalCalories, calorieGoal: goals.calories,
-                            protein: todaysMeals.totalProtein, proteinGoal: goals.protein,
-                            mealCount: todaysMeals.count, fasting: fastingStates.first
-                        )
-                        .padding(.horizontal, 16)
-
-                        // ── Fasting Clock ───────────────────────────────────
-                        if let fasting = fastingStates.first {
-                            LightFastingCard(state: fasting) {
-                                if fasting.isFasting {
-                                    fasting.isFasting = false
-                                    fasting.startTime = nil
-                                } else {
-                                    fasting.isFasting = true
-                                    fasting.startTime = Date()
-                                }
-                                try? modelContext.save()
-                            } onExtendTarget: {
-                                fasting.targetDurationHours = min(fasting.targetDurationHours + 1, 48)
-                                try? modelContext.save()
-                            }
-                            .padding(.horizontal, 16)
-                        }
-
-                        // ── Metabolic Budget ─────────────────────────────
-                        LightMetabolicBudgetCard(
+                        // ── Calorie Clock ───────────────────────────────────
+                        CalorieClockCard(
                             totalCalories: todaysMeals.totalCalories, goal: goals.calories,
                             protein: todaysMeals.totalProtein, proteinGoal: goals.protein,
                             fat: todaysMeals.totalFat, fatGoal: goals.fat,
@@ -107,7 +79,7 @@ struct DashboardView: View {
                         // ── Automated Log (Meal Stream) ───────────────────
                         LightMealLogSection(meals: todaysMeals) { meal in
                             Haptics.success()
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { modelContext.delete(meal) }
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { MealLogger.delete(meal, in: modelContext) }
                         }
                         .padding(.horizontal, 16)
 
@@ -119,6 +91,7 @@ struct DashboardView: View {
             .task {
                 ensureRecords()
                 await healthManager.fetchTodayData()
+                await SocialService.shared.backfill(meals)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
@@ -170,240 +143,57 @@ private struct LightStitchHeader: View {
     }
 }
 
-// MARK: - Daily Insight Card (derived from logged data, no AI involved)
-struct DailyInsightCard: View {
-    let calories: Double
-    let calorieGoal: Double
-    let protein: Double
-    let proteinGoal: Double
-    let mealCount: Int
-    let fasting: FastingState?
-
-    private var fastEnd: Date? {
-        guard let f = fasting, f.isFasting, let start = f.startTime else { return nil }
-        return start.addingTimeInterval(f.targetDurationHours * 3600)
-    }
-
-    private var headline: String {
-        if let end = fastEnd {
-            return end > Date() ? "Fast in progress" : "Fast target reached"
-        }
-        if mealCount == 0 { return "Nothing logged yet" }
-        let left = Int(calorieGoal - calories)
-        return left > 0 ? "\(left) kcal left today" : "Calorie goal reached"
-    }
-
-    private var detail: Text {
-        if let end = fastEnd {
-            return end > Date()
-                ? Text("Your eating window opens at ") + Text(end, style: .time).fontWeight(.semibold).foregroundColor(.ncPrimary) + Text(".")
-                : Text("You can break your fast whenever you're ready.")
-        }
-        if mealCount == 0 { return Text("Scan a barcode, snap a photo, or search to log your first meal.") }
-        let toGo = Int(proteinGoal - protein)
-        return toGo > 0 ? Text("\(toGo)g of protein to go to hit today's target.") : Text("Protein target met.")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("TODAY")
-                    .font(.system(size: 11, weight: .bold))
-                    .tracking(1)
-                    .foregroundColor(.ncIndigo)
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-                    .background(Color.ncIndigoLight)
-                    .cornerRadius(12)
-                Spacer()
-                if calorieGoal > 0 {
-                    Text("\(Int(calories / calorieGoal * 100))% of goal")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.ncGreen)
-                        .padding(.horizontal, 8).padding(.vertical, 2)
-                        .background(Color.ncGreenLight)
-                        .cornerRadius(12)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(headline)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.ncPrimary)
-                detail
-                    .font(.ncBodySm)
-                    .foregroundColor(.ncSecondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .glassCard()
-    }
-}
-
-// MARK: - Fasting Clock (Light)
-struct LightFastingCard: View {
-    let state: FastingState
-    let onToggle: () -> Void
-    let onExtendTarget: () -> Void
-    private var targetSeconds: Double { state.targetDurationHours * 3600.0 }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                HStack(spacing: 8) {
-                    Circle().fill(Color.ncIndigo).frame(width: 8, height: 8)
-                    Text("FASTING CLOCK")
-                        .font(.ncLabelMonoBold).tracking(1).foregroundColor(.ncPrimary)
-                }
-                Spacer()
-                if let start = state.startTime {
-                    Text("Started \(start, style: .time)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.ncSecondary)
-                        .padding(.horizontal, 10).padding(.vertical, 2)
-                        .background(Color.ncSurface)
-                        .cornerRadius(12)
-                }
-            }
-            
-            // Circular Arc Progress
-            TimelineView(.periodic(from: .now, by: 1.0)) { ctx in
-                let elapsed = state.isFasting && state.startTime != nil ? ctx.date.timeIntervalSince(state.startTime!) : 0
-                let pct = state.isFasting ? min(elapsed / targetSeconds, 1.0) : 0
-                
-                let h = Int(elapsed) / 3600
-                let m = (Int(elapsed) % 3600) / 60
-                
-                ZStack {
-                    Circle()
-                        .trim(from: 0, to: 0.75)
-                        .stroke(Color.ncSurfaceContHigh, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                        .rotationEffect(.degrees(135))
-                        .frame(width: 200, height: 200)
-                    
-                    Circle()
-                        .trim(from: 0, to: 0.75 * pct)
-                        .stroke(Color.ncIndigo, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                        .rotationEffect(.degrees(135))
-                        .frame(width: 200, height: 200)
-                        .animation(.smooth(duration: 0.6), value: pct)
-                    
-                    VStack(spacing: 4) {
-                        Text("Autophagy Stage")
-                            .font(.system(size: 11, weight: .medium))
-                            .tracking(1).foregroundColor(.ncSecondary)
-                            .textCase(.uppercase)
-                        Text(String(format: "%02dh %02dm", h, m))
-                            .font(.system(size: 36, weight: .bold).monospacedDigit())
-                            .tracking(-1).foregroundColor(.ncPrimary)
-                            .contentTransition(.numericText())
-                        Text("Target \(Int(state.targetDurationHours))h (\(Int(pct * 100))%)")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.ncIndigo)
-                    }
-                }
-            }
-            .frame(height: 180)
-            
-            // Stage indicators (estimated from time fasted)
-            TimelineView(.periodic(from: .now, by: 60.0)) { ctx in
-                let hours = state.isFasting && state.startTime != nil ? ctx.date.timeIntervalSince(state.startTime!) / 3600 : 0
-                HStack(spacing: 8) {
-                    StagePill(label: "Glycogen", status: hours >= 12 ? "Depleted" : (hours > 0 ? "Burning" : "—"), isComplete: hours >= 12)
-                    StagePill(label: "Ketosis", status: hours >= 14 ? "Active" : "Pending", isComplete: hours >= 14)
-                    StagePill(label: "Autophagy", status: hours >= 16 ? "Active" : "Pending", isComplete: hours >= 16, highlight: hours >= 16)
-                }
-            }
-            
-            // Buttons
-            HStack(spacing: 10) {
-                Button(action: onExtendTarget) { Text("+1h Target") }
-                    .buttonStyle(SecondaryButtonStyle())
-                
-                Button(action: onToggle) { Text(state.isFasting ? "End Fast" : "Start Fast") }
-                    .buttonStyle(PrimaryButtonStyle(height: 44, radius: 12))
-            }
-        }
-        .padding(20)
-        .glassCard()
-    }
-}
-
-struct StagePill: View {
-    let label: String
-    let status: String
-    let isComplete: Bool
-    var highlight: Bool = false
-    
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(label).font(.system(size: 10, weight: .medium)).tracking(1).textCase(.uppercase)
-                .foregroundColor(highlight ? .ncIndigo : .ncSecondary)
-            Text(status).font(.system(size: 12, weight: .semibold))
-                .foregroundColor(highlight ? .ncIndigo : .ncPrimary)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 8)
-        .background(highlight ? Color.ncIndigoLight : Color.ncSurface)
-        .cornerRadius(12)
-    }
-}
-
-// MARK: - Metabolic Budget (Light)
-struct LightMetabolicBudgetCard: View {
+// MARK: - Calorie Clock
+/// Today's calories as a ring (like a clock face), with the macro split underneath.
+struct CalorieClockCard: View {
     let totalCalories, goal, protein, proteinGoal, fat, fatGoal, carbs, carbGoal: Double
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("TODAY'S CALORIES")
-                        .font(.ncLabelMonoBold).tracking(1).foregroundColor(.ncSecondary)
-                    HStack(alignment: .lastTextBaseline, spacing: 4) {
-                        Text("\(Int(totalCalories))")
-                            .font(.system(size: 26, weight: .bold).monospacedDigit())
-                            .foregroundColor(.ncPrimary)
-                            .contentTransition(.numericText())
-                            .animation(.smooth, value: Int(totalCalories))
-                        Text("/ \(Int(goal)) kcal")
-                            .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    }
-                }
-                Spacer()
-                Text("\(Int(max(0, goal - totalCalories))) kcal left")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.ncIndigo)
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-                    .background(Color.ncIndigoLight)
-                    .cornerRadius(12)
-            }
-            
-            // Stacked Bar
-            GeometryReader { geo in
-                let w = geo.size.width
-                // Segments are each macro's calories as a share of the calorie goal (4/9/4 kcal per gram),
-                // scaled down together if the day goes over goal.
-                let safeGoal = max(goal, 1)
-                let raw = [protein * 4, fat * 9, carbs * 4].map { $0 / safeGoal }
-                let squeeze = max(raw.reduce(0, +), 1)
-                let pPct = raw[0] / squeeze
-                let fPct = raw[1] / squeeze
-                let cPct = raw[2] / squeeze
 
-                HStack(spacing: 0) {
-                    Rectangle().fill(Color.ncPrimary).frame(width: w * pPct)
-                    Rectangle().fill(Color.ncOrange).frame(width: w * fPct)
-                    Rectangle().fill(Color.ncGreen).frame(width: w * cPct)
-                    Rectangle().fill(Color.ncSurfaceContHigh).frame(maxWidth: .infinity)
-                }
-                .clipShape(Capsule())
-                .animation(.smooth(duration: 0.5), value: raw)
+    private var progress: Double { goal > 0 ? min(totalCalories / goal, 1) : 0 }
+    private var remaining: Int { Int(goal - totalCalories) }
+    private var isOver: Bool { totalCalories > goal }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Calories")
+                    .font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                Spacer()
+                Text(isOver ? "\(-remaining) over" : "\(remaining) left")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(isOver ? .ncOrange : .ncIndigo)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(isOver ? Color.ncOrangeLight : Color.ncIndigoLight, in: Capsule())
             }
-            .frame(height: 10)
-            
-            VStack(spacing: 8) {
-                LightMacroRow(color: .ncPrimary, title: "Protein", subtitle: LightMacroRow.remaining(protein, proteinGoal), value: protein, target: proteinGoal)
-                LightMacroRow(color: .ncOrange, title: "Fat", subtitle: LightMacroRow.remaining(fat, fatGoal), value: fat, target: fatGoal)
-                LightMacroRow(color: .ncGreen, title: "Carbs", subtitle: LightMacroRow.remaining(carbs, carbGoal), value: carbs, target: carbGoal)
+
+            ZStack {
+                Circle()
+                    .trim(from: 0, to: 0.75)
+                    .stroke(Color.ncSurfaceContHigh, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                Circle()
+                    .trim(from: 0, to: 0.75 * progress)
+                    .stroke(isOver ? Color.ncOrange : Color.ncPrimary, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                    .animation(.smooth(duration: 0.7), value: progress)
+
+                VStack(spacing: 2) {
+                    Text("\(Int(totalCalories))")
+                        .font(.system(size: 44, weight: .bold).monospacedDigit())
+                        .tracking(-1)
+                        .foregroundColor(.ncPrimary)
+                        .contentTransition(.numericText())
+                        .animation(.smooth, value: Int(totalCalories))
+                    Text("of \(Int(goal)) kcal")
+                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                }
+            }
+            .frame(width: 210, height: 210)
+            .frame(height: 175, alignment: .top)
+
+            HStack(spacing: 8) {
+                MacroStat(color: .ncPrimary, title: "Protein", value: protein, target: proteinGoal)
+                MacroStat(color: .ncOrange, title: "Fat", value: fat, target: fatGoal)
+                MacroStat(color: .ncGreen, title: "Carbs", value: carbs, target: carbGoal)
             }
         }
         .padding(20)
@@ -411,35 +201,35 @@ struct LightMetabolicBudgetCard: View {
     }
 }
 
-struct LightMacroRow: View {
+private struct MacroStat: View {
     let color: Color
     let title: String
-    let subtitle: String
     let value: Double
     let target: Double
 
-    static func remaining(_ value: Double, _ target: Double) -> String {
-        let left = Int(target - value)
-        return left > 0 ? "\(left)g left" : "\(-left)g over target"
-    }
-
     var body: some View {
-        HStack(spacing: 10) {
-            Circle().fill(color).frame(width: 10, height: 10)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text(subtitle).font(.system(size: 11)).foregroundColor(.ncSecondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                Text(title).font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 0) {
-                Text("\(Int(value))g").font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
-                Text("/ \(Int(target))g").font(.system(size: 11)).foregroundColor(.ncSecondary)
+            Text("\(Int(value))g")
+                .font(.system(size: 18, weight: .bold).monospacedDigit())
+                .foregroundColor(.ncPrimary)
+                .contentTransition(.numericText())
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.08))
+                    Capsule().fill(color).frame(width: geo.size.width * min(max(target > 0 ? value / target : 0, 0), 1))
+                }
             }
+            .frame(height: 4)
+            Text("/ \(Int(target))g").font(.system(size: 11)).foregroundColor(.ncSecondary)
         }
-        .padding(10)
-        .background(Color.ncSurfaceContLow)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(.smooth(duration: 0.5), value: value)
     }
 }
 

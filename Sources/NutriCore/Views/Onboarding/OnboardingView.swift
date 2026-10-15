@@ -44,7 +44,7 @@ struct OnboardingView: View {
                                          label: "Optical food scanner", sub: "AI-powered nutrient tracking")
                     Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                     OnboardingFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
-                                         label: "Fasting tracker", sub: "20:4 protocol, live countdown")
+                                         label: "Calorie & macro tracking", sub: "Daily goals built from your profile")
                     Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                     OnboardingFeatureRow(icon: "drop.fill", tint: .ncGreen, tintBg: .ncGreenLight,
                                          label: "Electrolyte monitor", sub: "Water & salt balance")

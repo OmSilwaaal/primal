@@ -17,11 +17,12 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
-                DashboardView(onProfile: { selectedTab = 4 }).tag(0)
+                DashboardView(onProfile: { selectedTab = 5 }).tag(0)
                 CameraView().tag(1)
                 SearchView().tag(2)
-                PlacesMapView().tag(3)
-                ProfileView().tag(4)
+                FriendsView().tag(3)
+                PlacesMapView().tag(4)
+                ProfileView().tag(5)
             }
             .ignoresSafeArea(edges: .bottom)
 
@@ -41,6 +42,7 @@ struct PrimalLightTabBar: View {
         ("sparkles",             "sparkles",                "Today"),
         ("camera.viewfinder",    "camera.viewfinder",       "AI Scan"),
         ("magnifyingglass",      "magnifyingglass",         "Search"),
+        ("person.2",             "person.2.fill",           "Friends"),
         ("map",                  "map.fill",                "Places"),
         ("person",               "person.fill",             "Profile"),
     ]
@@ -76,7 +78,7 @@ struct PrimalLightTabBar: View {
                 .buttonStyle(TabButtonStyle())
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 4)
         .padding(.top, 8)
         .padding(.bottom, 26) // home indicator
         .background(

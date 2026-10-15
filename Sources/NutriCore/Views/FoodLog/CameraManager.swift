@@ -19,10 +19,8 @@ class CameraManager: NSObject, ObservableObject {
     /// Product barcodes only (UPC-A is reported as EAN-13). QR/PDF417 would trigger pointless lookups.
     private static let barcodeTypes: [AVMetadataObject.ObjectType] = [.ean8, .ean13, .upce]
 
-    override init() {
-        super.init()
-        checkPermissions()
-    }
+    // The session is started from CameraView.onAppear, not here, so the camera (and its permission
+    // prompt) doesn't spin up at launch while the Scan tab is still off screen.
     
     func checkPermissions() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {

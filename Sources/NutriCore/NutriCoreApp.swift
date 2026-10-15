@@ -15,7 +15,7 @@ struct NutriCoreApp: App {
                     Task { try? await supabase.auth.session(from: url) }
                 }
         }
-        .modelContainer(for: [MealEntry.self, UserProfile.self, FastingState.self, DailyHydration.self])
+        .modelContainer(for: [MealEntry.self, UserProfile.self, DailyHydration.self])
     }
 }
 
@@ -34,7 +34,12 @@ struct RootView: View {
     var body: some View {
         content
             .task(id: authManager.isAuthenticated) {
-                if authManager.isAuthenticated { await subManager.refreshEntitlement() }
+                if authManager.isAuthenticated {
+                    await subManager.refreshEntitlement()
+                    await SocialService.shared.bootstrap()
+                } else {
+                    SocialService.shared.reset()
+                }
             }
     }
 

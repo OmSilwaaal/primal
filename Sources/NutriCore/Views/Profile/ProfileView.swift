@@ -6,6 +6,7 @@ struct ProfileView: View {
     @Query private var profiles: [UserProfile]
     @Query private var meals: [MealEntry]
     @StateObject private var authManager = AuthManager.shared
+    @StateObject private var social = SocialService.shared
 
     @State private var isEditing = false
     @State private var weightStr = ""
@@ -57,20 +58,12 @@ struct ProfileView: View {
                             // ── Identity Card ────────────────────────────────
                             VStack(spacing: 12) {
                                 HStack {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.ncSurfaceContHigh)
-                                            .frame(width: 56, height: 56)
-                                            .overlay(Circle().stroke(Color.white.opacity(0.08), lineWidth: 1))
-                                        Image(systemName: "person")
-                                            .font(.system(size: 22, weight: .light))
-                                            .foregroundColor(.ncPrimary)
-                                    }
+                                    AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 56)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(profile.name.isEmpty ? "YOUR PROFILE" : profile.name.uppercased())
+                                        Text(displayName(profile))
                                             .font(.system(size: 18, weight: .semibold))
                                             .tracking(1).foregroundColor(.ncPrimary)
-                                        Text(profile.dietType.uppercased())
+                                        Text(social.myProfile.map { "@\($0.username)" } ?? profile.dietType)
                                             .font(.ncLabelMonoReg).tracking(1.5).foregroundColor(.ncSecondary)
                                     }
                                     Spacer()
@@ -197,6 +190,11 @@ struct ProfileView: View {
             }
             .navigationBarHidden(true)
         }
+    }
+
+    private func displayName(_ profile: UserProfile) -> String {
+        if let name = social.myProfile?.name, !name.isEmpty { return name }
+        return profile.name.isEmpty ? "Your profile" : profile.name
     }
 
     private func startEditing(_ profile: UserProfile) {

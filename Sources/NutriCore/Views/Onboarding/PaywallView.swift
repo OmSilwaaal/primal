@@ -38,13 +38,13 @@ struct PaywallView: View {
                     VStack(spacing: 0) {
                         PaywallFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
                                           label: "Fasting tracker", sub: "Live timer with adjustable target")
-                        Divider().padding(.leading, 62)
+                        Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                         PaywallFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
                                           label: "Food scanner", sub: "Barcode and AI photo logging")
-                        Divider().padding(.leading, 62)
+                        Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                         PaywallFeatureRow(icon: "heart.text.square.fill", tint: .ncError, tintBg: Color.ncError.opacity(0.1),
                                           label: "Apple Health sync", sub: "Steps, activity and nutrition")
-                        Divider().padding(.leading, 62)
+                        Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                         PaywallFeatureRow(icon: "chart.bar.xaxis", tint: .ncGreen, tintBg: .ncGreenLight,
                                           label: "Full nutrient tracking", sub: "Macros, vitamins and minerals")
                     }
@@ -64,18 +64,13 @@ struct PaywallView: View {
                         } label: {
                             ZStack {
                                 if subManager.isWorking {
-                                    ProgressView().tint(.white)
+                                    ProgressView().tint(.ncOnPrimary)
                                 } else {
                                     Text("Subscribe · \(selectedPlan.priceLabel)")
-                                        .font(.system(size: 16, weight: .semibold))
                                 }
                             }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 54)
-                            .background(Color.ncPrimary)
-                            .cornerRadius(14)
                         }
-                        .smoothButton()
+                        .buttonStyle(PrimaryButtonStyle(height: 54))
                         .disabled(subManager.isWorking)
 
                         if let error = subManager.errorMessage {
@@ -150,10 +145,11 @@ private struct PlanCard: View {
             .cornerRadius(14)
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? Color.ncIndigo : Color.black.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.ncIndigo : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SmoothButtonStyle())
+        .animation(.easeOut(duration: 0.2), value: isSelected)
     }
 }
 

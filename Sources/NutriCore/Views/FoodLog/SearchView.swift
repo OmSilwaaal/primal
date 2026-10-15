@@ -68,7 +68,7 @@ struct SearchView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 60)
+                .padding(.top, 8)
                 .padding(.bottom, 12)
                 .background(Color.ncSurfaceContLowest)
                 .overlay(Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1), alignment: .bottom)
@@ -149,8 +149,8 @@ struct SearchView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(Color.ncPrimary)
-                    .cornerRadius(20)
+                    .background(Color.ncSurfaceContHighest, in: Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
                     .padding(.top, 60)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }

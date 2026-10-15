@@ -17,7 +17,7 @@ struct PlacesMapView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.ncBg.ignoresSafeArea()
             
             if locationManager.authorizationStatus == .notDetermined {
                 VStack(spacing: 24) {
@@ -25,9 +25,8 @@ struct PlacesMapView: View {
                         .font(.system(size: 60, weight: .ultraLight))
                         .foregroundColor(.white)
                     
-                    Text("LOCATION REQUIRED")
+                    Text("Location needed")
                         .font(.system(size: 16, weight: .bold))
-                        .tracking(2)
                         .foregroundColor(.white)
                     
                     Text("We need your location to find high-quality primal food sources near you.")
@@ -36,16 +35,12 @@ struct PlacesMapView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                     
-                    Button("ENABLE LOCATION") {
+                    Button("Enable location") {
                         locationManager.requestPermission()
                     }
-                    .font(.system(size: 14, weight: .bold))
-                    .tracking(1)
-                    .foregroundColor(.black)
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(8)
-                    .padding(.top, 20)
+                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 14))
+                    .frame(maxWidth: 220)
+                    .padding(.top, 12)
                 }
             } else if locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
                 VStack(spacing: 24) {
@@ -53,14 +48,18 @@ struct PlacesMapView: View {
                         .font(.system(size: 60, weight: .ultraLight))
                         .foregroundColor(.gray)
                     
-                    Text("ACCESS DENIED")
+                    Text("Location off")
                         .font(.system(size: 16, weight: .bold))
-                        .tracking(2)
                         .foregroundColor(.white)
                     
                     Text("Please enable location in Settings to use the map.")
                         .font(.system(size: 14))
                         .foregroundColor(.gray)
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                    }
+                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 14))
+                    .frame(maxWidth: 220)
                 }
             } else {
                 // Map View
@@ -90,9 +89,8 @@ struct PlacesMapView: View {
                         if isSearching {
                             ProgressView()
                                 .tint(.white)
-                                .padding()
-                                .background(Color.black.opacity(0.8))
-                                .cornerRadius(8)
+                                .padding(12)
+                                .background(Color.ncSurfaceContHigh, in: Capsule())
                         }
                         
                         if let item = selectedItem {
@@ -105,24 +103,23 @@ struct PlacesMapView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
                                 ForEach(queries, id: \.self) { query in
-                                    Button(action: {
-                                        selectedQuery = query
-                                        selectedItem = nil
+                                    let isSelected = selectedQuery == query
+                                    Button {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                            selectedQuery = query
+                                            selectedItem = nil
+                                        }
                                         searchPlaces()
-                                    }) {
-                                        Text(query.uppercased())
-                                            .font(.system(size: 12, weight: .bold))
-                                            .tracking(1)
-                                            .foregroundColor(selectedQuery == query ? .black : .white)
+                                    } label: {
+                                        Text(query)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(isSelected ? .ncOnPrimary : .ncPrimary)
                                             .padding(.horizontal, 16)
-                                            .padding(.vertical, 10)
-                                            .background(selectedQuery == query ? Color.white : Color.black)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                            )
-                                            .cornerRadius(8)
+                                            .padding(.vertical, 9)
+                                            .background(isSelected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Capsule())
+                                            .overlay(Capsule().stroke(Color.white.opacity(isSelected ? 0 : 0.1), lineWidth: 1))
                                     }
+                                    .smoothButton()
                                 }
                             }
                             .padding(.horizontal)
@@ -131,7 +128,7 @@ struct PlacesMapView: View {
                         .padding(.top, 40)
                     }
                     .background(
-                        LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .bottom, endPoint: .top)
+                        LinearGradient(colors: [Color.ncBg, Color.ncBg.opacity(0)], startPoint: .bottom, endPoint: .top)
                     )
                     .animation(.spring(), value: selectedItem)
                 }
@@ -192,7 +189,7 @@ struct PlaceDetailCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(item.name?.uppercased() ?? "UNKNOWN")
+                Text(item.name ?? "Unknown place")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
                 Spacer()
@@ -223,25 +220,19 @@ struct PlaceDetailCard: View {
                 }
             }
             
-            Button("OPEN IN MAPS") {
+            Button("Open in Maps") {
                 item.openInMaps(launchOptions: nil)
             }
-            .font(.system(size: 12, weight: .bold))
-            .tracking(1)
-            .foregroundColor(.black)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.white)
-            .cornerRadius(8)
+            .buttonStyle(PrimaryButtonStyle(height: 46, radius: 12))
             .padding(.top, 8)
         }
         .padding()
-        .background(Color.black.opacity(0.95))
+        .background(Color.ncSurfaceContLowest)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .padding(.horizontal)
     }
 }

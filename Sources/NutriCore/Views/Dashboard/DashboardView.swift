@@ -11,11 +11,9 @@ struct DashboardView: View {
     @Query private var hydrations: [DailyHydration]
     @StateObject private var healthManager = HealthKitManager.shared
 
-    var onScan: () -> Void = {}
     var onProfile: () -> Void = {}
 
-    init(onScan: @escaping () -> Void = {}, onProfile: @escaping () -> Void = {}) {
-        self.onScan = onScan
+    init(onProfile: @escaping () -> Void = {}) {
         self.onProfile = onProfile
         // Only load recent rows; "today" is filtered precisely in memory so the view survives midnight.
         let cutoff = Calendar.current.date(byAdding: .day, value: -2, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
@@ -54,7 +52,7 @@ struct DashboardView: View {
                     VStack(spacing: 12) {
                         // ── Sticky Header ───────────────────────────────────
                         LightStitchHeader(onProfile: onProfile)
-                            .padding(.top, 56)
+                            .padding(.top, 12)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 4)
 
@@ -108,38 +106,13 @@ struct DashboardView: View {
 
                         // ── Automated Log (Meal Stream) ───────────────────
                         LightMealLogSection(meals: todaysMeals) { meal in
-                            withAnimation(.spring()) { modelContext.delete(meal) }
+                            Haptics.success()
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { modelContext.delete(meal) }
                         }
                         .padding(.horizontal, 16)
 
-                        Spacer().frame(height: 160)
+                        Spacer().frame(height: 110)
                     }
-                }
-
-                // Floating Action Button
-                VStack {
-                    Spacer()
-                    Button(action: onScan) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "camera.macro")
-                                .font(.system(size: 20))
-                                .foregroundColor(Color(hex: "#c7d2fe"))
-                            Text("Scan or Log Metabolic Fuel")
-                                .font(.system(size: 14, weight: .semibold))
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 16))
-                                .foregroundColor(Color(hex: "#fed7aa"))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(Color.ncPrimary)
-                        .cornerRadius(26)
-                        .shadow(color: Color.black.opacity(0.15), radius: 10, y: 4)
-                        .padding(.horizontal, 24)
-                    }
-                    .smoothButton()
-                    .padding(.bottom, 90) // Above tab bar
                 }
             }
             .navigationBarHidden(true)
@@ -189,7 +162,7 @@ private struct LightStitchHeader: View {
                 Button(action: onProfile) {
                     ZStack {
                         Circle().fill(Color.ncPrimary).frame(width: 32, height: 32)
-                        Image(systemName: "person.fill").font(.system(size: 14)).foregroundColor(.white)
+                        Image(systemName: "person.fill").font(.system(size: 14)).foregroundColor(.ncOnPrimary)
                     }
                 }
             }
@@ -304,7 +277,7 @@ struct LightFastingCard: View {
                 ZStack {
                     Circle()
                         .trim(from: 0, to: 0.75)
-                        .stroke(Color.ncSurface, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .stroke(Color.ncSurfaceContHigh, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                         .rotationEffect(.degrees(135))
                         .frame(width: 200, height: 200)
                     
@@ -313,7 +286,7 @@ struct LightFastingCard: View {
                         .stroke(Color.ncIndigo, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                         .rotationEffect(.degrees(135))
                         .frame(width: 200, height: 200)
-                        .animation(.linear(duration: 1.0), value: pct)
+                        .animation(.smooth(duration: 0.6), value: pct)
                     
                     VStack(spacing: 4) {
                         Text("Autophagy Stage")
@@ -321,8 +294,9 @@ struct LightFastingCard: View {
                             .tracking(1).foregroundColor(.ncSecondary)
                             .textCase(.uppercase)
                         Text(String(format: "%02dh %02dm", h, m))
-                            .font(.system(size: 36, weight: .bold))
+                            .font(.system(size: 36, weight: .bold).monospacedDigit())
                             .tracking(-1).foregroundColor(.ncPrimary)
+                            .contentTransition(.numericText())
                         Text("Target \(Int(state.targetDurationHours))h (\(Int(pct * 100))%)")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.ncIndigo)
@@ -343,24 +317,11 @@ struct LightFastingCard: View {
             
             // Buttons
             HStack(spacing: 10) {
-                Button(action: onExtendTarget) {
-                    Text("+1h Target")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.ncPrimary)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background(Color.ncSurface)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.05), lineWidth: 1))
-                }.smoothButton()
+                Button(action: onExtendTarget) { Text("+1h Target") }
+                    .buttonStyle(SecondaryButtonStyle())
                 
-                Button(action: onToggle) {
-                    Text(state.isFasting ? "End Fast" : "Start Fast")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background(Color.ncPrimary)
-                        .cornerRadius(12)
-                }.smoothButton()
+                Button(action: onToggle) { Text(state.isFasting ? "End Fast" : "Start Fast") }
+                    .buttonStyle(PrimaryButtonStyle(height: 44, radius: 12))
             }
         }
         .padding(20)
@@ -399,8 +360,10 @@ struct LightMetabolicBudgetCard: View {
                         .font(.ncLabelMonoBold).tracking(1).foregroundColor(.ncSecondary)
                     HStack(alignment: .lastTextBaseline, spacing: 4) {
                         Text("\(Int(totalCalories))")
-                            .font(.system(size: 26, weight: .bold))
+                            .font(.system(size: 26, weight: .bold).monospacedDigit())
                             .foregroundColor(.ncPrimary)
+                            .contentTransition(.numericText())
+                            .animation(.smooth, value: Int(totalCalories))
                         Text("/ \(Int(goal)) kcal")
                             .font(.system(size: 13)).foregroundColor(.ncSecondary)
                     }
@@ -430,9 +393,10 @@ struct LightMetabolicBudgetCard: View {
                     Rectangle().fill(Color.ncPrimary).frame(width: w * pPct)
                     Rectangle().fill(Color.ncOrange).frame(width: w * fPct)
                     Rectangle().fill(Color.ncGreen).frame(width: w * cPct)
-                    Rectangle().fill(Color.ncSurface).frame(maxWidth: .infinity)
+                    Rectangle().fill(Color.ncSurfaceContHigh).frame(maxWidth: .infinity)
                 }
-                .cornerRadius(4)
+                .clipShape(Capsule())
+                .animation(.smooth(duration: 0.5), value: raw)
             }
             .frame(height: 10)
             
@@ -473,20 +437,20 @@ struct LightMacroRow: View {
             }
         }
         .padding(10)
-        .background(Color.ncSurface.opacity(0.7))
+        .background(Color.ncSurfaceContLow)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.02), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
     }
 }
 
-// MARK: - Hydration & Minerals (Light)
+// MARK: - Hydration & Minerals
 struct LightHydrationCard: View {
     let hydration: DailyHydration
     let onAddWater: () -> Void
     let onAddSalt: () -> Void
     private var waterLiters: Double { hydration.waterOunces * 0.0295735 }
     private var saltGrams: Double { hydration.addedSodiumMg / 1000.0 }
-    
+
     var body: some View {
         VStack(spacing: 12) {
             HStack {
@@ -499,71 +463,66 @@ struct LightHydrationCard: View {
                     .padding(.horizontal, 8).padding(.vertical, 2)
                     .background(Color.ncGreenLight).cornerRadius(12)
             }
-            
+
             HStack(spacing: 12) {
-                // Water
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "drop.fill").font(.system(size: 20)).foregroundColor(Color(hex: "#0284c7"))
-                        Spacer()
-                        Button(action: onAddWater) {
-                            Text("+250ml")
-                                .font(.system(size: 11, weight: .semibold)).foregroundColor(Color(hex: "#0369a1"))
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(Color.white).cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#bae6fd"), lineWidth: 1))
-                        }.smoothButton()
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(format: "%.1fL", waterLiters)).font(.system(size: 18, weight: .bold)).foregroundColor(Color(hex: "#0c4a6e"))
-                        Text("Target: 3.5L").font(.system(size: 11)).foregroundColor(Color(hex: "#0284c7"))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    GeometryReader { geo in
-                        let pct = min(waterLiters / 3.5, 1.0)
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.8))
-                            Capsule().fill(Color(hex: "#38bdf8")).frame(width: geo.size.width * pct)
-                                .animation(.spring(), value: pct)
-                        }
-                    }.frame(height: 6)
-                }
-                .padding(14).background(Color(hex: "#f0f9ff")).cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#bae6fd").opacity(0.5), lineWidth: 1))
-                
-                // Salt
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "sparkles").font(.system(size: 20)).foregroundColor(Color.ncGreen)
-                        Spacer()
-                        Button(action: onAddSalt) {
-                            Text("+Salt")
-                                .font(.system(size: 11, weight: .semibold)).foregroundColor(Color(hex: "#047857"))
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(Color.white).cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#bbf7d0"), lineWidth: 1))
-                        }.smoothButton()
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(format: "%.1fg", saltGrams)).font(.system(size: 18, weight: .bold)).foregroundColor(Color(hex: "#064e3b"))
-                        Text("Target: 5.0g").font(.system(size: 11)).foregroundColor(Color.ncGreen)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    GeometryReader { geo in
-                        let pct = min(saltGrams / 5.0, 1.0)
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.8))
-                            Capsule().fill(Color(hex: "#34d399")).frame(width: geo.size.width * pct)
-                                .animation(.spring(), value: pct)
-                        }
-                    }.frame(height: 6)
-                }
-                .padding(14).background(Color(hex: "#f0fdf4")).cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#bbf7d0").opacity(0.5), lineWidth: 1))
+                HydrationTile(icon: "drop.fill", tint: .ncSky, tintBg: .ncSkyLight,
+                              value: String(format: "%.1fL", waterLiters), target: "Target 3.5L",
+                              progress: waterLiters / 3.5, buttonTitle: "+250ml", action: onAddWater)
+                HydrationTile(icon: "sparkles", tint: .ncGreen, tintBg: .ncGreenLight,
+                              value: String(format: "%.1fg", saltGrams), target: "Target 5.0g",
+                              progress: saltGrams / 5.0, buttonTitle: "+Salt", action: onAddSalt)
             }
         }
         .padding(20)
         .glassCard()
+    }
+}
+
+private struct HydrationTile: View {
+    let icon: String
+    let tint: Color
+    let tintBg: Color
+    let value: String
+    let target: String
+    let progress: Double
+    let buttonTitle: String
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: icon).font(.system(size: 18)).foregroundColor(tint)
+                Spacer()
+                Button(action: action) {
+                    Text(buttonTitle)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(tint)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(tint.opacity(0.15), in: Capsule())
+                }
+                .smoothButton()
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 18, weight: .bold).monospacedDigit())
+                    .foregroundColor(.ncPrimary)
+                    .contentTransition(.numericText())
+                Text(target).font(.system(size: 11)).foregroundColor(.ncSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.08))
+                    Capsule().fill(tint).frame(width: geo.size.width * min(max(progress, 0), 1))
+                }
+            }
+            .frame(height: 5)
+            .animation(.smooth(duration: 0.5), value: progress)
+        }
+        .padding(14)
+        .background(tintBg.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(tint.opacity(0.2), lineWidth: 1))
     }
 }
 
@@ -586,12 +545,19 @@ struct LightMealLogSection: View {
             
             VStack(spacing: 10) {
                 if meals.isEmpty {
-                    Text("No meals logged today")
-                        .font(.system(size: 14)).foregroundColor(.ncSecondary)
-                        .padding(.vertical, 20)
+                    VStack(spacing: 8) {
+                        Image(systemName: "fork.knife").font(.system(size: 22, weight: .light)).foregroundColor(.ncOutline)
+                        Text("No meals logged today")
+                            .font(.system(size: 14)).foregroundColor(.ncSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+                    .glassCard()
                 } else {
                     ForEach(meals.reversed()) { meal in
                         LightMealRow(meal: meal) { onDelete(meal) }
+                            .transition(.asymmetric(insertion: .scale(scale: 0.96).combined(with: .opacity),
+                                                    removal: .opacity.combined(with: .move(edge: .leading))))
                     }
                 }
             }
@@ -614,7 +580,7 @@ struct LightMealRow: View {
                 Button(action: { onDelete(); offset = 0 }) {
                     Text("Delete")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
                         .padding(.horizontal, 20)
                         .frame(maxHeight: .infinity)
                         .background(Color.ncError)
@@ -625,9 +591,9 @@ struct LightMealRow: View {
             HStack(spacing: 14) {
                 // Image placeholder (light gray rounded box)
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.ncSurface)
+                    .fill(Color.ncSurfaceContHigh)
                     .frame(width: 64, height: 64)
-                    .overlay(Image(systemName: "photo").foregroundColor(.ncOutlineVariant))
+                    .overlay(Image(systemName: "fork.knife").foregroundColor(.ncOutline))
                 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
@@ -665,10 +631,9 @@ struct LightMealRow: View {
                 }
             }
             .padding(12)
-            .background(Color.white)
+            .background(Color.ncSurfaceContLowest)
             .cornerRadius(16)
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.05), lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.03), radius: 4, y: 2)
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.07), lineWidth: 1))
             .offset(x: offset)
             .gesture(
                 DragGesture()

@@ -117,18 +117,17 @@ struct CameraView: View {
             Spacer()
             HStack(spacing: 6) {
                 ForEach(["Barcode", "Image"], id: \.self) { mode in
-                    Button(mode.uppercased()) { selectedMode = mode }
+                    Button(mode.uppercased()) { withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { selectedMode = mode } }
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(selectedMode == mode ? .black : .white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(selectedMode == mode ? Color.white : Color.white.opacity(0.18))
-                        .cornerRadius(8)
+                        .background(selectedMode == mode ? Color.white : Color.white.opacity(0.18), in: Capsule())
                 }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 76)
+        .padding(.top, 12)
     }
 
     @ViewBuilder
@@ -344,7 +343,7 @@ struct QuickLogCard: View {
                             .foregroundColor(.white.opacity(0.6))
                         Spacer()
                         HStack(spacing: 6) {
-                            Text(String(format: "%.0fg", servingSize))
+                            Text(String(format: "%.0fg", servingSize)).contentTransition(.numericText())
                                 .font(.system(size: 14, weight: .black, design: .monospaced))
                                 .foregroundColor(.white)
                             Button {
@@ -358,6 +357,7 @@ struct QuickLogCard: View {
                                     .cornerRadius(6)
                                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.ncBorder, lineWidth: 1))
                             }
+                            .smoothButton()
                             Button {
                                 servingSize = min(1000, servingSize + 25)
                             } label: {
@@ -369,6 +369,7 @@ struct QuickLogCard: View {
                                     .cornerRadius(6)
                                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.ncBorder, lineWidth: 1))
                             }
+                            .smoothButton()
                         }
                     }
                     Slider(value: $servingSize, in: 5...1000, step: 5)
@@ -388,28 +389,17 @@ struct QuickLogCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
 
                 // Log CTA
-                Button(action: {
-                    let isHapticsEnabled = UserDefaults.standard.object(forKey: "isHapticsEnabled") as? Bool ?? true
-                    if isHapticsEnabled {
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                    }
+                Button {
+                    Haptics.success()
                     onLog()
-                }) {
+                } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "plus.circle")
-                            .font(.system(size: 15, weight: .bold))
-                        Text("LOG ENTRY")
-                            .font(.system(size: 13, weight: .black))
-                            .tracking(2)
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Log entry")
                     }
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.white)
-                    .cornerRadius(14)
                 }
-                .smoothButton()
+                .buttonStyle(PrimaryButtonStyle(height: 52, radius: 14))
             }
             .padding(16)
         }

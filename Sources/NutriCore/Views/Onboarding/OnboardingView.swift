@@ -2,216 +2,187 @@ import SwiftUI
 
 struct OnboardingView: View {
     @StateObject private var authManager = AuthManager.shared
-    @State private var email = ""
-    @State private var password = ""
-    @State private var isLoginMode = true
-    @State private var animateGradient = false
-    
+
     var body: some View {
         ZStack {
-            // Animated Monochrome Background
-            LinearGradient(
-                colors: [Color.black, Color(white: 0.15), Color.black],
-                startPoint: animateGradient ? .topLeading : .bottomTrailing,
-                endPoint: animateGradient ? .bottomTrailing : .topLeading
-            )
-            .ignoresSafeArea()
-            .onAppear {
-                withAnimation(.linear(duration: 8.0).repeatForever(autoreverses: true)) {
-                    animateGradient.toggle()
-                }
-            }
-            
-            // Subtle ambient glow
+            Color.ncBg.ignoresSafeArea()
+
+            // Soft indigo glow behind the brand mark
             Circle()
-                .fill(Color.white.opacity(0.05))
-                .frame(width: 300, height: 300)
-                .blur(radius: 60)
-                .offset(y: -200)
-            
-            VStack {
-                Spacer()
-                
-                // Glassmorphic Login Card matching the reference layout
-                VStack(alignment: .leading, spacing: 20) {
-                    
-                    Text(isLoginMode ? "Welcome to PRIMAL" : "Join PRIMAL")
-                        .font(.system(size: 28, weight: .heavy, design: .default))
-                        .foregroundColor(.white)
-                        .padding(.bottom, 8)
-                    
+                .fill(Color.ncIndigo.opacity(0.14))
+                .frame(width: 320, height: 320)
+                .blur(radius: 70)
+                .offset(y: -230)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 24)
+
+                // ── Brand ────────────────────────────────────────────────────
+                VStack(spacing: 18) {
+                    Image(systemName: "hexagon")
+                        .font(.system(size: 34, weight: .light))
+                        .foregroundColor(.ncIndigo)
+                        .frame(width: 76, height: 76)
+                        .glassCard(radius: 22)
+
+                    VStack(spacing: 8) {
+                        Text("Primal")
+                            .font(.system(size: 38, weight: .bold))
+                            .foregroundColor(.ncPrimary)
+                        Text("Ancestral nutrition, measured.")
+                            .font(.system(size: 15))
+                            .foregroundColor(.ncSecondary)
+                    }
+                }
+
+                Spacer(minLength: 24)
+
+                // ── Features ─────────────────────────────────────────────────
+                VStack(spacing: 0) {
+                    OnboardingFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
+                                         label: "Optical food scanner", sub: "AI-powered nutrient tracking")
+                    Divider().padding(.leading, 62)
+                    OnboardingFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
+                                         label: "Fasting tracker", sub: "20:4 protocol, live countdown")
+                    Divider().padding(.leading, 62)
+                    OnboardingFeatureRow(icon: "drop.fill", tint: .ncGreen, tintBg: .ncGreenLight,
+                                         label: "Electrolyte monitor", sub: "Water & salt balance")
+                }
+                .glassCard(radius: 18)
+                .padding(.horizontal, 20)
+
+                Spacer(minLength: 24)
+
+                // ── Auth ─────────────────────────────────────────────────────
+                VStack(spacing: 14) {
+                    HStack(spacing: 12) {
+                        CompactAuthButton(title: "Apple", icon: .system("applelogo"),
+                                          fg: .white, bg: .black, border: .clear) {
+                            Task { await authManager.signInWithApple() }
+                        }
+                        CompactAuthButton(title: "Google", icon: .google,
+                                          fg: .ncPrimary, bg: .ncSurfaceContLowest,
+                                          border: Color.black.opacity(0.1)) {
+                            Task { await authManager.signInWithGoogle() }
+                        }
+                    }
+                    .disabled(authManager.isLoading)
+                    .opacity(authManager.isLoading ? 0.6 : 1)
+
                     if let error = authManager.authError {
                         Text(error)
                             .font(.system(size: 12))
-                            .foregroundColor(.red)
+                            .foregroundColor(.ncError)
+                            .multilineTextAlignment(.center)
                     }
-                    
-                    // Email Field
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Email *")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.gray)
-                        
-                        TextField("", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                    }
-                    
-                    // Password Field
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Password *")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.gray)
-                        
-                        SecureField("", text: $password)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                    }
-                    
-                    if isLoginMode {
-                        Button(action: {}) {
-                            Text("Forgot your password?")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.white)
-                                .underline()
-                        }
-                        .padding(.top, -8)
-                    }
-                    
-                    // Primary Action Button
-                    Button(action: {
-                        Task {
-                            if isLoginMode {
-                                await authManager.signIn(email: email, password: password)
-                            } else {
-                                await authManager.signUp(email: email, password: password)
-                            }
-                        }
-                    }) {
-                        Text(authManager.isLoading ? "LOADING..." : "Continue")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.black)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                    }
-                    .disabled(authManager.isLoading || email.isEmpty || password.isEmpty)
-                    .opacity((email.isEmpty || password.isEmpty) ? 0.6 : 1.0)
-                    .padding(.top, 8)
-                    
-                    // Divider
-                    HStack {
-                        Rectangle().fill(Color.white.opacity(0.2)).frame(height: 1)
-                        Text("or")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                            .padding(.horizontal, 8)
-                        Rectangle().fill(Color.white.opacity(0.2)).frame(height: 1)
-                    }
-                    .padding(.vertical, 8)
-                    
-                    // OAuth Buttons
-                    VStack(spacing: 12) {
-                        // Google Button
-                        Button(action: {}) {
-                            HStack {
-                                // SF Symbols doesn't have Google, using generic circle or text
-                                Text("G")
-                                    .font(.system(size: 16, weight: .heavy))
-                                    .foregroundColor(.white)
-                                    .frame(width: 20)
-                                
-                                Spacer()
-                                Text("Continue with Google")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                Spacer()
-                                
-                                // Spacer for balance
-                                Color.clear.frame(width: 20)
-                            }
-                            .padding(.vertical, 14)
-                            .padding(.horizontal, 16)
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                        }
-                        
-                        // Apple Button
-                        Button(action: {}) {
-                            HStack {
-                                Image(systemName: "applelogo")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                                    .frame(width: 20)
-                                
-                                Spacer()
-                                Text("Continue with Apple")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                Spacer()
-                                
-                                Color.clear.frame(width: 20)
-                            }
-                            .padding(.vertical, 14)
-                            .padding(.horizontal, 16)
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                        }
-                    }
-                    
-                    // Toggle Mode
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            withAnimation(.easeInOut) {
-                                isLoginMode.toggle()
-                            }
-                        }) {
-                            Text(isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Log In")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.gray)
-                                .underline()
-                        }
-                        Spacer()
-                    }
-                    .padding(.top, 16)
+
+                    Text("By continuing, you agree to our **Terms of Service** and **Privacy Policy**")
+                        .font(.system(size: 11))
+                        .foregroundColor(.ncSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
-                .padding(32)
-                .background(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-                .cornerRadius(24)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-                .padding(.horizontal, 16)
-                
-                Spacer()
-                Spacer()
+                .padding(.horizontal, 20)
+                .padding(.bottom, 32)
             }
         }
+    }
+}
+
+// MARK: - Compact provider button
+struct CompactAuthButton: View {
+    enum Icon { case system(String), google }
+
+    let title: String
+    let icon: Icon
+    let fg: Color
+    let bg: Color
+    let border: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                switch icon {
+                case .system(let name):
+                    Image(systemName: name).font(.system(size: 15, weight: .semibold))
+                case .google:
+                    GoogleGMark().frame(width: 16, height: 16)
+                }
+                Text(title).font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(fg)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(bg)
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(border, lineWidth: 1))
+        }
+        .smoothButton()
+    }
+}
+
+/// Multicolor Google "G" drawn from four arcs plus the crossbar.
+struct GoogleGMark: View {
+    private let blue = Color(hex: "#4285F4")
+    private let red = Color(hex: "#EA4335")
+    private let yellow = Color(hex: "#FBBC05")
+    private let green = Color(hex: "#34A853")
+
+    var body: some View {
+        GeometryReader { geo in
+            let s = min(geo.size.width, geo.size.height)
+            let lw = s * 0.22
+            ZStack {
+                arc(from: 0.50, to: 0.75, color: yellow, lw: lw)
+                arc(from: 0.25, to: 0.50, color: green, lw: lw)
+                arc(from: 0.75, to: 0.93, color: red, lw: lw)
+                arc(from: 0.00, to: 0.25, color: blue, lw: lw)
+                Rectangle()
+                    .fill(blue)
+                    .frame(width: s * 0.52, height: lw)
+                    .offset(x: s * 0.24)
+            }
+            .frame(width: s, height: s)
+            .padding(lw / 2)
+        }
+    }
+
+    private func arc(from: CGFloat, to: CGFloat, color: Color, lw: CGFloat) -> some View {
+        Circle()
+            .trim(from: from, to: to)
+            .stroke(color, style: StrokeStyle(lineWidth: lw, lineCap: .butt))
+            .rotationEffect(.degrees(0))
+    }
+}
+
+struct OnboardingFeatureRow: View {
+    let icon: String
+    let tint: Color
+    let tintBg: Color
+    let label: String
+    let sub: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(tint)
+                .frame(width: 36, height: 36)
+                .background(tintBg)
+                .cornerRadius(10)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.ncPrimary)
+                Text(sub)
+                    .font(.ncBodySm)
+                    .foregroundColor(.ncSecondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }

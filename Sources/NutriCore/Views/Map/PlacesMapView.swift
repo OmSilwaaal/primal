@@ -9,6 +9,9 @@ struct PlacesMapView: View {
     @State private var isSearching = false
     
     @State private var selectedItem: MKMapItem?
+    @State private var searchError: String?
+    @State private var searchTask: Task<Void, Never>?
+    @State private var hasAutoSearched = false
     
     let queries = ["Butcher", "Raw Meat", "Farm", "Organic Food"]
     
@@ -75,6 +78,15 @@ struct PlacesMapView: View {
                     
                     // Controls Overlay
                     VStack(spacing: 16) {
+                        if let searchError {
+                            Text(searchError)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(10)
+                                .background(Color.black.opacity(0.8))
+                                .cornerRadius(8)
+                        }
+
                         if isSearching {
                             ProgressView()
                                 .tint(.white)
@@ -115,7 +127,7 @@ struct PlacesMapView: View {
                             }
                             .padding(.horizontal)
                         }
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 100)
                         .padding(.top, 40)
                     }
                     .background(
@@ -128,29 +140,47 @@ struct PlacesMapView: View {
         }
         .onAppear {
             if locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways {
-                searchPlaces()
+                locationManager.startUpdating()
+                if locationManager.location != nil { searchPlaces() }
             }
         }
-        .onChange(of: locationManager.location) { _, _ in
-            if searchResults.isEmpty && !isSearching {
+        .onDisappear {
+            locationManager.stopUpdating()
+            searchTask?.cancel()
+        }
+        .onChange(of: locationManager.location) { _, location in
+            // First fix after the tab opens triggers the initial search; later GPS jitter doesn't.
+            if location != nil, !hasAutoSearched {
+                hasAutoSearched = true
                 searchPlaces()
             }
         }
     }
-    
+
     private func searchPlaces() {
         guard let location = locationManager.location else { return }
-        
+        searchTask?.cancel()
         isSearching = true
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = selectedQuery
-        request.region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 20000, longitudinalMeters: 20000)
-        
-        let search = MKLocalSearch(request: request)
-        search.start { response, error in
+        searchError = nil
+        let query = selectedQuery
+
+        searchTask = Task {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 20000, longitudinalMeters: 20000)
+            request.resultTypes = .pointOfInterest
+
+            do {
+                let response = try await MKLocalSearch(request: request).start()
+                guard !Task.isCancelled else { return }
+                searchResults = response.mapItems
+                if response.mapItems.isEmpty { searchError = "No \(query.lowercased()) found nearby" }
+            } catch {
+                guard !Task.isCancelled else { return }
+                searchResults = []
+                searchError = "Search failed. Check your connection."
+            }
             isSearching = false
-            guard let response = response else { return }
-            self.searchResults = response.mapItems
         }
     }
 }

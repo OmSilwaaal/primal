@@ -4,12 +4,12 @@ import Foundation
 
 struct NutrientGoals {
     // Macros
-    let calories: Double
-    let protein: Double       // g
-    let carbohydrates: Double // g
-    let fat: Double           // g
-    let fiber: Double         // g
-    let sodium: Double        // mg (max)
+    var calories: Double
+    var protein: Double       // g
+    var carbohydrates: Double // g
+    var fat: Double           // g
+    var fiber: Double         // g
+    var sodium: Double        // mg (max)
 
     // Vitamins
     let vitaminA: Double   // mcg RAE
@@ -37,7 +37,7 @@ struct NutrientGoals {
 
     // MARK: - Build goals from user profile
     static func from(_ profile: UserProfile) -> NutrientGoals {
-        let male = profile.sex == "male"
+        let male = profile.isMale
         let age  = profile.age
         let cal  = profile.dailyCalorieGoal
 

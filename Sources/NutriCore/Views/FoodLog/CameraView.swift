@@ -3,168 +3,205 @@ import SwiftData
 
 struct CameraView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var cameraManager = CameraManager()
-    @StateObject private var usdaService = USDAService.shared
+    @StateObject private var barcodeService = BarcodeLookupService()
     @StateObject private var aiService = AIService.shared
-    
+
     @State private var selectedMode = "Barcode"
     @State private var servingSize: Double = 100.0
     @State private var currentZoomFactor: CGFloat = 1.0
-    
+    @State private var loggedToast: String?
+
+    /// Clears the floating tab bar.
+    private let controlsBottomPadding: CGFloat = 100
+
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
-            
+            Color.black.ignoresSafeArea()
+
             if cameraManager.isAuthorized {
                 CameraPreviewView(cameraManager: cameraManager)
                     .ignoresSafeArea(edges: .top)
                     .gesture(
                         MagnificationGesture()
-                            .onChanged { value in
-                                let newZoom = currentZoomFactor * value
-                                cameraManager.setZoom(factor: newZoom)
-                            }
+                            .onChanged { cameraManager.setZoom(factor: currentZoomFactor * $0) }
                             .onEnded { value in
                                 currentZoomFactor = max(1.0, currentZoomFactor * value)
                                 cameraManager.setZoom(factor: currentZoomFactor)
                             }
                     )
-                
-                // Viewfinder Animation Overlay
+
                 ViewfinderCorners()
-                    .padding(.bottom, 50) // center roughly over the actual camera viewport
+                    .padding(.bottom, 50)
+                    .allowsHitTesting(false)
             } else {
-                VStack {
+                VStack(spacing: 12) {
                     Image(systemName: "video.slash")
                         .font(.system(size: 60, weight: .ultraLight))
-                        .foregroundColor(.ncSecondary)
-                    Text("CAMERA ACCESS DENIED")
+                        .foregroundColor(.white.opacity(0.6))
+                    Text("CAMERA ACCESS NEEDED")
                         .font(.system(size: 14, weight: .bold))
                         .tracking(2)
-                        .foregroundColor(.ncSecondary)
-                        .padding(.top, 16)
+                        .foregroundColor(.white)
+                    Text("Allow camera access to scan barcodes and food.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.6))
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 20).padding(.vertical, 10)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .padding(.top, 8)
                 }
             }
-            
+
             VStack {
-                // Top controls
-                HStack {
-                    Picker("Scan Mode", selection: $selectedMode) {
-                        Text("Barcode").tag("Barcode")
-                        Text("Food Image").tag("Image")
-                    }
-                    .pickerStyle(.segmented)
-                    .padding()
-                    .background(Color.ncSurface.opacity(0.8))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                }
-                .padding(.top, 20)
-                
+                header
                 Spacer()
-                
-                // Bottom controls based on mode
-                if selectedMode == "Barcode" {
-                    if let code = cameraManager.scannedBarcode {
-                        if usdaService.isLoading {
-                            LoadingCard(text: "SEARCHING USDA...")
-                        } else if let food = usdaService.results.first {
-                            // Barcode Quick Log Card
-                            QuickLogCard(
-                                title: "FOUND FOOD",
-                                foodName: food.description,
-                                servingSize: $servingSize
-                            ) {
-                                let entry = MealEntry(from: food, servingSize: servingSize)
-                                modelContext.insert(entry)
-                                resetBarcode()
-                            }
-                        } else {
-                            ErrorCard(text: "NO MATCH FOUND") { resetBarcode() }
-                        }
-                    } else {
-                        PromptCard(text: "ALIGN BARCODE WITHIN FRAME")
-                    }
-                } else {
-                    // Image Mode
-                    if aiService.isAnalyzing {
-                        LoadingCard(text: "ANALYZING IMAGE WITH AI...")
-                    } else if let food = aiService.result {
-                        // AI Quick Log Card
-                        QuickLogCard(
-                            title: "AI IDENTIFIED",
-                            foodName: food.name,
-                            servingSize: $servingSize
-                        ) {
-                            let entry = MealEntry()
-                            entry.foodName = food.name
-                            entry.servingSize = servingSize
-                            
-                            // Scale AI macros by serving size
-                            let f = servingSize / food.servingSize
-                            entry.calories = food.calories * f
-                            entry.protein = food.protein * f
-                            entry.carbohydrates = food.carbohydrates * f
-                            entry.totalFat = food.totalFat * f
-                            
-                            modelContext.insert(entry)
-                            resetAI()
-                        }
-                    } else if let err = aiService.errorMessage {
-                        ErrorCard(text: err.uppercased()) { resetAI() }
-                    } else {
-                        Button(action: {
-                            cameraManager.capturePhoto()
-                        }) {
-                            Circle()
-                                .stroke(Color.ncPrimary, lineWidth: 3)
-                                .frame(width: 70, height: 70)
-                                .overlay(
-                                    Circle()
-                                        .fill(Color.ncPrimary)
-                                        .frame(width: 60, height: 60)
-                                )
-                        }
-                        .smoothButton()
-                        .padding(.bottom, 30)
-                    }
-                }
+                bottomControls
+            }
+
+            if let toast = loggedToast {
+                Text(toast)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(20)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 110)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .onAppear {
             cameraManager.checkPermissions()
+            cameraManager.setBarcodeScanning(selectedMode == "Barcode")
         }
-        .onDisappear {
-            cameraManager.stopSession()
+        .onDisappear { cameraManager.stopSession() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { cameraManager.checkPermissions() }
         }
-        .onChange(of: cameraManager.scannedBarcode) { _, newValue in
-            if let code = newValue, selectedMode == "Barcode" {
-                usdaService.search(code)
-            }
+        .onChange(of: cameraManager.scannedBarcode) { _, code in
+            if let code, selectedMode == "Barcode" { barcodeService.lookup(code) }
         }
-        .onChange(of: cameraManager.capturedPhotoData) { _, newValue in
-            if let data = newValue, selectedMode == "Image" {
-                Task {
-                    await aiService.analyzeImage(data)
+        .onChange(of: cameraManager.capturedPhotoData) { _, data in
+            if let data, selectedMode == "Image" { Task { await aiService.analyzeImage(data) } }
+        }
+        .onChange(of: barcodeService.state.foodServing) { _, grams in
+            if let grams { servingSize = grams }
+        }
+        .onChange(of: aiService.result?.servingSize) { _, grams in
+            if let grams { servingSize = grams.rounded() }
+        }
+        .onChange(of: selectedMode) { _, mode in
+            resetBarcode()
+            resetAI()
+            cameraManager.setBarcodeScanning(mode == "Barcode")
+        }
+    }
+
+    // MARK: - Pieces
+
+    private var header: some View {
+        HStack {
+            Text("SCANNER")
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .tracking(2)
+                .foregroundColor(.white)
+            Spacer()
+            HStack(spacing: 6) {
+                ForEach(["Barcode", "Image"], id: \.self) { mode in
+                    Button(mode.uppercased()) { selectedMode = mode }
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(selectedMode == mode ? .black : .white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(selectedMode == mode ? Color.white : Color.white.opacity(0.18))
+                        .cornerRadius(8)
                 }
             }
         }
-        .onChange(of: selectedMode) { _, _ in
-            resetBarcode()
-            resetAI()
+        .padding(.horizontal, 16)
+        .padding(.top, 76)
+    }
+
+    @ViewBuilder
+    private var bottomControls: some View {
+        Group {
+            if selectedMode == "Barcode" {
+                switch barcodeService.state {
+                case .idle:
+                    PromptCard(text: "ALIGN BARCODE WITHIN FRAME")
+                case .loading:
+                    LoadingCard(text: "LOOKING UP PRODUCT...")
+                case .found(let food):
+                    QuickLogCard(title: food.subtitle, foodName: food.description, servingSize: $servingSize) {
+                        log(MealEntry(from: food, servingSize: servingSize))
+                        resetBarcode()
+                    }
+                case .notFound:
+                    ErrorCard(text: "PRODUCT NOT FOUND", actionTitle: "Scan again") { resetBarcode() }
+                case .failed(let message):
+                    ErrorCard(text: message.uppercased(), actionTitle: "Scan again") { resetBarcode() }
+                }
+            } else if aiService.isAnalyzing {
+                LoadingCard(text: "ANALYZING PHOTO...")
+            } else if let food = aiService.result {
+                QuickLogCard(title: "AI ESTIMATE", foodName: food.name, servingSize: $servingSize) {
+                    log(MealEntry(from: food, servingSize: servingSize))
+                    resetAI()
+                }
+            } else if let err = aiService.errorMessage {
+                ErrorCard(text: err, actionTitle: "Try again") { resetAI() }
+            } else {
+                Button { cameraManager.capturePhoto() } label: {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 4)
+                        .frame(width: 74, height: 74)
+                        .overlay(Circle().fill(Color.white).frame(width: 60, height: 60))
+                }
+                .smoothButton()
+                .padding(.bottom, 30)
+            }
+        }
+        .padding(.bottom, controlsBottomPadding - 24)
+    }
+
+    // MARK: - Actions
+
+    private func log(_ entry: MealEntry) {
+        MealLogger.log(entry, in: modelContext)
+        withAnimation { loggedToast = "Logged \(Int(entry.calories)) kcal" }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            withAnimation { loggedToast = nil }
         }
     }
-    
+
     private func resetBarcode() {
-        cameraManager.scannedBarcode = nil
-        usdaService.clearResults()
+        cameraManager.resetBarcode()
+        barcodeService.reset()
         servingSize = 100.0
     }
-    
+
     private func resetAI() {
         cameraManager.capturedPhotoData = nil
         aiService.clearResult()
         servingSize = 100.0
+    }
+}
+
+private extension BarcodeLookupService.State {
+    /// The default portion for a found product, so the card opens on the label serving.
+    var foodServing: Double? {
+        if case .found(let food) = self { return food.defaultServingGrams }
+        return nil
     }
 }
 
@@ -201,7 +238,7 @@ struct ViewfinderCorners: View {
                 path.addLine(to: CGPoint(x: 0, y: h))
                 path.addLine(to: CGPoint(x: 0, y: h - length))
             }
-            .stroke(Color.ncPrimary, style: StrokeStyle(lineWidth: thick, lineCap: .square, lineJoin: .miter))
+            .stroke(Color.white, style: StrokeStyle(lineWidth: thick, lineCap: .square, lineJoin: .miter))
         }
         .frame(width: 250, height: 250)
         .scaleEffect(isAnimating ? 1.05 : 0.95)
@@ -218,14 +255,14 @@ struct LoadingCard: View {
     let text: String
     var body: some View {
         VStack(spacing: 8) {
-            ProgressView().tint(.ncPrimary)
+            ProgressView().tint(.white)
             Text(text)
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .tracking(1)
-                .foregroundColor(.ncSecondary)
+                .foregroundColor(.white)
         }
         .padding()
-        .background(Color.ncSurface.opacity(0.9))
+        .background(Color.black.opacity(0.75))
         .cornerRadius(12)
         .padding(.bottom, 30)
     }
@@ -237,9 +274,9 @@ struct PromptCard: View {
         Text(text)
             .font(.system(size: 12, weight: .bold))
             .tracking(1)
-            .foregroundColor(.ncPrimary)
+            .foregroundColor(.white)
             .padding()
-            .background(Color.black.opacity(0.5))
+            .background(Color.black.opacity(0.6))
             .cornerRadius(8)
             .padding(.bottom, 30)
     }
@@ -247,19 +284,25 @@ struct PromptCard: View {
 
 struct ErrorCard: View {
     let text: String
+    var actionTitle = "Rescan"
     let onRescan: () -> Void
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Text(text)
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .tracking(1)
-                .foregroundColor(.red)
-            Button("Rescan") { onRescan() }
-                .font(.system(size: 14))
-                .foregroundColor(.ncPrimary)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.white)
+            Button(actionTitle) { onRescan() }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.black)
+                .padding(.horizontal, 18).padding(.vertical, 8)
+                .background(Color.white)
+                .cornerRadius(10)
         }
         .padding()
-        .background(Color.ncSurface.opacity(0.9))
+        .frame(maxWidth: 300)
+        .background(Color.black.opacity(0.8))
         .cornerRadius(12)
         .padding(.bottom, 30)
     }
@@ -270,49 +313,121 @@ struct QuickLogCard: View {
     let foodName: String
     @Binding var servingSize: Double
     let onLog: () -> Void
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 10, weight: .bold))
-                .tracking(1)
-                .foregroundColor(.ncSecondary)
-            
-            Text(foodName.capitalized)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundColor(.ncPrimary)
-                .lineLimit(2)
-            
-            HStack {
-                Text("Serving (g):")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.ncSecondary)
-                TextField("100", value: $servingSize, format: .number)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 14))
-                    .foregroundColor(.ncPrimary)
-                    .padding(8)
-                    .background(Color.ncSurface2)
-                    .cornerRadius(8)
-                    .frame(width: 80)
-            }
-            
-            Button(action: onLog) {
-                Text("LOG FOOD")
-                    .font(.system(size: 14, weight: .bold))
-                    .tracking(1)
-                    .foregroundColor(.ncBg)
+        VStack(spacing: 0) {
+            // Drag handle
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color.white.opacity(0.2))
+                .frame(width: 40, height: 4)
+                .padding(.top, 12)
+
+            VStack(alignment: .leading, spacing: 14) {
+                // Title block
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title.uppercased())
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(.white.opacity(0.6))
+                    Text(foodName.uppercased())
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+                }
+
+                // Serving size control
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("PORTION TELEMETRY")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .tracking(1.5)
+                            .foregroundColor(.white.opacity(0.6))
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Text(String(format: "%.0fg", servingSize))
+                                .font(.system(size: 14, weight: .black, design: .monospaced))
+                                .foregroundColor(.white)
+                            Button {
+                                servingSize = max(5, servingSize - 25)
+                            } label: {
+                                Text("−")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color.white.opacity(0.08))
+                                    .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.ncBorder, lineWidth: 1))
+                            }
+                            Button {
+                                servingSize = min(1000, servingSize + 25)
+                            } label: {
+                                Text("+")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color.white.opacity(0.08))
+                                    .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.ncBorder, lineWidth: 1))
+                            }
+                        }
+                    }
+                    Slider(value: $servingSize, in: 5...1000, step: 5)
+                        .tint(.white)
+                    HStack {
+                        ForEach(["5g", "250g", "500g", "1000g"], id: \.self) { label in
+                            Text(label)
+                                .font(.system(size: 8, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.6))
+                            if label != "1000g" { Spacer() }
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color.black.opacity(0.4))
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
+
+                // Log CTA
+                Button(action: {
+                    let isHapticsEnabled = UserDefaults.standard.object(forKey: "isHapticsEnabled") as? Bool ?? true
+                    if isHapticsEnabled {
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                    }
+                    onLog()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 15, weight: .bold))
+                        Text("LOG ENTRY")
+                            .font(.system(size: 13, weight: .black))
+                            .tracking(2)
+                    }
+                    .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.ncPrimary)
-                    .cornerRadius(8)
+                    .frame(height: 52)
+                    .background(Color.white)
+                    .cornerRadius(14)
+                }
+                .smoothButton()
             }
-            .smoothButton()
+            .padding(16)
         }
-        .padding()
-        .background(Color.ncSurface.opacity(0.95))
-        .cornerRadius(16)
-        .padding(.horizontal)
-        .padding(.bottom, 30)
+        .background(
+            ZStack {
+                Color(red: 0.063, green: 0.063, blue: 0.063)
+            }
+            .background(.ultraThinMaterial)
+            .environment(\.colorScheme, .dark)
+        )
+        .cornerRadius(24)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1),
+            alignment: .top
+        )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 24)
     }
 }
+

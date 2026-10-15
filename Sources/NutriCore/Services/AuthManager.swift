@@ -1,6 +1,7 @@
 import Foundation
 import Supabase
 import Combine
+import UIKit
 
 let supabase = SupabaseClient(
     supabaseURL: AppConstants.supabaseURL,
@@ -58,9 +59,62 @@ class AuthManager: ObservableObject {
         isLoading = false
     }
     
+    func signInWithApple() async {
+        isLoading = true
+        authError = nil
+        do {
+            let appleSignInManager = AppleSignInManager()
+            let result = try await appleSignInManager.startSignIn()
+            
+            // Result is "idToken|nonce"
+            let components = result.components(separatedBy: "|")
+            guard components.count == 2 else {
+                throw NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid token result format."])
+            }
+            
+            let idToken = components[0]
+            let nonce = components[1]
+            
+            _ = try await supabase.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+            
+            print("Successfully signed in with Apple via native sheet.")
+        } catch {
+            authError = error.localizedDescription
+            print("Apple SignIn Error: \(error)")
+        }
+        isLoading = false
+    }
+    
+    func signInWithGoogle() async {
+        isLoading = true
+        authError = nil
+        do {
+            // Presents an ASWebAuthenticationSession and exchanges the callback for a session,
+            // so the auth state listener fires as soon as the user finishes in the sheet.
+            try await supabase.auth.signInWithOAuth(
+                provider: .google,
+                redirectTo: URL(string: "com.omsilwal.NutriCorePrimal://login-callback")
+            )
+        } catch {
+            // Cancelling the sheet is not an error worth surfacing.
+            if (error as NSError).code != 1 {
+                authError = error.localizedDescription
+            }
+            print("Google SignIn Error: \(error)")
+        }
+        isLoading = false
+    }
+
     func signOut() async {
         do {
             try await supabase.auth.signOut()
+            
+            // Wipe user defaults so the next user starts fresh
+            UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
+            SubscriptionManager.shared.clearOnSignOut()
+            
         } catch {
             print("SignOut Error: \(error)")
         }

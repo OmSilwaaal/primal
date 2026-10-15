@@ -42,10 +42,10 @@ struct OnboardingView: View {
                 VStack(spacing: 0) {
                     OnboardingFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
                                          label: "Optical food scanner", sub: "AI-powered nutrient tracking")
-                    Divider().padding(.leading, 62)
+                    Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                     OnboardingFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
                                          label: "Fasting tracker", sub: "20:4 protocol, live countdown")
-                    Divider().padding(.leading, 62)
+                    Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
                     OnboardingFeatureRow(icon: "drop.fill", tint: .ncGreen, tintBg: .ncGreenLight,
                                          label: "Electrolyte monitor", sub: "Water & salt balance")
                 }
@@ -58,12 +58,12 @@ struct OnboardingView: View {
                 VStack(spacing: 14) {
                     HStack(spacing: 12) {
                         CompactAuthButton(title: "Apple", icon: .system("applelogo"),
-                                          fg: .white, bg: .black, border: .clear) {
+                                          fg: .ncOnPrimary, bg: .ncPrimary, border: .clear) {
                             Task { await authManager.signInWithApple() }
                         }
                         CompactAuthButton(title: "Google", icon: .google,
-                                          fg: .ncPrimary, bg: .ncSurfaceContLowest,
-                                          border: Color.black.opacity(0.1)) {
+                                          fg: .ncPrimary, bg: .ncSurfaceContHigh,
+                                          border: Color.white.opacity(0.1)) {
                             Task { await authManager.signInWithGoogle() }
                         }
                     }
@@ -116,8 +116,8 @@ struct CompactAuthButton: View {
             .frame(maxWidth: .infinity)
             .frame(height: 44)
             .background(bg)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(border, lineWidth: 1))
         }
         .smoothButton()
     }

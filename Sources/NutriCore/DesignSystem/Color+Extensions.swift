@@ -1,55 +1,47 @@
 import SwiftUI
 
-// MARK: - Primal Design System (synced from Google Stitch "Autonomous Metabolic Intelligence" theme)
-// Source: projects/12049417744954362917
+// MARK: - Primal Design System (black theme)
 // ─────────────────────────────────────────────────────────────────────────────
-// primary:                  #18181b
-// secondary:                #6366f1
-// background:               #f4f4f7
-// surface:                  #f4f4f7
-// on-surface:               #18181b
-// on-surface-variant:       #71717a
-// outline:                  #a1a1aa
-// outline-variant:          #e4e4e7
-// surface-container-lowest: #ffffff
-// surface-container-low:    #fafaf9
-// surface-container-high:   #e4e4e7
+// Near-black canvas, stacked surfaces separated by hairline borders rather than
+// shadows, white as the primary action colour, one soft indigo accent.
 // ─────────────────────────────────────────────────────────────────────────────
 
 extension Color {
-    // Backgrounds
-    static let ncBg                  = Color(hex: "#f4f4f7")
-    static let ncSurface             = Color(hex: "#f4f4f7")
-    static let ncSurfaceContLowest   = Color(hex: "#ffffff")
-    static let ncSurfaceContLow      = Color(hex: "#fafaf9")
-    static let ncSurfaceCont         = Color(hex: "#f4f4f6")
-    static let ncSurfaceContHigh     = Color(hex: "#e4e4e7")
-    static let ncSurfaceContHighest  = Color(hex: "#d4d4d8")
-    static let ncSurfaceBright       = Color(hex: "#ffffff")
+    // Backgrounds (darkest -> lightest)
+    static let ncBg                  = Color(hex: "#050505")
+    static let ncSurface             = Color(hex: "#0B0B0C")
+    static let ncSurfaceContLowest   = Color(hex: "#101012") // cards
+    static let ncSurfaceContLow      = Color(hex: "#141416")
+    static let ncSurfaceCont         = Color(hex: "#17171A")
+    static let ncSurfaceContHigh     = Color(hex: "#202024")
+    static let ncSurfaceContHighest  = Color(hex: "#2A2A2F")
+    static let ncSurfaceBright       = Color(hex: "#26262B")
 
     // Text
-    static let ncPrimary             = Color(hex: "#18181b") // zinc-900
-    static let ncOnPrimary           = Color(hex: "#ffffff")
-    static let ncOnSurface           = Color(hex: "#18181b")
-    static let ncSecondary           = Color(hex: "#71717a") // on-surface-variant zinc-500
+    static let ncPrimary             = Color(hex: "#FAFAFA")
+    static let ncOnPrimary           = Color(hex: "#09090B") // text/icons on a ncPrimary fill
+    static let ncOnSurface           = Color(hex: "#FAFAFA")
+    static let ncSecondary           = Color(hex: "#8E8E96")
 
-    // Accents
-    static let ncOutline             = Color(hex: "#a1a1aa")
-    static let ncOutlineVariant      = Color(hex: "#e4e4e7")
-    static let ncError               = Color(hex: "#ef4444")
+    // Lines
+    static let ncOutline             = Color(hex: "#52525B")
+    static let ncOutlineVariant      = Color(hex: "#27272A")
+    static let ncBorder              = Color.white.opacity(0.08)
+    static let ncBorderSub           = Color.white.opacity(0.05)
 
-    // Brand accents for Light AI Theme
-    static let ncIndigo              = Color(hex: "#6366f1")
-    static let ncIndigoLight         = Color(hex: "#ede9fe")
-    static let ncGreen               = Color(hex: "#059669")
-    static let ncGreenLight          = Color(hex: "#ecfdf5")
-    static let ncOrange              = Color(hex: "#f97316")
-    static let ncOrangeLight         = Color(hex: "#ffedd5")
+    // Accents (tuned for dark backgrounds). *Light variants are translucent tints.
+    static let ncIndigo              = Color(hex: "#818CF8")
+    static let ncIndigoLight         = Color(hex: "#818CF8").opacity(0.16)
+    static let ncGreen               = Color(hex: "#34D399")
+    static let ncGreenLight          = Color(hex: "#34D399").opacity(0.14)
+    static let ncOrange              = Color(hex: "#FB923C")
+    static let ncOrangeLight         = Color(hex: "#FB923C").opacity(0.16)
+    static let ncSky                 = Color(hex: "#38BDF8")
+    static let ncSkyLight            = Color(hex: "#38BDF8").opacity(0.14)
+    static let ncError               = Color(hex: "#F87171")
 
-    // Legacy aliases (used by existing views)
-    static let ncSurface2            = Color(hex: "#ffffff")
-    static let ncBorder              = Color.black.opacity(0.05)
-    static let ncBorderSub           = Color.black.opacity(0.03)
+    // Legacy alias
+    static let ncSurface2            = Color(hex: "#17171A")
 }
 
 extension Color {
@@ -76,39 +68,108 @@ extension Color {
     }
 }
 
-// MARK: - Light Theme Glass Card (White surface + faint border + soft shadow)
-struct LightGlassCard: ViewModifier {
+// MARK: - Card
+struct CardModifier: ViewModifier {
     var cornerRadius: CGFloat = 16
     func body(content: Content) -> some View {
         content
-            .background(Color.ncSurfaceContLowest)
-            .cornerRadius(cornerRadius)
+            .background(Color.ncSurfaceContLowest, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }
 
 extension View {
     func glassCard(radius: CGFloat = 16) -> some View {
-        modifier(LightGlassCard(cornerRadius: radius))
+        modifier(CardModifier(cornerRadius: radius))
     }
 }
 
-// MARK: - Smooth Button
+// MARK: - Haptics
+enum Haptics {
+    static var isEnabled: Bool { UserDefaults.standard.object(forKey: "isHapticsEnabled") as? Bool ?? true }
+
+    static func tap() {
+        guard isEnabled else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+    static func success() {
+        guard isEnabled else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+    static func selection() {
+        guard isEnabled else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+}
+
+// MARK: - Button styles
+/// Press feedback shared by every button: a small scale-down with a quick spring back and a light tap.
+/// No opacity flicker, so text stays crisp while pressed.
 struct SmoothButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.65, blendDuration: 0), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .brightness(configuration.isPressed ? -0.06 : 0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                if pressed { Haptics.tap() }
+            }
     }
 }
 
 extension View {
     func smoothButton() -> some View { self.buttonStyle(SmoothButtonStyle()) }
+}
+
+/// Filled call-to-action: white pill with dark text.
+struct PrimaryButtonStyle: ButtonStyle {
+    var height: CGFloat = 52
+    var radius: CGFloat = 14
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundColor(.ncOnPrimary)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(Color.ncPrimary, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .brightness(configuration.isPressed ? -0.08 : 0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                if pressed { Haptics.tap() }
+            }
+    }
+}
+
+/// Quiet secondary action: raised surface with a hairline border.
+struct SecondaryButtonStyle: ButtonStyle {
+    var height: CGFloat = 44
+    var radius: CGFloat = 12
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(.ncPrimary)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .brightness(configuration.isPressed ? 0.05 : 0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                if pressed { Haptics.tap() }
+            }
+    }
+}
+
+extension ButtonStyle where Self == PrimaryButtonStyle {
+    static var primal: PrimaryButtonStyle { PrimaryButtonStyle() }
+}
+extension ButtonStyle where Self == SecondaryButtonStyle {
+    static var primalSecondary: SecondaryButtonStyle { SecondaryButtonStyle() }
 }
 
 // MARK: - Typography helpers

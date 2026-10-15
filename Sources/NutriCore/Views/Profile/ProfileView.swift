@@ -50,7 +50,7 @@ struct ProfileView: View {
                             .smoothButton()
                         }
                         .padding(.horizontal, 16)
-                        .padding(.top, 56)
+                        .padding(.top, 12)
                         .padding(.bottom, 4)
 
                         if let profile = profile {

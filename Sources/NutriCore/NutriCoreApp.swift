@@ -5,13 +5,10 @@ import StripePaymentSheet
 
 @main
 struct NutriCoreApp: App {
-    @AppStorage("isWhiteTheme") private var isWhiteTheme = false
-    
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(isWhiteTheme ? .light : .dark)
-                .animation(.easeInOut(duration: 0.4), value: isWhiteTheme)
+                .preferredColorScheme(.dark)
                 .onOpenURL { url in
                     // Stripe redirects (3-D Secure, bank auth) come back through our URL scheme too.
                     if StripeAPI.handleURLCallback(with: url) { return }

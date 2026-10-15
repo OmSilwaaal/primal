@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
-    @AppStorage("isWhiteTheme") private var isWhiteTheme = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @Environment(\.dismiss) private var dismiss
     @StateObject private var subManager = SubscriptionManager.shared
@@ -36,7 +35,7 @@ struct SettingsView: View {
                         Spacer()
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 56)
+                    .padding(.top, 12)
                     .padding(.bottom, 4)
 
                     // ── Haptics ──────────────────────────────────────────────
@@ -46,16 +45,6 @@ struct SettingsView: View {
                             title: "HAPTIC FEEDBACK",
                             subtitle: "Satisfying buzz on food log events",
                             isOn: $isHapticsEnabled
-                        )
-                    }
-
-                    // ── Appearance ───────────────────────────────────────────
-                    SettingsSection(title: "DISPLAY PARAMETERS") {
-                        StitchToggleRow(
-                            icon: "sun.max",
-                            title: "LIGHT MODE",
-                            subtitle: "Switch from dark void to light surface",
-                            isOn: $isWhiteTheme
                         )
                     }
 

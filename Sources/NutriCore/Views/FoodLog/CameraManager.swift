@@ -3,7 +3,7 @@ import Combine
 import CoreImage
 
 class CameraManager: NSObject, ObservableObject {
-    @Published var session = AVCaptureSession()
+    let session = AVCaptureSession()
     @Published var isAuthorized = false
     @Published var scannedBarcode: String? = nil
     @Published var capturedPhotoData: Data? = nil
@@ -13,8 +13,12 @@ class CameraManager: NSObject, ObservableObject {
     private let sessionQueue = DispatchQueue(label: "camera.session.queue")
     
     private var isConfigured = false
+    private var ignoreBarcodesUntil = Date.distantPast
     private var videoDevice: AVCaptureDevice?
     
+    /// Product barcodes only (UPC-A is reported as EAN-13). QR/PDF417 would trigger pointless lookups.
+    private static let barcodeTypes: [AVMetadataObject.ObjectType] = [.ean8, .ean13, .upce]
+
     override init() {
         super.init()
         checkPermissions()
@@ -64,7 +68,7 @@ class CameraManager: NSObject, ObservableObject {
             if self.session.canAddOutput(self.output) {
                 self.session.addOutput(self.output)
                 self.output.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
-                self.output.metadataObjectTypes = [.ean8, .ean13, .pdf417, .qr, .upce]
+                self.output.metadataObjectTypes = Self.barcodeTypes
             }
             
             // Photo setup
@@ -87,8 +91,21 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     func capturePhoto() {
-        let settings = AVCapturePhotoSettings()
+        let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
         photoOutput.capturePhoto(with: settings, delegate: self)
+    }
+
+    /// Only decode barcodes while the barcode mode is active.
+    func setBarcodeScanning(_ enabled: Bool) {
+        sessionQueue.async {
+            self.output.metadataObjectTypes = enabled ? Self.barcodeTypes.filter { self.output.availableMetadataObjectTypes.contains($0) } : []
+        }
+    }
+
+    /// Clears the current barcode and ignores re-detections for a moment so a logged item isn't instantly re-scanned.
+    func resetBarcode() {
+        scannedBarcode = nil
+        ignoreBarcodesUntil = Date().addingTimeInterval(2)
     }
     
     func setZoom(factor: CGFloat) {
@@ -110,7 +127,7 @@ extension CameraManager: AVCaptureMetadataOutputObjectsDelegate {
                   let stringValue = readableObject.stringValue else { return }
             
             // Avoid repeatedly scanning the same barcode instantly
-            if scannedBarcode != stringValue {
+            if scannedBarcode != stringValue, Date() >= ignoreBarcodesUntil {
                 scannedBarcode = stringValue
             }
         }
@@ -119,7 +136,7 @@ extension CameraManager: AVCaptureMetadataOutputObjectsDelegate {
 
 extension CameraManager: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        guard let imageData = photo.fileDataRepresentation() else { return }
+        guard error == nil, let imageData = photo.fileDataRepresentation() else { return }
         DispatchQueue.main.async {
             self.capturedPhotoData = imageData
         }

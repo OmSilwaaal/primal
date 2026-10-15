@@ -9,6 +9,7 @@ final class MealEntry {
     var foodName: String = ""
     var fdcId: Int = 0
     var servingSize: Double = 100.0  // grams
+    var source: String = ""          // "USDA" | "Open Food Facts" | "AI estimate"
 
     // ── Macros ──────────────────────────────────────────────────────────────
     var calories: Double = 0
@@ -47,10 +48,24 @@ final class MealEntry {
 
     init() {}
 
+    /// Entry from an AI estimate. Macros are for the whole estimated serving and are scaled to `servingSize`.
+    init(from ai: AIFoodResult, servingSize: Double) {
+        let base = ai.servingSize > 0 ? ai.servingSize : 100
+        let f = servingSize / base
+        self.foodName = ai.name
+        self.source = "AI estimate"
+        self.servingSize = servingSize
+        calories = ai.calories * f
+        protein = ai.protein * f
+        carbohydrates = ai.carbohydrates * f
+        totalFat = ai.totalFat * f
+    }
+
     // Convenience init from USDA search result
     init(from result: FoodSearchResult, servingSize: Double) {
-        self.foodName = result.description
+        self.foodName = result.description.isEmpty ? "Food" : result.description
         self.fdcId = result.fdcId
+        self.source = result.dataType == "Open Food Facts" ? "Open Food Facts" : "USDA"
         self.servingSize = servingSize
         let f = servingSize / 100.0  // scale factor (USDA values are per 100g)
 
@@ -59,7 +74,7 @@ final class MealEntry {
         carbohydrates = result.nutrient(1005) * f
         totalFat = result.nutrient(1004) * f
         fiber = result.nutrient(1079) * f
-        sugar = result.nutrient(2000) * f
+        sugar = (result.nutrient(2000) > 0 ? result.nutrient(2000) : result.nutrient(1063)) * f
         saturatedFat = result.nutrient(1258) * f
         cholesterol = result.nutrient(1253) * f
         sodium = result.nutrient(1093) * f

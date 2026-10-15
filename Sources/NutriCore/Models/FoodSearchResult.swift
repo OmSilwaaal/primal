@@ -2,21 +2,51 @@ import Foundation
 
 // MARK: - USDA FoodData Central API Models
 
-struct USDASearchResponse: Codable {
+struct USDASearchResponse: Decodable {
     let totalHits: Int?
     let foods: [FoodSearchResult]
 }
 
-struct FoodSearchResult: Codable, Identifiable {
+struct FoodSearchResult: Decodable, Identifiable {
     let fdcId: Int
     let description: String
     let dataType: String?
     let brandOwner: String?
+    let gtinUpc: String?
     let servingSize: Double?
     let servingSizeUnit: String?
     let foodNutrients: [FoodNutrientItem]
 
     var id: Int { fdcId }
+
+    init(fdcId: Int, description: String, dataType: String? = nil, brandOwner: String? = nil,
+         gtinUpc: String? = nil, servingSize: Double? = nil, servingSizeUnit: String? = nil,
+         foodNutrients: [FoodNutrientItem]) {
+        self.fdcId = fdcId
+        self.description = description
+        self.dataType = dataType
+        self.brandOwner = brandOwner
+        self.gtinUpc = gtinUpc
+        self.servingSize = servingSize
+        self.servingSizeUnit = servingSizeUnit
+        self.foodNutrients = foodNutrients
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case fdcId, description, dataType, brandOwner, gtinUpc, servingSize, servingSizeUnit, foodNutrients
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fdcId = try c.decode(Int.self, forKey: .fdcId)
+        description = (try? c.decode(String.self, forKey: .description)) ?? "Unknown food"
+        dataType = try? c.decode(String.self, forKey: .dataType)
+        brandOwner = try? c.decode(String.self, forKey: .brandOwner)
+        gtinUpc = try? c.decode(String.self, forKey: .gtinUpc)
+        servingSize = try? c.decode(Double.self, forKey: .servingSize)
+        servingSizeUnit = try? c.decode(String.self, forKey: .servingSizeUnit)
+        foodNutrients = (try? c.decode([FoodNutrientItem].self, forKey: .foodNutrients)) ?? []
+    }
 
     /// Returns the nutrient value (per 100g) for a given USDA nutrient ID.
     func nutrient(_ nutrientId: Int) -> Double {
@@ -39,6 +69,12 @@ struct FoodSearchResult: Codable, Identifiable {
         let parts = [brandOwner, dataType].compactMap { $0 }.filter { !$0.isEmpty }
         return parts.joined(separator: " · ")
     }
+
+    /// Sensible starting portion: the label serving for branded foods, otherwise 100 g.
+    var defaultServingGrams: Double {
+        if let size = servingSize, size > 0, servingSizeUnit?.lowercased() == "g" { return size.rounded() }
+        return 100
+    }
 }
 
 struct FoodNutrientItem: Codable {
@@ -46,6 +82,13 @@ struct FoodNutrientItem: Codable {
     let nutrientName: String?
     let unitName: String?
     let value: Double
+
+    init(nutrientId: Int, value: Double, nutrientName: String? = nil, unitName: String? = nil) {
+        self.nutrientId = nutrientId
+        self.value = value
+        self.nutrientName = nutrientName
+        self.unitName = unitName
+    }
 
     private enum CodingKeys: String, CodingKey {
         case nutrientId, nutrientName, unitName, value

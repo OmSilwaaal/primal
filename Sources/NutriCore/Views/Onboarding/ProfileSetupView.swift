@@ -71,6 +71,12 @@ struct ProfileSetupView: View {
     private func finishSetup() {
         let profile = UserProfile()
         profile.ageGroup = ageGroup
+        switch ageGroup {
+        case "Under 18": profile.age = 16
+        case "36-50":    profile.age = 43
+        case "Over 50":  profile.age = 58
+        default:         profile.age = 26
+        }
         profile.sex = sex
         profile.pregnancyStatus = pregnancyStatus
         
@@ -96,8 +102,42 @@ struct ProfileSetupView: View {
         modelContext.insert(profile)
         try? modelContext.save()
         
+        // Immediately dismiss the onboarding so the user isn't stuck
         withAnimation {
             hasCompletedOnboarding = true
+        }
+        
+        Task {
+            // Push to Supabase
+            if let user = try? await supabase.auth.session.user {
+                let fullName = user.userMetadata["full_name"]?.stringValue ?? user.userMetadata["name"]?.stringValue
+                if let fullName, !fullName.isEmpty {
+                    profile.name = fullName
+                    try? modelContext.save()
+                }
+                let supabaseProfile = SupabaseProfile(
+                    id: user.id.uuidString,
+                    name: profile.name,
+                    ageGroup: ageGroup,
+                    sex: sex,
+                    pregnancyStatus: pregnancyStatus,
+                    location: location,
+                    weightKg: profile.weightKg,
+                    heightCm: profile.heightCm,
+                    activityLevel: profile.activityLevel,
+                    dietType: selectedDiet
+                )
+                
+                do {
+                    try await supabase.from("profiles").upsert(supabaseProfile).execute()
+                    print("Successfully pushed profile to Supabase.")
+                } catch {
+                    print("Error pushing to Supabase: \(error)")
+                }
+            }
+            
+            // Request HealthKit permissions in the background after dismissal
+            try? await HealthKitManager.shared.requestAuthorization()
         }
     }
 }

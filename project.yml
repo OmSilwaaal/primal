@@ -11,6 +11,9 @@ packages:
   Supabase:
     url: https://github.com/supabase-community/supabase-swift.git
     from: 2.0.0
+  Stripe:
+    url: https://github.com/stripe/stripe-ios-spm.git
+    from: 23.0.0
 
 targets:
   NutriCore:
@@ -19,6 +22,8 @@ targets:
     deploymentTarget: "17.0"
     dependencies:
       - package: Supabase
+      - package: Stripe
+        product: StripePaymentSheet
     sources:
       - path: Sources/NutriCore
         createIntermediateGroups: true
@@ -29,6 +34,10 @@ targets:
       path: NutriCore/Info.plist
       properties:
         CFBundleDisplayName: Primal
+        CFBundleURLTypes:
+          - CFBundleURLName: com.omsilwal.NutriCorePrimal
+            CFBundleURLSchemes:
+              - com.omsilwal.NutriCorePrimal
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:
@@ -39,6 +48,13 @@ targets:
           NSAllowsArbitraryLoads: false
         NSCameraUsageDescription: "We need access to your camera to scan barcodes and detect food items."
         NSLocationWhenInUseUsageDescription: "We need your location to find local butchers and farms near you."
+        NSHealthShareUsageDescription: "NutriCore needs access to read your steps and active energy to calculate your daily metabolic rate."
+        NSHealthUpdateUsageDescription: "NutriCore needs access to write your logged calories, protein, and water to close your Apple Watch rings."
+    entitlements:
+      path: NutriCore/NutriCore.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.applesignin: ["Default"]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal

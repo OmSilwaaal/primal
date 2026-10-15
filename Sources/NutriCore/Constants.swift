@@ -18,4 +18,5 @@ enum AppConstants {
     
     // MARK: - Gemini AI Configuration
     static let geminiAPIKey = "YOUR_GEMINI_API_KEY_HERE"
+    static let geminiModel = "gemini-2.5-flash"
 }

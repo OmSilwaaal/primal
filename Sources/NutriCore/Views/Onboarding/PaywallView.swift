@@ -1,129 +1,182 @@
 import SwiftUI
-// import StripePaymentSheet
 
 struct PaywallView: View {
     @StateObject private var subManager = SubscriptionManager.shared
-    
+    @StateObject private var authManager = AuthManager.shared
+    @State private var selectedPlan: SubscriptionManager.Plan = .annual
+
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-            
-            // Subtle ambient glow
+            Color.ncBg.ignoresSafeArea()
+
             Circle()
-                .fill(Color.white.opacity(0.05))
+                .fill(Color.ncIndigo.opacity(0.12))
                 .frame(width: 300, height: 300)
-                .blur(radius: 60)
-                .offset(y: -300)
-            
-            VStack(spacing: 40) {
-                Spacer()
-                
-                VStack(spacing: 12) {
-                    Text("PRIMAL")
-                        .font(.system(size: 36, weight: .heavy, design: .default))
-                        .tracking(8)
-                        .foregroundColor(.white)
-                    
-                    Text("PRO")
-                        .font(.system(size: 36, weight: .heavy, design: .default))
-                        .tracking(8)
-                        .foregroundColor(.gray)
-                }
-                
-                VStack(alignment: .leading, spacing: 24) {
-                    FeatureRow(icon: "bolt.fill", title: "Fasting Tracker", subtitle: "Live lock-screen and dashboard timer.")
-                    FeatureRow(icon: "heart.fill", title: "HealthKit Sync", subtitle: "Auto-sync steps, active calories, and vitals.")
-                    FeatureRow(icon: "drop.fill", title: "Electrolytes", subtitle: "Advanced sodium and magnesium tracking.")
-                    FeatureRow(icon: "camera.macro", title: "Food Scanner", subtitle: "Instant AI macro estimation from photos.")
-                }
-                .padding(.horizontal, 32)
-                
-                Spacer()
-                
-                VStack(spacing: 16) {
-                    /*
-                    if let paymentSheet = subManager.paymentSheet {
-                        PaymentSheet.PaymentButton(
-                            paymentSheet: paymentSheet,
-                            onCompletion: subManager.onPaymentCompletion
-                        ) {
-                            Text("SUBSCRIBE - $9.99/MO")
-                                .font(.system(size: 16, weight: .bold))
-                                .tracking(2)
-                                .foregroundColor(.black)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 18)
-                                .background(Color.white)
-                                .cornerRadius(12)
-                        }
-                    } else {
-                    */
-                        Button(action: {
-                            // Empty action, waiting for payment sheet
-                        }) {
-                            Text(subManager.isPreparingPaymentSheet ? "LOADING..." : "STRIPE TEMPORARILY DISABLED")
-                                .font(.system(size: 16, weight: .bold))
-                                .tracking(2)
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 18)
-                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .disabled(true)
-                    // }
-                    
-                    // TODO: REMOVE THIS IN PRODUCTION
-                    // This is just a bypass button so the user can test the app without setting up a backend
-                    Button(action: {
-                        withAnimation {
-                            subManager.bypassSubscriptionForTesting()
-                        }
-                    }) {
-                        Text("[DEV ONLY] BYPASS SUBSCRIPTION")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.red)
+                .blur(radius: 70)
+                .offset(y: -250)
+                .ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    // ── Brand ─────────────────────────────────────────────
+                    VStack(spacing: 12) {
+                        Image(systemName: "hexagon")
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundColor(.ncIndigo)
+                            .frame(width: 68, height: 68)
+                            .glassCard(radius: 20)
+                        Text("Primal Pro")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.ncPrimary)
+                        Text("Unlock the full system")
+                            .font(.system(size: 15))
+                            .foregroundColor(.ncSecondary)
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 48)
+
+                    // ── Features ──────────────────────────────────────────
+                    VStack(spacing: 0) {
+                        PaywallFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
+                                          label: "Fasting tracker", sub: "Live timer with adjustable target")
+                        Divider().padding(.leading, 62)
+                        PaywallFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
+                                          label: "Food scanner", sub: "Barcode and AI photo logging")
+                        Divider().padding(.leading, 62)
+                        PaywallFeatureRow(icon: "heart.text.square.fill", tint: .ncError, tintBg: Color.ncError.opacity(0.1),
+                                          label: "Apple Health sync", sub: "Steps, activity and nutrition")
+                        Divider().padding(.leading, 62)
+                        PaywallFeatureRow(icon: "chart.bar.xaxis", tint: .ncGreen, tintBg: .ncGreenLight,
+                                          label: "Full nutrient tracking", sub: "Macros, vitamins and minerals")
+                    }
+                    .glassCard(radius: 18)
+
+                    // ── Plans ─────────────────────────────────────────────
+                    VStack(spacing: 10) {
+                        ForEach(SubscriptionManager.Plan.allCases.reversed()) { plan in
+                            PlanCard(plan: plan, isSelected: selectedPlan == plan) { selectedPlan = plan }
+                        }
+                    }
+
+                    // ── CTA ───────────────────────────────────────────────
+                    VStack(spacing: 12) {
+                        Button {
+                            Task { await subManager.subscribe(to: selectedPlan) }
+                        } label: {
+                            ZStack {
+                                if subManager.isWorking {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Text("Subscribe · \(selectedPlan.priceLabel)")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity).frame(height: 54)
+                            .background(Color.ncPrimary)
+                            .cornerRadius(14)
+                        }
+                        .smoothButton()
+                        .disabled(subManager.isWorking)
+
+                        if let error = subManager.errorMessage {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.ncError)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        HStack(spacing: 20) {
+                            Button("Restore") { Task { await subManager.restorePurchases() } }
+                            Button("Sign out") { Task { await authManager.signOut() } }
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.ncSecondary)
+                        .disabled(subManager.isWorking)
+
+                        Text("Payments are processed securely by Stripe. Your subscription renews automatically until you cancel in Settings.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.ncSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
+
+                        #if DEBUG
+                        Button("DEBUG: skip paywall") { subManager.debugUnlock() }
+                            .font(.system(size: 11))
+                            .foregroundColor(.ncSecondary.opacity(0.6))
+                        #endif
+                    }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 32)
             }
-        }
-        .onAppear {
-            /*
-            if subManager.paymentSheet == nil && !subManager.isPreparingPaymentSheet {
-                subManager.preparePaymentSheet()
-            }
-            */
-            subManager.preparePaymentSheet()
         }
     }
 }
 
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    
+private struct PlanCard: View {
+    let plan: SubscriptionManager.Plan
+    let isSelected: Bool
+    let onTap: () -> Void
+
     var body: some View {
-        HStack(spacing: 20) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .foregroundColor(.white)
-                .frame(width: 30)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title.uppercased())
-                    .font(.system(size: 14, weight: .bold))
-                    .tracking(1)
-                    .foregroundColor(.white)
-                
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .lineLimit(2)
+        Button(action: onTap) {
+            HStack(spacing: 14) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(isSelected ? .ncIndigo : .ncOutline)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(plan.title)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.ncPrimary)
+                        if plan == .annual {
+                            Text("SAVE 40%")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.ncGreen)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.ncGreenLight)
+                                .cornerRadius(4)
+                        }
+                    }
+                    Text(plan.detail).font(.ncBodySm).foregroundColor(.ncSecondary)
+                }
+                Spacer()
+                Text(plan.priceLabel)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.ncPrimary)
             }
+            .padding(14)
+            .background(Color.ncSurfaceContLowest)
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isSelected ? Color.ncIndigo : Color.black.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+            )
         }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PaywallFeatureRow: View {
+    let icon: String
+    let tint: Color
+    let tintBg: Color
+    let label: String
+    let sub: String
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(tint)
+                .frame(width: 34, height: 34)
+                .background(tintBg)
+                .cornerRadius(10)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
+                Text(sub).font(.ncBodySm).foregroundColor(.ncSecondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
     }
 }

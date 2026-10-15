@@ -36,45 +36,42 @@ final class USDAService: ObservableObject {
 
         isLoading = true
         errorMessage = nil
-
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            isLoading = false
-            return
-        }
-
-        let urlStr = "\(AppConstants.usdaBaseURL)/foods/search"
-                   + "?query=\(encoded)"
-                   + "&api_key=\(AppConstants.usdaAPIKey)"
-                   + "&dataType=SR%20Legacy,Survey%20(FNDDS),Branded"
-                   + "&pageSize=25"
-                   + "&sortBy=dataType.keyword"
-                   + "&sortOrder=asc"
-
-        guard let url = URL(string: urlStr) else {
-            errorMessage = "Invalid search URL"
-            isLoading = false
-            return
-        }
+        defer { if !Task.isCancelled { isLoading = false } }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let foods = try await Self.fetch(query: query,
+                                             dataTypes: ["Foundation", "SR Legacy", "Survey (FNDDS)", "Branded"],
+                                             pageSize: 25)
             guard !Task.isCancelled else { return }
-
-            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                errorMessage = "API Error \(http.statusCode)"
-                isLoading = false
-                return
-            }
-
-            let decoded = try JSONDecoder().decode(USDASearchResponse.self, from: data)
-            results = decoded.foods
+            results = foods
         } catch is CancellationError {
-            // Silently ignore
+            // Superseded by a newer query
+        } catch let error as URLError where error.code == .cancelled {
+            // Superseded by a newer query
         } catch {
+            guard !Task.isCancelled else { return }
+            results = []
             errorMessage = "Search failed: \(error.localizedDescription)"
         }
+    }
 
-        isLoading = false
+    /// Shared request builder. Uses URLComponents so queries containing `&`, `+` or `%` are encoded correctly.
+    nonisolated static func fetch(query: String, dataTypes: [String], pageSize: Int) async throws -> [FoodSearchResult] {
+        var components = URLComponents(string: "\(AppConstants.usdaBaseURL)/foods/search")!
+        components.queryItems = [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "api_key", value: AppConstants.usdaAPIKey),
+            URLQueryItem(name: "dataType", value: dataTypes.joined(separator: ",")),
+            URLQueryItem(name: "pageSize", value: String(pageSize)),
+        ]
+        guard let url = components.url else { throw URLError(.badURL) }
+
+        let (data, response) = try await URLSession.shared.data(from: url)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            throw NSError(domain: "USDA", code: http.statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: http.statusCode == 429 ? "Rate limit reached, try again shortly" : "API error \(http.statusCode)"])
+        }
+        return try JSONDecoder().decode(USDASearchResponse.self, from: data).foods
     }
 
     func clearResults() {

@@ -58,7 +58,7 @@ struct FriendsView: View {
                     .refreshable { await social.refreshFriends() }
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: BasicProfile.self) { FriendProfileView(profile: $0) }
             .sheet(isPresented: $showAdd) { AddFriendView() }
             .task { if social.myId != nil { await social.refreshFriends() } }
@@ -68,18 +68,13 @@ struct FriendsView: View {
     }
 
     private var header: some View {
-        HStack {
-            Text("Friends")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.ncPrimary)
-            Spacer()
+        ZStack(alignment: .topTrailing) {
+            PageHeader(title: "Friends", caption: "\(social.friends.count) connected")
             Button { showAdd = true } label: {
                 Image(systemName: "person.badge.plus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.ncPrimary)
-                    .frame(width: 44, height: 44)
-                    .background(Color.ncSurfaceContHigh, in: Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.08), lineWidth: 1))
+                    .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
+                    .frame(width: 36, height: 36)
+                    .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
             }
             .smoothButton()
         }
@@ -87,10 +82,7 @@ struct FriendsView: View {
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(1)
-                .foregroundColor(.ncSecondary)
+            RuleLabel(text: title)
             content()
         }
     }
@@ -139,14 +131,14 @@ private struct RequestRow: View {
                 Image(systemName: "xmark").font(.system(size: 13, weight: .bold))
                     .foregroundColor(.ncSecondary)
                     .frame(width: 36, height: 36)
-                    .background(Color.ncSurfaceContHigh, in: Circle())
+                    .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.3), lineWidth: 1))
             }
             .smoothButton()
             Button { Task { await social.accept(request.friendship) } } label: {
                 Image(systemName: "checkmark").font(.system(size: 13, weight: .bold))
                     .foregroundColor(.ncOnPrimary)
                     .frame(width: 36, height: 36)
-                    .background(Color.ncPrimary, in: Circle())
+                    .background(Color.ncPrimary)
             }
             .smoothButton()
         }

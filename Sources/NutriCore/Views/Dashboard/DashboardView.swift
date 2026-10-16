@@ -96,7 +96,7 @@ struct DashboardView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showSearch) { SearchView() }
             .sheet(isPresented: $showRawLog) { NavigationStack { RawLogView() } }
             .task {
@@ -133,9 +133,8 @@ private struct LightStitchHeader: View {
                 }
                 .smoothButton()
             }
-            Spacer().frame(height: 56)
-            Wordmark(size: 58)
-            Text("Eat what grows wild").spacedCaps(10, tracking: 3.2).foregroundColor(.ncSecondary)
+            Spacer().frame(height: 48)
+            Wordmark(size: 86)
             Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1).padding(.top, 6)
         }
     }

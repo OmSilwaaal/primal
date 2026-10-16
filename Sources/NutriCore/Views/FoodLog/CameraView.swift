@@ -56,7 +56,7 @@ struct CameraView: View {
                     .foregroundColor(.black)
                     .padding(.horizontal, 20).padding(.vertical, 10)
                     .background(Color.white)
-                    .cornerRadius(10)
+                    .cornerRadius(2)
                     .padding(.top, 8)
                 }
             }
@@ -73,7 +73,7 @@ struct CameraView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(Color.black.opacity(0.8))
-                    .cornerRadius(20)
+                    .cornerRadius(2)
                     .frame(maxHeight: .infinity, alignment: .top)
                     .padding(.top, 110)
                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -110,15 +110,14 @@ struct CameraView: View {
 
     private var header: some View {
         HStack {
-            Text("SCANNER")
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .tracking(2)
+            Text("SCAN")
+                .font(.brutal(22))
                 .foregroundColor(.white)
             Spacer()
             HStack(spacing: 6) {
                 ForEach(["Barcode", "Image"], id: \.self) { mode in
                     Button(mode.uppercased()) { withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { selectedMode = mode } }
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(selectedMode == mode ? .black : .white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -297,7 +296,7 @@ struct ErrorCard: View {
                 .foregroundColor(.black)
                 .padding(.horizontal, 18).padding(.vertical, 8)
                 .background(Color.white)
-                .cornerRadius(10)
+                .cornerRadius(2)
         }
         .padding()
         .frame(maxWidth: 300)
@@ -325,7 +324,7 @@ struct QuickLogCard: View {
                 // Title block
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title.uppercased())
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 9, weight: .semibold))
                         .tracking(1.5)
                         .foregroundColor(.white.opacity(0.6))
                     Text(foodName.uppercased())
@@ -337,14 +336,14 @@ struct QuickLogCard: View {
                 // Serving size control
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("PORTION TELEMETRY")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        Text("Portion")
+                            .font(.system(size: 9, weight: .semibold))
                             .tracking(1.5)
                             .foregroundColor(.white.opacity(0.6))
                         Spacer()
                         HStack(spacing: 6) {
                             Text(String(format: "%.0fg", servingSize)).contentTransition(.numericText())
-                                .font(.system(size: 14, weight: .black, design: .monospaced))
+                                .font(.system(size: 14, weight: .black))
                                 .foregroundColor(.white)
                             Button {
                                 servingSize = max(5, servingSize - 25)
@@ -377,7 +376,7 @@ struct QuickLogCard: View {
                     HStack {
                         ForEach(["5g", "250g", "500g", "1000g"], id: \.self) { label in
                             Text(label)
-                                .font(.system(size: 8, design: .monospaced))
+                                .font(.system(size: 8))
                                 .foregroundColor(.white.opacity(0.6))
                             if label != "1000g" { Spacer() }
                         }

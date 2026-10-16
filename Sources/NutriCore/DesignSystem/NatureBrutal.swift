@@ -56,15 +56,21 @@ struct AppBackdrop: View {
     }
 }
 
-/// The name in a heavy wide face, nudged slightly off the margin.
+/// The name in a heavy wide face. It is laid out at a fixed size and allowed to run past the right edge,
+/// so the last letter is cropped by the screen.
 struct Wordmark: View {
     var text = "PRIMAL"
     var size: CGFloat = 56
     var body: some View {
-        Text(text).font(.brutal(size)).foregroundColor(.ncPrimary)
-            .lineLimit(1).minimumScaleFactor(0.5)
-            .offset(x: -size * 0.04)
-            .accessibilityLabel(text)
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: size * 0.92)
+            .overlay(alignment: .leading) {
+                Text(text).font(.brutal(size)).foregroundColor(.ncPrimary)
+                    .lineLimit(1).fixedSize()
+                    .offset(x: -size * 0.05)
+            }
+            .accessibilityElement().accessibilityLabel(text)
     }
 }
 
@@ -87,7 +93,7 @@ struct PageHeader: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(caption).spacedCaps(10, tracking: 2.6).foregroundColor(.ncSecondary)
                 .opacity(caption.isEmpty ? 0 : 1).frame(height: caption.isEmpty ? 0 : nil)
-            Wordmark(text: title.uppercased(), size: 44)
+            Wordmark(text: title.uppercased(), size: 62)
             Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1).padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

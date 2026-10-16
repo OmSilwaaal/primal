@@ -7,7 +7,7 @@ enum ExportService {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"; return f
     }()
 
-    static func csv(readings: [BiomarkerReading], meals: [MealEntry], symptoms: [SymptomLog], dietStart: Date?) -> URL? {
+    static func csv(readings: [BiomarkerReading], meals: [MealEntry], dietStart: Date?) -> URL? {
         var lines = ["# Primal export — general information for discussion with a clinician, not medical advice"]
         if let dietStart { lines.append("# Diet start date,\(df.string(from: dietStart))") }
         lines.append("")
@@ -23,12 +23,6 @@ enum ExportService {
         for m in meals.sorted(by: { $0.date < $1.date }) {
             let name = m.foodName.replacingOccurrences(of: ",", with: " ")
             lines.append("\(df.string(from: m.date)),\(name),\(m.species),\(m.cutCategory),\(m.prep),\(Int(m.servingSize)),\(Int(m.calories)),\(Int(m.protein)),\(Int(m.totalFat)),\(Int(m.carbohydrates)),\(Int(m.vitaminA)),\(String(format: "%.1f", m.copper)),\(Int(m.riskScore))")
-        }
-        lines.append("")
-        lines.append("SYMPTOMS")
-        lines.append("date,symptom,severity,notes")
-        for s in symptoms.sorted(by: { $0.date < $1.date }) {
-            lines.append("\(df.string(from: s.date)),\(s.kind),\(s.severity),\(s.notes.replacingOccurrences(of: ",", with: " "))")
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("primal-export.csv")
         do { try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8); return url } catch { return nil }

@@ -274,14 +274,7 @@ enum BiomarkerKind: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Symptoms
-enum GISymptom: String, CaseIterable, Identifiable {
-    case nausea, vomiting, diarrhea, cramps, bloating, fever, headache, fatigue
-    var id: String { rawValue }
-    var label: String { rawValue.capitalized }
-    var isKetoFlu: Bool { [.headache, .fatigue].contains(self) }
-}
-
+// MARK: - Adaptation
 enum KetoFluSymptom: String, CaseIterable, Identifiable {
     case headache, cramps, fatigue, dizziness, brainFog
     var id: String { rawValue }

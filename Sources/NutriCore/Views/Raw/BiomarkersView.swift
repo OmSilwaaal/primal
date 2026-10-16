@@ -13,7 +13,6 @@ struct BiomarkersView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \BiomarkerReading.date, order: .reverse) private var readings: [BiomarkerReading]
     @Query(sort: \MealEntry.date) private var meals: [MealEntry]
-    @Query private var symptoms: [SymptomLog]
     @AppStorage(RawSettings.startKey) private var startInterval = 0.0
     @State private var showAdd = false
     @State private var importing = false
@@ -45,9 +44,9 @@ struct BiomarkersView: View {
 
             RawCard(title: "Doctor export") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Labs, diet history and symptoms in one file to share with your clinician.").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text("Labs and diet history in one file to share with your clinician.").font(.system(size: 12)).foregroundColor(.ncSecondary)
                     HStack(spacing: 10) {
-                        Button("CSV") { shareURL = ExportService.csv(readings: readings, meals: meals, symptoms: symptoms, dietStart: dietStart) }
+                        Button("CSV") { shareURL = ExportService.csv(readings: readings, meals: meals, dietStart: dietStart) }
                             .buttonStyle(.primalSecondary)
                         Button("PDF summary") { shareURL = ExportService.pdf(readings: readings, meals: meals, dietStart: dietStart) }
                             .buttonStyle(.primalSecondary)

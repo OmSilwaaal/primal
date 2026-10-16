@@ -17,7 +17,7 @@ struct NutriCoreApp: App {
         }
         .modelContainer(for: [
             MealEntry.self, UserProfile.self, DailyHydration.self,
-            SourceBatch.self, Supplier.self, SymptomLog.self, BiomarkerReading.self,
+            SourceBatch.self, Supplier.self, BiomarkerReading.self,
             OutcomeLog.self, SunSession.self,
         ])
     }

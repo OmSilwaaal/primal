@@ -15,7 +15,11 @@ struct NutriCoreApp: App {
                     Task { try? await supabase.auth.session(from: url) }
                 }
         }
-        .modelContainer(for: [MealEntry.self, UserProfile.self, DailyHydration.self])
+        .modelContainer(for: [
+            MealEntry.self, UserProfile.self, DailyHydration.self,
+            SourceBatch.self, Supplier.self, SymptomLog.self, BiomarkerReading.self,
+            OutcomeLog.self, SunSession.self,
+        ])
     }
 }
 

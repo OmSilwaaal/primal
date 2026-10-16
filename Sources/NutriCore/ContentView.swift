@@ -17,11 +17,11 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
-                DashboardView(onProfile: { selectedTab = 5 }).tag(0)
+                DashboardView(onProfile: { selectedTab = 5 }, onRaw: { selectedTab = 2 }).tag(0)
                 CameraView().tag(1)
-                SearchView().tag(2)
-                FriendsView().tag(3)
-                PlacesMapView().tag(4)
+                RawHubView().tag(2)
+                SunView().tag(3)
+                FriendsView().tag(4)
                 ProfileView().tag(5)
             }
             .ignoresSafeArea(edges: .bottom)
@@ -41,9 +41,9 @@ struct PrimalLightTabBar: View {
     private let tabs: [(icon: String, activeIcon: String, label: String)] = [
         ("sparkles",             "sparkles",                "Today"),
         ("camera.viewfinder",    "camera.viewfinder",       "AI Scan"),
-        ("magnifyingglass",      "magnifyingglass",         "Search"),
+        ("flame",               "flame.fill",              "Raw"),
+        ("sun.max",              "sun.max.fill",            "Sun"),
         ("person.2",             "person.2.fill",           "Friends"),
-        ("map",                  "map.fill",                "Places"),
         ("person",               "person.fill",             "Profile"),
     ]
 

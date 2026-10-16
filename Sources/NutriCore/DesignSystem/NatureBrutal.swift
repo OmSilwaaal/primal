@@ -79,7 +79,7 @@ struct RuleLabel: View {
     let text: String
     var body: some View {
         HStack(spacing: 10) {
-            Text(text).spacedCaps(10, tracking: 2).foregroundColor(.ncSecondary)
+            Text(text).spacedCaps(11, tracking: 2).foregroundColor(.ncSecondary)
             Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
         }
     }
@@ -91,10 +91,9 @@ struct PageHeader: View {
     var caption: String = ""
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(caption).spacedCaps(10, tracking: 2.6).foregroundColor(.ncSecondary)
+            Text(caption).spacedCaps(11, tracking: 2.6).foregroundColor(.ncSecondary)
                 .opacity(caption.isEmpty ? 0 : 1).frame(height: caption.isEmpty ? 0 : nil)
             Wordmark(text: title.uppercased(), size: 62)
-            Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1).padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

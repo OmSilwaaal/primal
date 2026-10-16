@@ -30,15 +30,15 @@ extension Color {
     static let ncBorderSub           = Color.white.opacity(0.05)
 
     // Accents (tuned for dark backgrounds). *Light variants are translucent tints.
-    static let ncIndigo              = Color(hex: "#C9D6C0")
-    static let ncIndigoLight         = Color(hex: "#C9D6C0").opacity(0.16)
-    static let ncGreen               = Color(hex: "#4FC48A")
-    static let ncGreenLight          = Color(hex: "#4FC48A").opacity(0.14)
-    static let ncOrange              = Color(hex: "#F0A35E")
-    static let ncOrangeLight         = Color(hex: "#F0A35E").opacity(0.16)
-    static let ncSky                 = Color(hex: "#6FB7D6")
-    static let ncSkyLight            = Color(hex: "#6FB7D6").opacity(0.14)
-    static let ncError               = Color(hex: "#F07167")
+    static let ncIndigo              = Color(hex: "#D4DACF")
+    static let ncIndigoLight         = Color(hex: "#D4DACF").opacity(0.16)
+    static let ncGreen               = Color(hex: "#B9C4B7")
+    static let ncGreenLight          = Color(hex: "#B9C4B7").opacity(0.14)
+    static let ncOrange              = Color(hex: "#D6CDBB")
+    static let ncOrangeLight         = Color(hex: "#D6CDBB").opacity(0.16)
+    static let ncSky                 = Color(hex: "#B5BFC4")
+    static let ncSkyLight            = Color(hex: "#B5BFC4").opacity(0.14)
+    static let ncError               = Color(hex: "#C98074")
 
     // Legacy alias
     static let ncSurface2            = Color(hex: "#17171A")
@@ -71,14 +71,10 @@ extension Color {
 // MARK: - Card
 struct CardModifier: ViewModifier {
     var cornerRadius: CGFloat = 16
+    /// Cards no longer draw a box; content sits directly on the background.
     func body(content: Content) -> some View {
-        let r = min(cornerRadius, 3)
         content
-            .background(Color.ncSurfaceContLowest.opacity(0.80), in: RoundedRectangle(cornerRadius: r, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: r, style: .continuous)
-                    .stroke(Color.ncPrimary.opacity(0.14), lineWidth: 1)
-            )
+            .overlay(alignment: .top) { Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1) }
     }
 }
 
@@ -151,7 +147,7 @@ struct SecondaryButtonStyle: ButtonStyle {
     var radius: CGFloat = 2
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .bold)).tracking(1.1).textCase(.uppercase)
+            .font(.system(size: 13, weight: .bold)).tracking(1.1).textCase(.uppercase)
             .foregroundColor(.ncPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: height)

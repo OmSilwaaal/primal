@@ -58,9 +58,9 @@ struct SourcingView: View {
                                 }
                             }
                             TextField("Notes", text: Binding(get: { s.notes }, set: { s.notes = $0; try? context.save() }))
-                                .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                .font(.system(size: 13)).foregroundColor(.ncSecondary)
                             let sb = batches.filter { $0.supplierName == s.name }
-                            if !sb.isEmpty { Text("\(sb.count) purchase(s)").font(.system(size: 11)).foregroundColor(.ncSecondary) }
+                            if !sb.isEmpty { Text("\(sb.count) purchase(s)").font(.system(size: 12)).foregroundColor(.ncSecondary) }
                         }
                     }
                 }
@@ -73,13 +73,13 @@ struct SourcingView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(b.label.isEmpty ? b.speciesEnum.label : b.label).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
-                                Text(b.purchaseDate.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 11)).foregroundColor(.ncSecondary)
+                                Text(b.purchaseDate.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 12)).foregroundColor(.ncSecondary)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
                                 if b.pricePerLb > 0 { Text(String(format: "$%.2f/lb", b.pricePerLb)).font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary) }
                                 if b.pricePerLb > 0 && b.totalWeightG > 0 {
-                                    Text(money(b.totalWeightG / 453.592 * b.pricePerLb)).font(.system(size: 11)).foregroundColor(.ncSecondary)
+                                    Text(money(b.totalWeightG / 453.592 * b.pricePerLb)).font(.system(size: 12)).foregroundColor(.ncSecondary)
                                 }
                             }
                         }
@@ -111,13 +111,13 @@ struct DietModeView: View {
                             .foregroundColor(modeRaw == m.rawValue ? .ncPrimary : .ncOutline).font(.system(size: 18))
                         VStack(alignment: .leading, spacing: 4) {
                             Text(m.label).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-                            Text(m.blurb).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                            Text(m.blurb).font(.system(size: 13)).foregroundColor(.ncSecondary)
                             Text("Fat \(Int(m.fatRange.lowerBound))–\(Int(m.fatRange.upperBound))% of calories · carbs under ~\(Int(m.carbCap)) g")
-                                .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                                .font(.system(size: 12)).foregroundColor(.ncSecondary)
                         }
                         Spacer()
                     }
-                    .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading)
                     .glassCard(radius: 3)
                     .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(modeRaw == m.rawValue ? Color.ncPrimary.opacity(0.6) : .clear, lineWidth: 1))
                 }
@@ -131,7 +131,7 @@ struct DietModeView: View {
                         DatePicker("Started", selection: Binding(get: { Date(timeIntervalSince1970: startInterval) }, set: { startInterval = $0.timeIntervalSince1970 }),
                                    in: ...Date(), displayedComponents: .date).foregroundColor(.ncPrimary)
                     }
-                    Text("Used for the adaptation tracker and the before/after line on lab charts.").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text("Used for the adaptation tracker and the before/after line on lab charts.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
             Disclaimer(text: "Targets shift with your mode as general references. They are not personalised medical advice.")

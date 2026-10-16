@@ -31,17 +31,17 @@ struct DietRaterView: View {
                 RawCard(title: "Where the calories come from", trailing: "\(Int(r.kcal)) kcal · \(r.mealCount) items") {
                     VStack(alignment: .leading, spacing: 12) {
                         CompositionBar(segments: [
-                            ("Raw animal", r.rawPct, .ncError),
-                            ("Cooked animal", r.cookedAnimalPct, .ncOrange),
-                            ("Dairy & eggs", r.dairyEggPct, .ncSky),
-                            ("Plant", r.plantPct, .ncGreen),
+                            ("Raw animal", r.rawPct, .ncPrimary),
+                            ("Cooked animal", r.cookedAnimalPct, .ncPrimary.opacity(0.55)),
+                            ("Dairy & eggs", r.dairyEggPct, .ncPrimary.opacity(0.3)),
+                            ("Plant", r.plantPct, .ncPrimary.opacity(0.15)),
                         ])
                         HStack(spacing: 8) {
-                            StatTile(title: "Raw", value: "\(Int(r.rawPct))%", color: .ncError)
+                            StatTile(title: "Raw", value: "\(Int(r.rawPct))%")
                             StatTile(title: "Animal", value: "\(Int(r.animalPct))%", color: .ncPrimary)
-                            StatTile(title: "Plant", value: "\(Int(r.plantPct))%", color: .ncGreen)
+                            StatTile(title: "Plant", value: "\(Int(r.plantPct))%")
                         }
-                        Text("Avg \(Int(r.avgCarbsG)) g carbs on logged days").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        Text("Avg \(Int(r.avgCarbsG)) g carbs on logged days").font(.system(size: 13)).foregroundColor(.ncSecondary)
                     }
                 }
 
@@ -50,7 +50,7 @@ struct DietRaterView: View {
                         Text(comparison(r)).font(.system(size: 13)).foregroundColor(.ncPrimary)
                         if r.avgCarbsG > mode.carbCap {
                             Text("Average carbs (\(Int(r.avgCarbsG)) g) are above the usual \(Int(mode.carbCap)) g/day for this mode.")
-                                .font(.system(size: 12)).foregroundColor(.ncOrange)
+                                .font(.system(size: 13)).foregroundColor(.ncOrange)
                         }
                     }
                 }
@@ -66,7 +66,7 @@ struct DietRaterView: View {
 
             RawCard(title: "How it's worked out") {
                 Text("Foods tagged with a species count as meat, fish, organs or fat; untagged foods are matched by name. Raw, thawed and aged count fully raw, seared 75%, rare 50%, cooked 0%. Calories are weighted by what you log, so unlogged meals aren't counted.")
-                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
             Disclaimer()
         }
@@ -91,11 +91,10 @@ struct StatTile: View {
     var color: Color = .ncPrimary
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
+            Text(title).font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             Text(value).font(.system(size: 20, weight: .bold).monospacedDigit()).foregroundColor(color)
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }
 
@@ -107,7 +106,7 @@ struct SpectrumBar: View {
         VStack(spacing: 8) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Rectangle().fill(LinearGradient(colors: [.ncGreen.opacity(0.5), .ncSky.opacity(0.5), .ncOrange.opacity(0.6), .ncError.opacity(0.8)],
+                    Rectangle().fill(LinearGradient(colors: [Color.ncPrimary.opacity(0.12), Color.ncPrimary.opacity(0.35), Color.ncPrimary.opacity(0.6), Color.ncPrimary.opacity(0.9)],
                                                   startPoint: .leading, endPoint: .trailing))
                         .frame(height: 10)
                     if active {
@@ -122,7 +121,7 @@ struct SpectrumBar: View {
             .frame(height: 22)
             HStack {
                 ForEach(labels.indices, id: \.self) { i in
-                    Text(labels[i]).font(.system(size: 10, weight: .medium)).foregroundColor(.ncSecondary)
+                    Text(labels[i]).font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
                     if i < labels.count - 1 { Spacer() }
                 }
             }
@@ -150,7 +149,7 @@ struct CompositionBar: View {
                 ForEach(segments.indices, id: \.self) { i in
                     HStack(spacing: 5) {
                         Circle().fill(segments[i].2).frame(width: 7, height: 7)
-                        Text("\(segments[i].0) \(Int(segments[i].1))%").font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        Text("\(segments[i].0) \(Int(segments[i].1))%").font(.system(size: 12)).foregroundColor(.ncSecondary)
                     }
                 }
             }

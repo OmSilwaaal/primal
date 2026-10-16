@@ -22,7 +22,7 @@ struct RawHubView: View {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 28) {
                         PageHeader(title: "Raw", caption: mode.label).padding(.top, 12)
 
                         if !accepted { disclaimerGate }
@@ -51,7 +51,7 @@ struct RawHubView: View {
                         Disclaimer(text: "Primal provides risk information, not medical advice and never a clearance that food is safe. Eating raw or undercooked animal products can cause serious illness, especially for children, older adults, pregnant people and anyone immunocompromised.")
                         Spacer().frame(height: 100)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -88,19 +88,19 @@ struct RawHubView: View {
                 HStack {
                     FieldLabel(text: "Diet rater · 7 days")
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
+                    Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
                 }
                 Text(r.tier.title).font(.system(size: 24, weight: .bold)).foregroundColor(.ncPrimary)
                 SpectrumBar(position: r.position, active: r.tier != .insufficient)
                 if r.tier != .insufficient {
                     HStack(spacing: 8) {
-                        StatTile(title: "Raw", value: "\(Int(r.rawPct))%", color: .ncError)
+                        StatTile(title: "Raw", value: "\(Int(r.rawPct))%")
                         StatTile(title: "Animal", value: "\(Int(r.animalPct))%")
-                        StatTile(title: "Plant", value: "\(Int(r.plantPct))%", color: .ncGreen)
+                        StatTile(title: "Plant", value: "\(Int(r.plantPct))%")
                     }
                 }
             }
-            .padding(18).frame(maxWidth: .infinity, alignment: .leading).glassCard()
+            .padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).glassCard()
         }
         .buttonStyle(SmoothButtonStyle())
     }
@@ -114,18 +114,18 @@ struct RawHubView: View {
                 HStack {
                     FieldLabel(text: "Food safety · 3 days")
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
+                    Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
                 }
                 if let worst {
                     let level = levelFor(worst.riskScore)
                     HStack(alignment: .firstTextBaseline) {
                         Text("\(Int(worst.riskScore))").font(.system(size: 34, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
-                        Text("highest risk score").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        Text("highest risk score").font(.system(size: 13)).foregroundColor(.ncSecondary)
                         Spacer()
                         Tag(text: level.label, color: level.color)
                     }
                     BandGauge(value: worst.riskScore / 100, color: level.color)
-                    Text(worst.foodName).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1)
+                    Text(worst.foodName).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1)
                 } else {
                     Text("No raw items logged in the last 3 days.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 }
@@ -135,7 +135,7 @@ struct RawHubView: View {
                     Tag(text: "\(batches.count) batches")
                 }
             }
-            .padding(18).frame(maxWidth: .infinity, alignment: .leading).glassCard()
+            .padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).glassCard()
         }
         .buttonStyle(SmoothButtonStyle())
     }

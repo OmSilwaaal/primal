@@ -31,7 +31,7 @@ struct NutrientsView: View {
                         Text("\(Int(range.lowerBound))% – \(Int(range.upperBound))%").font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                         Spacer()
                         Button("Reset to \(mode.label)") { fatMin = 0; fatMax = 0 }
-                            .font(.system(size: 12, weight: .semibold)).foregroundColor(.ncIndigo)
+                            .font(.system(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
                     }
                     Slider(value: Binding(get: { range.lowerBound }, set: { fatMin = min($0, range.upperBound - 5); if fatMax == 0 { fatMax = range.upperBound } }),
                            in: 30...85, step: 1).tint(.ncIndigo)
@@ -46,7 +46,7 @@ struct NutrientsView: View {
                 RawCard(title: "Running low") {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(low, id: \.self) { n in
-                            HStack { Tag(text: n, color: .ncOrange); Text("under half the reference on most logged days").font(.system(size: 12)).foregroundColor(.ncSecondary) }
+                            HStack { Tag(text: n, color: .ncOrange); Text("under half the reference on most logged days").font(.system(size: 13)).foregroundColor(.ncSecondary) }
                         }
                     }
                 }
@@ -62,7 +62,7 @@ struct NutrientsView: View {
                                 HStack {
                                     Text(g.name).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                                     Spacer()
-                                    Text("\(fmt(g.avg)) / \(fmt(g.target)) \(g.unit)").font(.system(size: 11).monospacedDigit()).foregroundColor(.ncSecondary)
+                                    Text("\(fmt(g.avg)) / \(fmt(g.target)) \(g.unit)").font(.system(size: 12).monospacedDigit()).foregroundColor(.ncSecondary)
                                 }
                                 BandGauge(value: g.pct, color: g.pct < 0.5 ? .ncOrange : g.pct < 0.8 ? .ncSky : .ncGreen, height: 6)
                             }
@@ -118,13 +118,13 @@ struct FatProteinGauge: View {
     private func gauge(_ title: String, _ pct: Double?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(title).font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                Text(title).font(.system(size: 13, weight: .medium)).foregroundColor(.ncSecondary)
                 Spacer()
                 if let pct {
                     Text("\(Int(pct))% fat · \(100 - Int(pct))% protein+carb")
-                        .font(.system(size: 12, weight: .semibold)).foregroundColor(color(pct))
+                        .font(.system(size: 13, weight: .semibold)).foregroundColor(color(pct))
                 } else {
-                    Text("No data").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text("No data").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
             BandGauge(value: (pct ?? 0) / 100, band: (range.lowerBound / 100)...(range.upperBound / 100),
@@ -147,9 +147,9 @@ struct LiverBudgetCard: View {
                 Text(budget.remainingVitaminAWeek > 0
                      ? "About \(Int(budget.beefLiverGramsLeft)) g of beef liver of room left this week before the 7-day average reaches the vitamin A upper limit."
                      : "This week's vitamin A has reached the reference upper limit. Averages over the week are what counts.")
-                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
                 Text("Adult UL values (3,000 mcg RAE vitamin A, 10 mg copper per day) are general references, averaged over 7 days.")
-                    .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
         }
     }
@@ -157,9 +157,9 @@ struct LiverBudgetCard: View {
     private func meter(_ title: String, _ detail: String, _ pct: Double) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack { Text(title).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary); Spacer()
-                Text("\(Int(pct * 100))%").font(.system(size: 12, weight: .bold).monospacedDigit()).foregroundColor(pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncPrimary) }
+                Text("\(Int(pct * 100))%").font(.system(size: 13, weight: .bold).monospacedDigit()).foregroundColor(pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncPrimary) }
             BandGauge(value: pct, color: pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncGreen)
-            Text(detail).font(.system(size: 11)).foregroundColor(.ncSecondary)
+            Text(detail).font(.system(size: 12)).foregroundColor(.ncSecondary)
         }
     }
 }
@@ -184,9 +184,9 @@ struct OrganRotationView: View {
                             Spacer()
                             Text("Every ~\(s.targetGapDays) days")
                         }
-                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
                         BandGauge(value: s.weekGrams / s.capGrams, color: s.overCap ? .ncError : .ncPrimary, height: 6)
-                        Text("\(Int(s.weekGrams)) g this week of \(Int(s.capGrams)) g cap").font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        Text("\(Int(s.weekGrams)) g this week of \(Int(s.capGrams)) g cap").font(.system(size: 12)).foregroundColor(.ncSecondary)
                     }
                 }
             }

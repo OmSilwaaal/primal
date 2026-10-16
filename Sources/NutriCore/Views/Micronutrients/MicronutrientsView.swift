@@ -46,7 +46,7 @@ struct MicronutrientsView: View {
                         ForEach(groupedNutrients, id: \.0) { groupName, groupItems in
                             VStack(alignment: .leading, spacing: 16) {
                                 Text(groupName)
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.system(size: 11, weight: .bold))
                                     .tracking(2)
                                     .foregroundColor(.gray)
                                     .padding(.horizontal)

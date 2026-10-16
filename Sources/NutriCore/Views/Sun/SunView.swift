@@ -46,7 +46,7 @@ struct SunView: View {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 28) {
                         PageHeader(title: "Sun", caption: "Light · outdoors · vitamin D").padding(.top, 12)
 
                         todayCard
@@ -58,7 +58,7 @@ struct SunView: View {
                         Disclaimer(text: "General information, not medical advice. UV exposure raises skin-cancer risk; avoid burning and follow your clinician's guidance on sun exposure.")
                         Spacer().frame(height: 100)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -98,7 +98,7 @@ struct SunView: View {
                         .buttonStyle(.primalSecondary)
                 } else {
                     Text(daylight.isEmpty ? "Daylight from Apple Watch appears here once Health has data." : "Includes Apple Watch time in daylight.")
-                        .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
                 }
             }
         }
@@ -160,17 +160,17 @@ struct SunView: View {
                             Text("\(w.lowerBound.formatted(date: .omitted, time: .shortened)) – \(w.upperBound.formatted(date: .omitted, time: .shortened))")
                                 .font(.system(size: 20, weight: .bold)).foregroundColor(.ncOrange)
                             Text("While the sun is above 45° (your shadow is shorter than you), sunlight carries enough UVB for skin to make vitamin D.")
-                                .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                .font(.system(size: 13)).foregroundColor(.ncSecondary)
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 4) {
                             FieldLabel(text: "Vitamin D window")
                             Text("None today").font(.system(size: 20, weight: .bold)).foregroundColor(.ncSky)
                             Text("At your latitude the sun doesn't climb above 45° today, so little vitamin D is made from sunlight in this season.")
-                                .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                .font(.system(size: 13)).foregroundColor(.ncSecondary)
                         }
                     }
-                    if sun.failed { Text("UV data unavailable (offline?). Solar times are calculated on-device.").font(.system(size: 11)).foregroundColor(.ncOrange) }
+                    if sun.failed { Text("UV data unavailable (offline?). Solar times are calculated on-device.").font(.system(size: 12)).foregroundColor(.ncOrange) }
                     if !sun.hourlyUV.isEmpty {
                         Chart(sun.hourlyUV, id: \.hour) { p in
                             BarMark(x: .value("Hour", p.hour, unit: .hour), y: .value("UV", p.uv)).foregroundStyle(uvColor(p.uv))
@@ -222,7 +222,7 @@ struct SunView: View {
                                 .foregroundColor(r.1 > r.2 + 0.2 ? .ncGreen : r.1 < r.2 - 0.2 ? .ncOrange : .ncSecondary)
                         }
                     }
-                    Text("Average on days at/above goal vs below. A pattern in your logs, not proof of cause.").font(.system(size: 11)).foregroundColor(.ncSecondary)
+                    Text("Average on days at/above goal vs below. A pattern in your logs, not proof of cause.").font(.system(size: 12)).foregroundColor(.ncSecondary)
                 }
             }
         }
@@ -244,7 +244,7 @@ struct SunView: View {
             Image(systemName: icon).font(.system(size: 15)).foregroundColor(.ncOrange).frame(width: 26)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text(text).font(.system(size: 12)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.system(size: 13)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true)
             }
         }
     }

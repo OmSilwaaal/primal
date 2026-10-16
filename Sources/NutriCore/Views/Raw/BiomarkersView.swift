@@ -29,7 +29,7 @@ struct BiomarkersView: View {
                     HStack { if importing { ProgressView().tint(.ncPrimary) }; Label("Health", systemImage: "heart.text.square") }
                 }.buttonStyle(.primalSecondary).frame(maxWidth: 130)
             }
-            if let importMsg { Text(importMsg).font(.system(size: 12)).foregroundColor(.ncSecondary) }
+            if let importMsg { Text(importMsg).font(.system(size: 13)).foregroundColor(.ncSecondary) }
 
             ForEach(BiomarkerGroup.allCases) { g in
                 RawCard(title: g.label) {
@@ -44,7 +44,7 @@ struct BiomarkersView: View {
 
             RawCard(title: "Doctor export") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Labs and diet history in one file to share with your clinician.").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text("Labs and diet history in one file to share with your clinician.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                     HStack(spacing: 10) {
                         Button("CSV") { shareURL = ExportService.csv(readings: readings, meals: meals, dietStart: dietStart) }
                             .buttonStyle(.primalSecondary)
@@ -91,7 +91,7 @@ private struct BiomarkerRow: View {
             } else {
                 Text("—").foregroundColor(.ncSecondary)
             }
-            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundColor(.ncOutline)
+            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
         }
         .padding(.vertical, 8)
         .contentShape(Rectangle())
@@ -165,7 +165,7 @@ struct BiomarkerDetailView: View {
                                 .foregroundStyle(Color.ncIndigo)
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                                 .annotation(position: .top, alignment: .leading) {
-                                    Text("Diet start").font(.system(size: 10, weight: .semibold)).foregroundColor(.ncIndigo)
+                                    Text("Diet start").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncIndigo)
                                 }
                         }
                         ForEach(rows) { r in
@@ -176,11 +176,11 @@ struct BiomarkerDetailView: View {
                     }
                     .chartYScale(domain: .automatic(includesZero: false))
                     .frame(height: 200)
-                    if start != nil { Text("Dashed line marks when you started this diet.").font(.system(size: 11)).foregroundColor(.ncSecondary) }
+                    if start != nil { Text("Dashed line marks when you started this diet.").font(.system(size: 12)).foregroundColor(.ncSecondary) }
                 }
             }
             if let ref = kind.reference {
-                Text("Typical lab reference: \(fmt(ref.lowerBound))–\(fmt(ref.upperBound)) \(kind.unit)").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                Text("Typical lab reference: \(fmt(ref.lowerBound))–\(fmt(ref.upperBound)) \(kind.unit)").font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
             RawCard(title: "Readings") {
                 VStack(spacing: 8) {
@@ -190,7 +190,7 @@ struct BiomarkerDetailView: View {
                             if r.source == "health" { Tag(text: "Health") }
                             Spacer()
                             Text("\(fmt(r.value)) \(kind.unit)").font(.system(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncPrimary)
-                            Button { context.delete(r); try? context.save() } label: { Image(systemName: "trash").font(.system(size: 12)).foregroundColor(.ncSecondary) }
+                            Button { context.delete(r); try? context.save() } label: { Image(systemName: "trash").font(.system(size: 13)).foregroundColor(.ncSecondary) }
                         }
                     }
                     if rows.isEmpty { Text("Nothing logged.").font(.system(size: 13)).foregroundColor(.ncSecondary) }

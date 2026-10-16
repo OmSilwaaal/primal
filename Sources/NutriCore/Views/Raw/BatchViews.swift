@@ -116,7 +116,7 @@ struct BatchEditView: View {
                         if let r = freezeResult {
                             HStack(alignment: .top, spacing: 8) {
                                 if r.effective { Tag(text: "Parasite-mitigated", color: .ncGreen) }
-                                Text(r.note).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                Text(r.note).font(.system(size: 13)).foregroundColor(.ncSecondary)
                             }
                         }
                     }
@@ -207,14 +207,14 @@ struct SafetyView: View {
             RawCard(title: "Recall check", trailing: recalls.lastChecked.map { "Checked \($0.formatted(date: .omitted, time: .shortened))" }) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Compares your logged lot numbers with USDA FSIS and openFDA recall data. No match found is not a clearance.")
-                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
                     let flagged = batches.filter { !$0.recallFlag.isEmpty }
                     ForEach(flagged) { b in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.octagon.fill").foregroundColor(.ncError)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(b.label).font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
-                                Text(b.recallFlag).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                Text(b.recallFlag).font(.system(size: 13)).foregroundColor(.ncSecondary)
                             }
                         }
                     }
@@ -225,7 +225,7 @@ struct SafetyView: View {
                     }
                     .buttonStyle(.primalSecondary)
                     if !recalls.fsisAvailable && recalls.lastChecked != nil {
-                        Text("USDA FSIS feed unreachable right now; only openFDA was checked.").font(.system(size: 11)).foregroundColor(.ncOrange)
+                        Text("USDA FSIS feed unreachable right now; only openFDA was checked.").font(.system(size: 12)).foregroundColor(.ncOrange)
                     }
                 }
             }
@@ -297,9 +297,9 @@ private struct BatchRow: View {
                 Spacer()
                 if let s = batch.sellByDate { Text("Sell by \(s.formatted(date: .abbreviated, time: .omitted))") }
             }
-            .font(.system(size: 12)).foregroundColor(.ncSecondary)
+            .font(.system(size: 13)).foregroundColor(.ncSecondary)
         }
-        .padding(14)
+        .padding(.vertical, 14)
         .glassCard(radius: 3)
     }
 }

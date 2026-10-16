@@ -56,7 +56,7 @@ struct PrimalLightTabBar: View {
                             .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
                             .symbolEffect(.bounce, value: isSelected)
                         if isSelected {
-                            Text(tab.label).font(.system(size: 11, weight: .heavy)).tracking(1.2).textCase(.uppercase)
+                            Text(tab.label).font(.system(size: 12, weight: .heavy)).tracking(1.2).textCase(.uppercase)
                                 .lineLimit(1).fixedSize()
                                 .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                         }

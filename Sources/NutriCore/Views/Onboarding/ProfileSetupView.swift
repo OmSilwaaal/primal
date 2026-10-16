@@ -169,7 +169,7 @@ struct BiologicalStep: View {
             if sex == "Female" {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("STATUS (OPTIONAL)")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.gray)
                     OptionList(options: ["None", "Pregnant", "Postpartum"], selected: $pregnancyStatus)
                 }
@@ -348,7 +348,7 @@ struct SetupTextField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .tracking(1)
                 .foregroundColor(.gray)
             

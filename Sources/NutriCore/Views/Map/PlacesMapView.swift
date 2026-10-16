@@ -79,7 +79,7 @@ struct PlacesMapView: View {
                     VStack(spacing: 16) {
                         if let searchError {
                             Text(searchError)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.white)
                                 .padding(10)
                                 .background(Color.black.opacity(0.8))
@@ -205,7 +205,7 @@ struct PlaceDetailCard: View {
                     Image(systemName: "mappin.and.ellipse")
                         .foregroundColor(.gray)
                     Text(address)
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                         .foregroundColor(.gray)
                 }
             }
@@ -215,7 +215,7 @@ struct PlaceDetailCard: View {
                     Image(systemName: "phone.fill")
                         .foregroundColor(.gray)
                     Text(phone)
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                         .foregroundColor(.white)
                 }
             }

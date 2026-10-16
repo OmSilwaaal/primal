@@ -9,9 +9,9 @@ struct OnboardingView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 22) {
-                    Text("Raw").spacedCaps(10, tracking: 2.4)
-                    Text("Sun").spacedCaps(10, tracking: 2.4)
-                    Text("Index").spacedCaps(10, tracking: 2.4)
+                    Text("Raw").spacedCaps(11, tracking: 2.4)
+                    Text("Sun").spacedCaps(11, tracking: 2.4)
+                    Text("Index").spacedCaps(11, tracking: 2.4)
                     Spacer()
                 }
                 .foregroundColor(.ncPrimary.opacity(0.85))
@@ -53,11 +53,11 @@ struct OnboardingView: View {
                     .opacity(authManager.isLoading ? 0.6 : 1)
 
                     if let error = authManager.authError {
-                        Text(error).font(.system(size: 12)).foregroundColor(.ncError).multilineTextAlignment(.center)
+                        Text(error).font(.system(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
                     }
 
                     Text("By continuing, you agree to our **Terms of Service** and **Privacy Policy**")
-                        .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
                         .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.horizontal, 24)
                 }
                 .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 28)
@@ -86,7 +86,7 @@ struct CompactAuthButton: View {
                 case .google:
                     GoogleGMark().frame(width: 16, height: 16)
                 }
-                Text(title).font(.system(size: 12, weight: .heavy)).tracking(1.2).textCase(.uppercase)
+                Text(title).font(.system(size: 13, weight: .heavy)).tracking(1.2).textCase(.uppercase)
             }
             .foregroundColor(fg)
             .frame(maxWidth: .infinity)
@@ -145,7 +145,7 @@ struct OnboardingFeatureRow: View {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(tint)
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .background(tintBg)
                 .cornerRadius(10)
             VStack(alignment: .leading, spacing: 2) {

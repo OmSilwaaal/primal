@@ -33,7 +33,7 @@ struct BiomarkersView: View {
 
             ForEach(BiomarkerGroup.allCases) { g in
                 RawCard(title: g.label) {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 0) {
                         ForEach(BiomarkerKind.allCases.filter { $0.group == g }) { k in
                             NavigationLink { BiomarkerDetailView(kind: k) } label: { BiomarkerRow(kind: k, latest: readings.first { $0.kind == k.rawValue }) }
                                 .buttonStyle(.plain)
@@ -82,7 +82,7 @@ private struct BiomarkerRow: View {
     let latest: BiomarkerReading?
     var body: some View {
         HStack {
-            Text(kind.label).font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
+            Text(kind.label).font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
             Spacer()
             if let latest {
                 let inRange = kind.reference?.contains(latest.value)
@@ -91,9 +91,10 @@ private struct BiomarkerRow: View {
             } else {
                 Text("—").foregroundColor(.ncSecondary)
             }
-            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
+            Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 15)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.1) }
         .contentShape(Rectangle())
     }
 }

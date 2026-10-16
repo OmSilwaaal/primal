@@ -105,62 +105,72 @@ struct FatProteinGauge: View {
     let todayPct: Double?
     let weekPct: Double?
     let range: ClosedRange<Double>
+    var index: String? = nil
 
     var body: some View {
-        RawCard(title: "Fat : protein by calories", trailing: "Target \(Int(range.lowerBound))–\(Int(range.upperBound))% fat") {
-            VStack(alignment: .leading, spacing: 14) {
-                gauge("Today", todayPct)
-                gauge("7-day average", weekPct)
-            }
-        }
-    }
-
-    private func gauge(_ title: String, _ pct: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title).font(.system(size: 13, weight: .medium)).foregroundColor(.ncSecondary)
-                Spacer()
-                if let pct {
-                    Text("\(Int(pct))% fat · \(100 - Int(pct))% protein+carb")
-                        .font(.system(size: 13, weight: .semibold)).foregroundColor(color(pct))
-                } else {
-                    Text("No data").font(.system(size: 13)).foregroundColor(.ncSecondary)
+        RawCard(title: "Fat ratio", trailing: "Target \(Int(range.lowerBound))–\(Int(range.upperBound))%", index: index) {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(alignment: .top, spacing: 0) {
+                    column("Today", todayPct)
+                    Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1).padding(.horizontal, 16)
+                    column("7-day average", weekPct)
                 }
+                Text("Share of calories from fat. The shaded band is your target range.")
+                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
-            BandGauge(value: (pct ?? 0) / 100, band: (range.lowerBound / 100)...(range.upperBound / 100),
-                      color: pct.map(color) ?? .ncSecondary, height: 10)
         }
     }
 
-    private func color(_ p: Double) -> Color { range.contains(p) ? .ncGreen : (p < range.lowerBound ? .ncSky : .ncOrange) }
+    private func column(_ title: String, _ pct: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).serifCaps(10).foregroundColor(.ncSecondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(pct.map { "\(Int($0))" } ?? "—").font(.metric(34)).foregroundColor(.ncPrimary)
+                Text("% fat").font(.serif(13)).foregroundColor(.ncSecondary)
+            }
+            LineGauge(value: (pct ?? 0) / 100, band: (range.lowerBound / 100)...(range.upperBound / 100),
+                      tint: pct.map { range.contains($0) ? Color.ncPrimary : Color.ncOrange } ?? .ncSecondary)
+            Text(pct.map { range.contains($0) ? "In range" : ($0 < range.lowerBound ? "Below range" : "Above range") } ?? "No data")
+                .font(.system(size: 13)).foregroundColor(.ncSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
 
 struct LiverBudgetCard: View {
     let budget: LiverBudget
+    var index: String? = nil
     var body: some View {
         let status = budget.status
         RawCard(title: "Liver budget", trailing: status == .over ? "Over" : status == .approaching ? "Approaching" : "Within range",
-                trailingColor: status == .over ? .ncError : status == .approaching ? .ncOrange : .ncGreen) {
-            VStack(alignment: .leading, spacing: 14) {
-                meter("Preformed vitamin A", "\(Int(budget.avgVitaminA)) / \(Int(LiverBudget.vitaminAUL)) mcg RAE per day", budget.vitaminAPct)
-                meter("Copper", String(format: "%.1f / %.0f mg per day", budget.avgCopper, LiverBudget.copperUL), budget.copperPct)
+                trailingColor: status == .over ? .ncError : status == .approaching ? .ncOrange : .ncSecondary, index: index) {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(alignment: .top, spacing: 0) {
+                    meter("Vitamin A", "\(Int(budget.avgVitaminA).formatted()) of 3,000 mcg", budget.vitaminAPct)
+                    Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1).padding(.horizontal, 16)
+                    meter("Copper", String(format: "%.1f of 10 mg", budget.avgCopper), budget.copperPct)
+                }
                 Text(budget.remainingVitaminAWeek > 0
-                     ? "About \(Int(budget.beefLiverGramsLeft)) g of beef liver of room left this week before the 7-day average reaches the vitamin A upper limit."
-                     : "This week's vitamin A has reached the reference upper limit. Averages over the week are what counts.")
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                Text("Adult UL values (3,000 mcg RAE vitamin A, 10 mg copper per day) are general references, averaged over 7 days.")
+                     ? "Room for about \(Int(budget.beefLiverGramsLeft)) g of beef liver this week before the 7-day vitamin A average reaches the upper limit."
+                     : "This week's vitamin A average has reached the reference upper limit.")
+                    .font(.system(size: 14)).foregroundColor(.ncPrimary).lineSpacing(2)
+                Text("Daily averages over 7 days against general adult upper limits.")
                     .font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
         }
     }
 
     private func meter(_ title: String, _ detail: String, _ pct: Double) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack { Text(title).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary); Spacer()
-                Text("\(Int(pct * 100))%").font(.system(size: 13, weight: .bold).monospacedDigit()).foregroundColor(pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncPrimary) }
-            BandGauge(value: pct, color: pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncGreen)
-            Text(detail).font(.system(size: 12)).foregroundColor(.ncSecondary)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).serifCaps(10).foregroundColor(.ncSecondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(Int(pct * 100))").font(.metric(34)).foregroundColor(pct >= 1 ? .ncError : .ncPrimary)
+                Text("%").font(.serif(13)).foregroundColor(.ncSecondary)
+            }
+            LineGauge(value: pct, tint: pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncPrimary)
+            Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1).minimumScaleFactor(0.8)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -173,7 +183,7 @@ struct OrganRotationView: View {
                 RawCard {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text(s.organ.label).font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                            Text(s.organ.label).font(.serif(24)).foregroundColor(.ncPrimary)
                             Spacer()
                             if s.overCap { Tag(text: "Over weekly cap", color: .ncError) }
                             else if s.due { Tag(text: s.lastEaten == nil ? "Never logged" : "Due", color: .ncSky) }

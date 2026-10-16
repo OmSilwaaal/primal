@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 0
+    @State private var selectedTab: Int
+    init(initialTab: Int = 0) { _selectedTab = State(initialValue: initialTab) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -17,8 +18,8 @@ struct ContentView: View {
                 default: ProfileView()
                 }
             }
-            .transition(.opacity)
             .id(selectedTab)
+            .transaction { $0.animation = nil }
             .ignoresSafeArea(edges: .bottom)
 
             PrimalLightTabBar(selectedTab: $selectedTab)

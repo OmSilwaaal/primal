@@ -21,17 +21,23 @@ struct ProfileSetupView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-            
-            VStack {
-                // Progress Bar
-                ProgressView(value: Double(currentStep), total: Double(totalSteps))
-                    .progressViewStyle(LinearProgressViewStyle(tint: .white))
-                    .padding(.horizontal, 24)
-                    .padding(.top, 20)
-                
-                Spacer()
-                
+            AppBackdrop()
+
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text("Setup").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
+                        Spacer()
+                        Text(String(format: "%02d / %02d", currentStep, totalSteps))
+                            .font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                    }
+                    LineGauge(value: Double(currentStep) / Double(totalSteps), height: 2)
+                }
+                .padding(.horizontal, Space.margin)
+                .padding(.top, 16)
+
+                ScrollView(showsIndicators: false) {
+
                 // Content with sliding transition
                 Group {
                     switch currentStep {
@@ -53,8 +59,7 @@ struct ProfileSetupView: View {
                 }
                 .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
                 .id(currentStep)
-                
-                Spacer()
+                }
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentStep)
@@ -149,7 +154,7 @@ struct AgeGroupStep: View {
     let options = ["Under 18", "18-35", "36-50", "Over 50"]
     
     var body: some View {
-        StepContainer(title: "AGE GROUP", subtitle: "Select your generation.") {
+        StepContainer(title: "Age", subtitle: "Which range are you in?") {
             OptionList(options: options, selected: $selected)
             NextButton(action: onNext, isDisabled: false)
         }
@@ -163,14 +168,12 @@ struct BiologicalStep: View {
     let onNext: () -> Void
     
     var body: some View {
-        StepContainer(title: "BIOLOGICAL SEX", subtitle: "For accurate macro estimation.") {
+        StepContainer(title: "Sex", subtitle: "Used to estimate your energy and nutrient needs.") {
             OptionList(options: ["Male", "Female"], selected: $sex)
             
             if sex == "Female" {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("STATUS (OPTIONAL)")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.gray)
+                    FieldLabel(text: "Status (optional)")
                     OptionList(options: ["None", "Pregnant", "Postpartum"], selected: $pregnancyStatus)
                 }
                 .padding(.top, 20)
@@ -189,7 +192,7 @@ struct LifestyleStep: View {
     let options = ["Not Active", "Medium", "Active"]
     
     var body: some View {
-        StepContainer(title: "LIFESTYLE", subtitle: "How much do you move daily?") {
+        StepContainer(title: "Movement", subtitle: "How much do you move on a normal day?") {
             OptionList(options: options, selected: $selected)
             NextButton(action: onNext, isDisabled: false)
         }
@@ -204,7 +207,7 @@ struct StatsStep: View {
     let onNext: () -> Void
     
     var body: some View {
-        StepContainer(title: "YOUR STATS", subtitle: "We need this to calculate your daily energy expenditure.") {
+        StepContainer(title: "Body", subtitle: "Height and weight set your daily energy target.") {
             VStack(spacing: 20) {
                 HStack(spacing: 16) {
                     SetupTextField(title: "Height (ft)", text: $heightFt, keyboardType: .numberPad)
@@ -223,7 +226,7 @@ struct LocationStep: View {
     let onNext: () -> Void
     
     var body: some View {
-        StepContainer(title: "LOCATION", subtitle: "Where are you hunting from? (e.g. Texas, USA)") {
+        StepContainer(title: "Place", subtitle: "Where are you based? Used for local sources and sunlight.") {
             SetupTextField(title: "Location", text: $location, keyboardType: .default)
             NextButton(action: onNext, isDisabled: location.isEmpty)
         }
@@ -237,20 +240,12 @@ struct DietStep: View {
     let options = ["Carnivore", "Animal-Based", "Keto", "Paleo"]
     
     var body: some View {
-        StepContainer(title: "PROTOCOL", subtitle: "Select your dietary framework.") {
+        StepContainer(title: "Diet", subtitle: "Which way of eating are you following?") {
             OptionList(options: options, selected: $selected)
             
-            Button(action: onFinish) {
-                Text("FINISH SETUP")
-                    .font(.system(size: 16, weight: .bold))
-                    .tracking(2)
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.white)
-                    .cornerRadius(12)
-            }
-            .padding(.top, 24)
+            Button(action: onFinish) { Text("Finish setup") }
+                .buttonStyle(.primal)
+                .padding(.top, 20)
         }
     }
 }
@@ -261,82 +256,74 @@ struct StepContainer<Content: View>: View {
     let title: String
     let subtitle: String
     let content: Content
-    
+
     init(title: String, subtitle: String, @ViewBuilder content: () -> Content) {
         self.title = title
         self.subtitle = subtitle
         self.content = content()
     }
-    
+
     var body: some View {
-        VStack(spacing: 30) {
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.system(size: 32, weight: .heavy))
-                    .tracking(2)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                
-                Text(subtitle)
-                    .font(.system(size: 14))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: 36) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(title).font(.brutal(40)).foregroundColor(.ncPrimary)
+                    .lineLimit(2).minimumScaleFactor(0.6)
+                Text(subtitle).font(.serif(19)).foregroundColor(.ncPrimary.opacity(0.8)).lineSpacing(3)
             }
-            .padding(.top, 40)
-            
-            VStack(spacing: 16) {
-                content
-            }
-            .padding(.horizontal, 24)
+            VStack(alignment: .leading, spacing: 16) { content }
         }
+        .padding(.horizontal, Space.margin)
+        .padding(.top, 48)
+        .padding(.bottom, 40)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
 struct OptionList: View {
     let options: [String]
     @Binding var selected: String
-    
+
     var body: some View {
-        VStack(spacing: 12) {
-            ForEach(options, id: \.self) { option in
-                Button(action: {
-                    selected = option
-                }) {
-                    Text(option.uppercased())
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(selected == option ? .black : .white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(selected == option ? Color.white : Color.white.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.white.opacity(selected == option ? 0 : 0.3), lineWidth: 1)
-                        )
-                        .cornerRadius(12)
+        VStack(spacing: 0) {
+            ForEach(Array(options.enumerated()), id: \.element) { i, option in
+                Button {
+                    Haptics.selection()
+                    withAnimation(.snappy(duration: 0.2)) { selected = option }
+                } label: {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 16) {
+                            Text(String(format: "%02d", i + 1)).font(.system(size: 12, weight: .medium).monospacedDigit())
+                                .foregroundColor(.ncSecondary).frame(width: 22, alignment: .leading)
+                            Text(option).font(.serif(22)).foregroundColor(.ncPrimary)
+                            Spacer()
+                            Rectangle()
+                                .fill(selected == option ? Color.ncPrimary : Color.clear)
+                                .frame(width: 16, height: 16)
+                                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(selected == option ? 1 : 0.4), lineWidth: 1))
+                        }
+                        .padding(.vertical, 18)
+                        Hairline(opacity: 0.12)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected == option ? .isSelected : [])
             }
         }
+        .overlay(alignment: .top) { Hairline(opacity: 0.12) }
     }
 }
 
 struct NextButton: View {
     let action: () -> Void
     let isDisabled: Bool
-    
+
     var body: some View {
-        Button(action: action) {
-            Text("NEXT")
-                .font(.system(size: 16, weight: .bold))
-                .tracking(2)
-                .foregroundColor(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.white)
-                .cornerRadius(12)
-        }
-        .disabled(isDisabled)
-        .opacity(isDisabled ? 0.5 : 1.0)
-        .padding(.top, 24)
+        Button(action: action) { Text("Continue") }
+            .buttonStyle(.primal)
+            .disabled(isDisabled)
+            .opacity(isDisabled ? 0.45 : 1.0)
+            .padding(.top, 20)
     }
 }
 
@@ -344,20 +331,6 @@ struct SetupTextField: View {
     let title: String
     @Binding var text: String
     var keyboardType: UIKeyboardType = .default
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.system(size: 13, weight: .bold))
-                .tracking(1)
-                .foregroundColor(.gray)
-            
-            TextField("", text: $text)
-                .keyboardType(keyboardType)
-                .padding()
-                .foregroundColor(.white)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(12)
-        }
-    }
+
+    var body: some View { RawField(title: title, text: $text, keyboard: keyboardType) }
 }

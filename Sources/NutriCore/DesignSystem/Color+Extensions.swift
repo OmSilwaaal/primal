@@ -18,10 +18,10 @@ extension Color {
     static let ncSurfaceBright       = Color(hex: "#26262B")
 
     // Text
-    static let ncPrimary             = Color(hex: "#FAFAFA")
+    static let ncPrimary             = Color(hex: "#F2F0E8")
     static let ncOnPrimary           = Color(hex: "#09090B") // text/icons on a ncPrimary fill
-    static let ncOnSurface           = Color(hex: "#FAFAFA")
-    static let ncSecondary           = Color(hex: "#8E8E96")
+    static let ncOnSurface           = Color(hex: "#F2F0E8")
+    static let ncSecondary           = Color(hex: "#9C9A92")
 
     // Lines
     static let ncOutline             = Color(hex: "#52525B")
@@ -30,14 +30,14 @@ extension Color {
     static let ncBorderSub           = Color.white.opacity(0.05)
 
     // Accents (tuned for dark backgrounds). *Light variants are translucent tints.
-    static let ncIndigo              = Color(hex: "#D4DACF")
-    static let ncIndigoLight         = Color(hex: "#D4DACF").opacity(0.16)
-    static let ncGreen               = Color(hex: "#B9C4B7")
-    static let ncGreenLight          = Color(hex: "#B9C4B7").opacity(0.14)
-    static let ncOrange              = Color(hex: "#D6CDBB")
-    static let ncOrangeLight         = Color(hex: "#D6CDBB").opacity(0.16)
-    static let ncSky                 = Color(hex: "#B5BFC4")
-    static let ncSkyLight            = Color(hex: "#B5BFC4").opacity(0.14)
+    static let ncIndigo              = Color(hex: "#E6E3D8")
+    static let ncIndigoLight         = Color(hex: "#E6E3D8").opacity(0.16)
+    static let ncGreen               = Color(hex: "#E6E3D8")
+    static let ncGreenLight          = Color(hex: "#E6E3D8").opacity(0.14)
+    static let ncOrange              = Color(hex: "#D2B98A")
+    static let ncOrangeLight         = Color(hex: "#D2B98A").opacity(0.16)
+    static let ncSky                 = Color(hex: "#BDBAB0")
+    static let ncSkyLight            = Color(hex: "#BDBAB0").opacity(0.14)
     static let ncError               = Color(hex: "#C98074")
 
     // Legacy alias
@@ -74,7 +74,6 @@ struct CardModifier: ViewModifier {
     /// Cards no longer draw a box; content sits directly on the background.
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .top) { Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1) }
     }
 }
 
@@ -123,8 +122,8 @@ extension View {
 
 /// Filled call-to-action: square bone block with dark spaced-caps text.
 struct PrimaryButtonStyle: ButtonStyle {
-    var height: CGFloat = 52
-    var radius: CGFloat = 2
+    var height: CGFloat = 54
+    var radius: CGFloat = 0
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .heavy)).tracking(1.4).textCase(.uppercase)
@@ -143,16 +142,16 @@ struct PrimaryButtonStyle: ButtonStyle {
 
 /// Quiet secondary action: raised surface with a hairline border.
 struct SecondaryButtonStyle: ButtonStyle {
-    var height: CGFloat = 44
-    var radius: CGFloat = 2
+    var height: CGFloat = 48
+    var radius: CGFloat = 0
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .bold)).tracking(1.1).textCase(.uppercase)
             .foregroundColor(.ncPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: height)
-            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(Color.ncPrimary.opacity(0.28), lineWidth: 1))
+            .background(Color.black.opacity(0.001))
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .brightness(configuration.isPressed ? 0.05 : 0)
             .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)

@@ -25,8 +25,8 @@ struct PlacesMapView: View {
                         .font(.system(size: 60, weight: .ultraLight))
                         .foregroundColor(.white)
                     
-                    Text("Location needed")
-                        .font(.system(size: 16, weight: .bold))
+                    Text("Find sources nearby")
+                        .font(.serif(26))
                         .foregroundColor(.white)
                     
                     Text("We need your location to find high-quality primal food sources near you.")

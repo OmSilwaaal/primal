@@ -12,22 +12,28 @@ struct AddFriendView: View {
         NavigationStack {
             ZStack {
                 AppBackdrop()
-                VStack(spacing: 0) {
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Find people").serifCaps(11).foregroundColor(.ncSecondary)
+                        Text("Add friends").font(.brutal(34)).foregroundColor(.ncPrimary)
+                    }
+                    .padding(.horizontal, Space.margin)
+                    HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass").foregroundColor(.ncSecondary)
-                        TextField("", text: $query, prompt: Text("Search by name or username").foregroundColor(.ncSecondary))
+                        TextField("", text: $query, prompt: Text("Name or username").font(.serif(18)).italic().foregroundColor(.ncSecondary))
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .focused($focused)
+                            .font(.system(size: 18))
                             .foregroundColor(.ncPrimary)
                         if isSearching { ProgressView().controlSize(.small) }
                     }
-                    .padding(.horizontal, 14).frame(height: 46)
-                    .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-                    .padding(16)
+                    .frame(height: 48)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Color.ncPrimary.opacity(focused ? 0.9 : 0.3)).frame(height: 1) }
+                    .padding(.horizontal, Space.margin)
 
                     ScrollView {
-                        LazyVStack(spacing: 8) {
+                        LazyVStack(spacing: 0) {
                             ForEach(results) { profile in
                                 NavigationLink(value: profile) { SearchRow(profile: profile) }
                                     .buttonStyle(SmoothButtonStyle())
@@ -37,11 +43,10 @@ struct AddFriendView: View {
                                            message: "Check the spelling or ask your friend for their username.", compact: true)
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, Space.margin)
                     }
                 }
             }
-            .navigationTitle("Add friends")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
             .navigationDestination(for: BasicProfile.self) { FriendProfileView(profile: $0) }
@@ -72,7 +77,7 @@ private struct SearchRow: View {
             AvatarView(url: profile.avatarUrl, name: profile.name, size: 44)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text(profile.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                    Text(profile.name).font(.serif(19)).foregroundColor(.ncPrimary)
                     if profile.isPrivate {
                         Image(systemName: "lock.fill").font(.system(size: 11)).foregroundColor(.ncSecondary)
                     }
@@ -82,8 +87,8 @@ private struct SearchRow: View {
             Spacer()
             FriendActionButton(profile: profile)
         }
-        .padding(.vertical, 12)
-        .glassCard(radius: 16)
+        .padding(.vertical, 16)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
     }
 }
 

@@ -27,9 +27,9 @@ targets:
     sources:
       - path: Sources/NutriCore
         createIntermediateGroups: true
-    resources:
       - path: Resources/Assets.xcassets
       - path: Resources/Fonts
+        buildPhase: resources
     info:
       path: NutriCore/Info.plist
       properties:

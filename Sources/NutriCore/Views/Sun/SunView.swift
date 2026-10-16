@@ -46,8 +46,8 @@ struct SunView: View {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 28) {
-                        PageHeader(title: "Sun", caption: "Light · outdoors · vitamin D").padding(.top, 12)
+                    VStack(alignment: .leading, spacing: Space.section) {
+                        PageHeader(title: "Sun", caption: "Light · outdoors · vitamin D")
 
                         todayCard
                         timerCard
@@ -72,46 +72,40 @@ struct SunView: View {
 
     // MARK: Cards
     private var todayCard: some View {
-        RawCard(title: "Time outside today", trailing: streak > 0 ? "\(streak)-day streak" : nil, trailingColor: .ncOrange) {
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle().stroke(Color.ncSurfaceContHigh, lineWidth: 12)
-                    Circle().trim(from: 0, to: min(1, todayMin / Double(max(goal, 1))))
-                        .stroke(Color.ncOrange, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                        .rotationEffect(.degrees(-90)).animation(.smooth(duration: 0.7), value: todayMin)
-                    VStack(spacing: 2) {
-                        Text("\(Int(todayMin))").font(.system(size: 44, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
-                            .contentTransition(.numericText())
-                        Text("of \(goal) min").font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    }
-                }
-                .frame(width: 170, height: 170).frame(maxWidth: .infinity)
-
+        RawCard(title: "Outside today", trailing: streak > 0 ? "\(streak)-day streak" : "Goal \(goal) min", index: "01") {
+            VStack(alignment: .leading, spacing: 20) {
+                Metric(value: "\(Int(todayMin))", unit: "min", caption: "of a \(goal)-minute goal", size: 64)
+                    .animation(.smooth, value: Int(todayMin))
+                LineGauge(value: todayMin / Double(max(goal, 1)))
                 HStack {
-                    Stepper("Daily goal: \(goal) min", value: $goal, in: 10...180, step: 5)
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Daily goal").font(.system(size: 15)).foregroundColor(.ncSecondary)
+                    Spacer()
+                    Stepper("\(goal) min", value: $goal, in: 10...180, step: 5)
+                        .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
+                        .fixedSize()
                 }
                 if !health.isAuthorized {
                     Button {
                         Task { try? await health.requestAuthorization(); await loadAll() }
-                    } label: { Label("Connect Apple Health for automatic daylight", systemImage: "applewatch") }
+                    } label: { Label("Connect Apple Health", systemImage: "applewatch") }
                         .buttonStyle(.primalSecondary)
+                    Text("Adds Apple Watch “time in daylight” automatically.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     Text(daylight.isEmpty ? "Daylight from Apple Watch appears here once Health has data." : "Includes Apple Watch time in daylight.")
-                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
         }
     }
 
     private var timerCard: some View {
-        RawCard(title: "Outdoor session") {
+        RawCard(title: "Session", index: "02") {
             VStack(spacing: 12) {
                 if timerStart > 0 {
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
                         let secs = max(0, ctx.date.timeIntervalSince1970 - timerStart)
                         Text(String(format: "%02d:%02d", Int(secs) / 60, Int(secs) % 60))
-                            .font(.system(size: 40, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
+                            .font(.metric(56)).foregroundColor(.ncPrimary)
                     }
                     Button { stopTimer() } label: { Label("Stop & save", systemImage: "stop.fill") }.buttonStyle(.primal)
                 } else {
@@ -130,7 +124,7 @@ struct SunView: View {
     }
 
     private var conditionsCard: some View {
-        RawCard(title: "Sun right now") {
+        RawCard(title: "Sun right now", index: "03") {
             VStack(alignment: .leading, spacing: 12) {
                 if location.authorizationStatus == .notDetermined {
                     Text("Allow location to see UV index, sunrise/sunset and when the sun is high enough for vitamin D.")
@@ -158,14 +152,14 @@ struct SunView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             FieldLabel(text: "Vitamin D window")
                             Text("\(w.lowerBound.formatted(date: .omitted, time: .shortened)) – \(w.upperBound.formatted(date: .omitted, time: .shortened))")
-                                .font(.system(size: 20, weight: .bold)).foregroundColor(.ncOrange)
+                                .font(.metric(26)).foregroundColor(.ncPrimary)
                             Text("While the sun is above 45° (your shadow is shorter than you), sunlight carries enough UVB for skin to make vitamin D.")
                                 .font(.system(size: 13)).foregroundColor(.ncSecondary)
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 4) {
                             FieldLabel(text: "Vitamin D window")
-                            Text("None today").font(.system(size: 20, weight: .bold)).foregroundColor(.ncSky)
+                            Text("None today").font(.serif(26)).foregroundColor(.ncPrimary)
                             Text("At your latitude the sun doesn't climb above 45° today, so little vitamin D is made from sunlight in this season.")
                                 .font(.system(size: 13)).foregroundColor(.ncSecondary)
                         }
@@ -184,13 +178,13 @@ struct SunView: View {
     }
 
     private var weekCard: some View {
-        RawCard(title: "Last 14 days", trailing: "avg \(Int(last14.map(\.min).reduce(0, +) / 14)) min") {
+        RawCard(title: "Last 14 days", trailing: "avg \(Int(last14.map(\.min).reduce(0, +) / 14)) min", index: "04") {
             Chart {
                 ForEach(last14, id: \.day) { d in
                     BarMark(x: .value("Day", d.day, unit: .day), y: .value("Minutes", d.min))
-                        .foregroundStyle(d.min >= Double(goal) ? Color.ncOrange : Color.ncSurfaceContHighest)
+                        .foregroundStyle(d.min >= Double(goal) ? Color.ncPrimary : Color.ncPrimary.opacity(0.25))
                 }
-                RuleMark(y: .value("Goal", goal)).foregroundStyle(Color.ncOrange.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                RuleMark(y: .value("Goal", goal)).foregroundStyle(Color.ncPrimary.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
             }
             .frame(height: 140)
         }
@@ -208,7 +202,7 @@ struct SunView: View {
             guard let a = avg(m.1, above: true), let b = avg(m.1, above: false), a.1 >= 3, b.1 >= 3 else { return nil }
             return (m.0, a.0, b.0, a.1, b.1)
         }
-        return RawCard(title: "How it shows up for you") {
+        return RawCard(title: "Your pattern", index: "05") {
             VStack(alignment: .leading, spacing: 10) {
                 if rows.isEmpty {
                     Text("Do daily check-ins for a couple of weeks. Once there are 3+ days at or above your goal and 3+ below, your energy, mood, sleep and focus are compared here.")
@@ -219,7 +213,7 @@ struct SunView: View {
                             Text(r.0).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                             Spacer()
                             Text(String(format: "%.1f vs %.1f", r.1, r.2)).font(.system(size: 13, weight: .semibold).monospacedDigit())
-                                .foregroundColor(r.1 > r.2 + 0.2 ? .ncGreen : r.1 < r.2 - 0.2 ? .ncOrange : .ncSecondary)
+                                .foregroundColor(.ncPrimary)
                         }
                     }
                     Text("Average on days at/above goal vs below. A pattern in your logs, not proof of cause.").font(.system(size: 12)).foregroundColor(.ncSecondary)
@@ -229,8 +223,8 @@ struct SunView: View {
     }
 
     private var learnCard: some View {
-        RawCard(title: "How sunlight affects you") {
-            VStack(alignment: .leading, spacing: 14) {
+        RawCard(title: "How sunlight affects you", index: "06") {
+            VStack(alignment: .leading, spacing: 26) {
                 learn("sun.max", "Vitamin D", "Skin makes vitamin D when UVB reaches it — mainly when the sun is high (above about 45°). Windows, clouds, sunscreen, skin tone and latitude all change how much. Food, supplements and your blood level (25-OH vitamin D) are the other pieces.")
                 learn("moon.stars", "Body clock & sleep", "Bright outdoor light in the morning is a strong signal for your circadian rhythm. People commonly report easier sleep timing when they get daylight early in the day and dim light at night.")
                 learn("face.smiling", "Mood & energy", "Daylight exposure is associated with mood and alertness in many studies. The check-in lets you see whether that holds for you.")
@@ -240,11 +234,11 @@ struct SunView: View {
     }
 
     private func learn(_ icon: String, _ title: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon).font(.system(size: 15)).foregroundColor(.ncOrange).frame(width: 26)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text(text).font(.system(size: 13)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundColor(.ncPrimary).frame(width: 26)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.serif(19)).foregroundColor(.ncPrimary)
+                Text(text).font(.system(size: 14)).foregroundColor(.ncSecondary).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -297,6 +291,6 @@ struct SunView: View {
 
     private func uvColor(_ uv: Double?) -> Color {
         guard let uv else { return .ncPrimary }
-        return uv < 3 ? .ncGreen : uv < 6 ? .ncOrange : .ncError
+        return uv < 3 ? .ncPrimary : uv < 6 ? .ncOrange : .ncError
     }
 }

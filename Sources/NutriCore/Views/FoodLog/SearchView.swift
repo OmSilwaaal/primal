@@ -17,17 +17,17 @@ struct SearchView: View {
 
             VStack(spacing: 0) {
                 // ── Header ───────────────────────────────────────────────────
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 28) {
                     PageHeader(title: "Search", caption: usdaService.isLoading ? "Searching…" : "USDA FoodData Central")
                     HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(isSearchFocused ? .ncPrimary : .ncSecondary)
                         TextField("", text: $query)
-                            .font(.system(size: 15)).foregroundColor(.ncPrimary)
+                            .font(.system(size: 18)).foregroundColor(.ncPrimary)
                             .focused($isSearchFocused)
                             .placeholder(when: query.isEmpty) {
-                                Text("Search foods").font(.system(size: 15)).foregroundColor(.ncSecondary)
+                                Text("Ribeye, liver, salmon…").font(.serif(18)).italic().foregroundColor(.ncSecondary)
                             }
                             .onChange(of: query) { _, newValue in usdaService.search(newValue) }
                         if !query.isEmpty {
@@ -36,14 +36,15 @@ struct SearchView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 12).frame(height: 46)
-                    .background(Color.ncSurfaceContLowest.opacity(0.8))
-                    .overlay(Rectangle().stroke(isSearchFocused ? Color.ncPrimary : Color.ncPrimary.opacity(0.18), lineWidth: 1))
+                    .frame(height: 48)
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Color.ncPrimary.opacity(isSearchFocused ? 0.9 : 0.3)).frame(height: 1)
+                    }
                     .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
+                .padding(.horizontal, Space.margin)
+                .padding(.top, 28)
+                .padding(.bottom, 8)
 
                 // ── Results ──────────────────────────────────────────────────
                 if let selected = selectedFood {
@@ -68,7 +69,7 @@ struct SearchView: View {
                     Spacer()
                 } else {
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 1) {
+                        LazyVStack(spacing: 0) {
                             if let error = usdaService.errorMessage {
                                 Text(error)
                                     .font(.ncBodySm).foregroundColor(.ncError)
@@ -76,25 +77,17 @@ struct SearchView: View {
                                     .padding(.horizontal, 24).padding(.top, 60)
                             } else if usdaService.results.isEmpty && !query.isEmpty && !usdaService.isLoading {
                                 VStack(spacing: 12) {
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 32, weight: .ultraLight))
-                                        .foregroundColor(.ncSecondary)
-                                    Text("No results")
-                                        .spacedCaps(12, tracking: 2.4).foregroundColor(.ncSecondary)
-                                    Text("No results for \"\(query)\"")
-                                        .font(.ncBodySm).foregroundColor(.ncSecondary)
+                                    Text("Nothing found").font(.serif(24)).foregroundColor(.ncPrimary)
+                                    Text("No results for “\(query)”. Try a simpler name.")
+                                        .font(.system(size: 14)).foregroundColor(.ncSecondary)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 60)
                             } else if query.isEmpty {
                                 VStack(spacing: 12) {
-                                    Image(systemName: "leaf")
-                                        .font(.system(size: 40, weight: .ultraLight))
-                                        .foregroundColor(.ncSecondary.opacity(0.5))
-                                    Text("Start typing")
-                                        .spacedCaps(12, tracking: 2.4).foregroundColor(.ncSecondary)
-                                    Text("Search USDA FoodData Central")
-                                        .font(.ncBodySm).foregroundColor(.ncSecondary.opacity(0.6))
+                                    Text("Every food, measured.").font(.serif(24)).foregroundColor(.ncPrimary)
+                                    Text("Search the USDA FoodData Central database, including organ cuts.")
+                                        .font(.system(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.center)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 60)
@@ -134,40 +127,32 @@ struct SearchView: View {
 private struct SearchResultRow: View {
     let food: FoodSearchResult
     let onTap: () -> Void
-    @State private var pressed = false
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(food.description.capitalized)
-                        .font(.ncBodySm)
-                        .fontWeight(.medium)
-                        .foregroundColor(.ncPrimary)
-                        .lineLimit(2)
-                    HStack(spacing: 10) {
-                        Text(food.dataType ?? "USDA")
-                            .spacedCaps(11, tracking: 1.2)
-                            .foregroundColor(.ncSecondary)
-                        if let kcal = food.foodNutrients.first(where: { $0.nutrientId == 1008 }) {
-                            Text("\(Int(kcal.value)) kcal / 100 g")
-                                .spacedCaps(11, tracking: 1)
-                                .foregroundColor(.ncPrimary)
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(food.description.capitalized)
+                            .font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
+                            .multilineTextAlignment(.leading).lineLimit(2)
+                        Text(food.brandOwner ?? food.dataType ?? "USDA").serifCaps(10).foregroundColor(.ncSecondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    if let kcal = food.foodNutrients.first(where: { $0.nutrientId == 1008 }) {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(Int(kcal.value))").font(.metric(18)).foregroundColor(.ncPrimary)
+                            Text("kcal / 100 g").font(.serif(11)).foregroundColor(.ncSecondary)
                         }
                     }
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundColor(.ncSecondary)
+                .padding(.vertical, 16)
+                Hairline(opacity: 0.12)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.ncSurfaceContLowest.opacity(0.6))
-            .overlay(Rectangle().fill(Color.white.opacity(0.04)).frame(height: 1), alignment: .bottom)
+            .padding(.horizontal, Space.margin)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
-        .smoothButton()
+        .buttonStyle(.plain)
     }
 }
 

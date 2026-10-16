@@ -16,13 +16,10 @@ struct EditProfileView: View {
     @State private var didLoad = false
 
     var body: some View {
-        ZStack {
-            AppBackdrop()
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
+        RawScreen(title: "Edit profile", subtitle: "Public profile") {
                     avatarBlock
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 28) {
                         FieldRow(label: "Name") {
                             TextField("", text: $displayName, prompt: Text("Your name").foregroundColor(.ncOutline))
                                 .textContentType(.name)
@@ -53,14 +50,7 @@ struct EditProfileView: View {
                     }
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(isSaving || isUploading)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 110)
-            }
         }
-        .navigationTitle("Edit profile")
-        .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: load)
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
@@ -69,24 +59,24 @@ struct EditProfileView: View {
     }
 
     private var avatarBlock: some View {
-        VStack(spacing: 12) {
+        HStack(spacing: 20) {
             ZStack {
-                AvatarView(url: social.myProfile?.avatarUrl, name: displayName.isEmpty ? username : displayName, size: 104)
+                AvatarView(url: social.myProfile?.avatarUrl, name: displayName.isEmpty ? username : displayName, size: 96)
                     .opacity(isUploading ? 0.4 : 1)
                 if isUploading { ProgressView() }
             }
-            HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 PhotosPicker(selection: $photoItem, matching: .images) {
                     Text(social.myProfile?.avatarUrl == nil ? "Add photo" : "Change photo")
-                        .font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
+                        .spacedCaps(12).fontWeight(.bold).foregroundColor(.ncPrimary)
                 }
                 if social.myProfile?.avatarUrl != nil {
                     Button("Remove") { Task { await social.removeAvatar() } }
                         .font(.system(size: 14, weight: .medium)).foregroundColor(.ncSecondary)
                 }
             }
+            Spacer()
         }
-        .padding(.top, 8)
     }
 
     private func load() {
@@ -133,13 +123,13 @@ private struct FieldRow<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased()).font(.system(size: 12, weight: .semibold)).tracking(1).foregroundColor(.ncSecondary)
+            FieldLabel(text: label)
             content
-                .font(.system(size: 16))
+                .font(.system(size: 17))
                 .foregroundColor(.ncPrimary)
-                .padding(.vertical, 14)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassCard(radius: 3)
+                .overlay(alignment: .bottom) { Hairline(opacity: 0.22) }
             if let footer {
                 Text(footer).font(.system(size: 12)).foregroundColor(.ncSecondary).frame(maxWidth: .infinity, alignment: .trailing)
             }

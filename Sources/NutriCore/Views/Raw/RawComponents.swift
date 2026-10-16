@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Shared building blocks for the raw/carnivore and sunlight screens. Same tokens as the rest of the app.
+// Shared building blocks used across the app. See DesignSystem/NatureBrutal.swift for the rules.
 
 struct RawScreen<Content: View>: View {
     let title: String
@@ -8,41 +8,39 @@ struct RawScreen<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ZStack {
-            AppBackdrop()
+            AppBackdrop(intensity: 0.7)
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) { content }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 120)
+                VStack(alignment: .leading, spacing: Space.section) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let subtitle { Text(subtitle).serifCaps(11).foregroundColor(.ncSecondary) }
+                        Text(title).font(.brutal(34)).foregroundColor(.ncPrimary)
+                            .lineLimit(2).minimumScaleFactor(0.7)
+                    }
+                    content
+                }
+                .padding(.horizontal, Space.margin)
+                .padding(.top, 8)
+                .padding(.bottom, 140)
             }
         }
-        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.ncBg, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 }
 
+/// A section: serif label + hairline, then content. No box.
 struct RawCard<Content: View>: View {
     var title: String? = nil
     var trailing: String? = nil
     var trailingColor: Color = .ncSecondary
+    var index: String? = nil
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if let title {
-                HStack {
-                    Text(title).font(.ncTitle).foregroundColor(.ncPrimary)
-                    Spacer()
-                    if let trailing {
-                        Text(trailing).font(.system(size: 13, weight: .semibold)).foregroundColor(trailingColor)
-                    }
-                }
-            }
+        VStack(alignment: .leading, spacing: Space.block) {
+            if let title { SectionLabel(index: index, title: title, trailing: trailing, trailingColor: trailingColor) }
             content
         }
-        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard()
     }
 }
 
@@ -51,46 +49,33 @@ struct Tag: View {
     var color: Color = .ncSecondary
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: 11, weight: .semibold)).tracking(0.8).textCase(.uppercase)
             .foregroundColor(color)
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(color.opacity(0.14), in: Rectangle())
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .overlay(Rectangle().stroke(color.opacity(0.45), lineWidth: 1))
+            .lineLimit(1)
     }
 }
 
 struct Disclaimer: View {
     var text = "Risk information only — nothing here clears food as safe or replaces medical advice. Reference values are general RDA/UL figures, not personalised."
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "info.circle").font(.system(size: 13)).foregroundColor(.ncSecondary)
-            Text(text).font(.system(size: 12)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 4).padding(.top, 4)
+        Text(text)
+            .font(.serif(13)).italic()
+            .foregroundColor(.ncSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .lineSpacing(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// Horizontal gauge with an optional highlighted target band (values are 0…1 fractions of the track).
+/// Progress bar (thin). `band` and `value` are 0…1 fractions of the track.
 struct BandGauge: View {
-    let value: Double          // 0…1
+    let value: Double
     var band: ClosedRange<Double>? = nil
     var color: Color = .ncPrimary
-    var height: CGFloat = 8
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Rectangle().fill(Color.white.opacity(0.08))
-                if let band {
-                    Rectangle().fill(Color.ncPrimary.opacity(0.14))
-                        .frame(width: geo.size.width * (band.upperBound - band.lowerBound))
-                        .offset(x: geo.size.width * band.lowerBound)
-                }
-                Rectangle().fill(color)
-                    .frame(width: max(height, geo.size.width * min(max(value, 0), 1)))
-                    .animation(.smooth(duration: 0.6), value: value)
-            }
-        }
-        .frame(height: height)
-    }
+    var height: CGFloat = 3
+    var body: some View { LineGauge(value: value, band: band, tint: color, height: min(height, 4)) }
 }
 
 struct Chip: View {
@@ -103,14 +88,15 @@ struct Chip: View {
             Haptics.selection()
             withAnimation(.snappy(duration: 0.2)) { action() }
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)) }
-                Text(label).font(.system(size: 13, weight: .semibold))
+                Text(label).font(.system(size: 14, weight: .medium))
             }
             .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
             .padding(.horizontal, 14).frame(height: 40)
-            .background(selected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())
-            .overlay(Rectangle().stroke(Color.white.opacity(selected ? 0 : 0.08), lineWidth: 1))
+            .background(selected ? Color.ncPrimary : Color.clear)
+            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(selected ? 0 : 0.28), lineWidth: 1))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -156,40 +142,41 @@ struct FlowLayout: Layout {
 
 struct FieldLabel: View {
     let text: String
-    var body: some View {
-        Text(text.uppercased()).font(.system(size: 12, weight: .semibold)).tracking(0.8).foregroundColor(.ncSecondary)
-    }
+    var body: some View { Text(text).serifCaps(10).foregroundColor(.ncSecondary) }
 }
 
+/// Underlined text field — no box.
 struct RawField: View {
     let title: String
     @Binding var text: String
     var keyboard: UIKeyboardType = .default
+    @FocusState private var focused: Bool
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             FieldLabel(text: title)
             TextField("", text: $text)
                 .keyboardType(keyboard)
-                .font(.system(size: 15)).foregroundColor(.ncPrimary)
-                .padding(.horizontal, 12).frame(height: 44)
-                .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .focused($focused)
+                .font(.system(size: 17)).foregroundColor(.ncPrimary)
+                .frame(height: 36)
+            Rectangle().fill(Color.ncPrimary.opacity(focused ? 0.8 : 0.22)).frame(height: 1)
+                .animation(.easeOut(duration: 0.2), value: focused)
         }
     }
 }
 
-/// 1…5 tap scale.
+/// 1…5 scale as a row of hairline cells.
 struct ScalePicker: View {
     let title: String
     var lowLabel = "Low"
     var highLabel = "High"
     @Binding var value: Int
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
                 Spacer()
-                Text(value == 0 ? "—" : "\(value)/5").font(.system(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncSecondary)
+                Text(value == 0 ? "—" : "\(value)").font(.metric(18)).foregroundColor(.ncPrimary)
             }
             HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { n in
@@ -197,44 +184,52 @@ struct ScalePicker: View {
                         Haptics.selection()
                         withAnimation(.snappy(duration: 0.2)) { value = (value == n ? 0 : n) }
                     } label: {
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(n == value ? Color.ncPrimary : Color.ncSurfaceContHigh)
-                            .frame(height: 32)
-                            .overlay(Text("\(n)").font(.system(size: 13, weight: .bold))
-                                .foregroundColor(n == value ? .ncOnPrimary : .ncSecondary))
+                        Rectangle()
+                            .fill(n <= value ? Color.ncPrimary : Color.clear)
+                            .frame(height: 36)
+                            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(n <= value ? 0 : 0.24), lineWidth: 1))
+                            .overlay(Text("\(n)").font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(n <= value ? .ncOnPrimary : .ncSecondary))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(title) \(n) of 5")
                 }
             }
-            HStack {
-                Text(lowLabel); Spacer(); Text(highLabel)
-            }
-            .font(.system(size: 11)).foregroundColor(.ncSecondary)
+            HStack { Text(lowLabel); Spacer(); Text(highLabel) }
+                .font(.system(size: 12)).foregroundColor(.ncSecondary)
         }
     }
 }
 
+/// Index-style navigation row: number, title, detail, chevron, hairline underneath.
 struct NavRow: View {
     let icon: String
     let title: String
     var detail: String? = nil
     var badge: String? = nil
     var badgeColor: Color = .ncOrange
+    var index: String? = nil
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                .frame(width: 44, height: 44)
-                .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                if let detail { Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1) }
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 16) {
+                if let index {
+                    Text(index).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                        .frame(width: 22, alignment: .leading)
+                } else {
+                    Image(systemName: icon).font(.system(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
+                        .frame(width: 22)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.system(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
+                    if let detail { Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1) }
+                }
+                Spacer(minLength: 8)
+                if let badge { Tag(text: badge, color: badgeColor) }
+                Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             }
-            Spacer()
-            if let badge { Tag(text: badge, color: badgeColor) }
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
+            .padding(.vertical, 18)
+            Hairline(opacity: 0.12)
         }
-        .padding(.vertical, 12)
-        .glassCard(radius: 3)
         .contentShape(Rectangle())
     }
 }
@@ -242,8 +237,7 @@ struct NavRow: View {
 extension RiskLevel {
     var color: Color {
         switch self {
-        case .lower: .ncGreen
-        case .moderate: .ncSky
+        case .lower, .moderate: .ncPrimary
         case .elevated: .ncOrange
         case .high: .ncError
         }

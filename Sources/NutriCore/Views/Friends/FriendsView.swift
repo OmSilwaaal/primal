@@ -14,7 +14,7 @@ struct FriendsView: View {
                                message: "Friends need an account so you can share what you eat.")
                 } else {
                     ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 28) {
                             header
 
                             if !social.incoming.isEmpty {
@@ -48,10 +48,10 @@ struct FriendsView: View {
                             }
 
                             if let error = social.errorMessage {
-                                Text(error).font(.system(size: 12)).foregroundColor(.ncError)
+                                Text(error).font(.system(size: 13)).foregroundColor(.ncError)
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 20)
                         .padding(.top, 12)
                         .padding(.bottom, 110)
                     }
@@ -73,7 +73,7 @@ struct FriendsView: View {
             Button { showAdd = true } label: {
                 Image(systemName: "person.badge.plus")
                     .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
             }
             .smoothButton()
@@ -99,18 +99,18 @@ private struct FriendRow: View {
             AvatarView(url: friend.avatarUrl, name: friend.name, size: 46)
             VStack(alignment: .leading, spacing: 2) {
                 Text(friend.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text("@\(friend.username)").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                Text("@\(friend.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(calories.map { "\(Int($0))" } ?? "—")
                     .font(.system(size: 15, weight: .bold).monospacedDigit())
                     .foregroundColor(.ncPrimary)
-                Text("kcal today").font(.system(size: 11)).foregroundColor(.ncSecondary)
+                Text("kcal today").font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
-            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .glassCard(radius: 16)
     }
 }
@@ -124,25 +124,25 @@ private struct RequestRow: View {
             AvatarView(url: request.profile.avatarUrl, name: request.profile.name, size: 46)
             VStack(alignment: .leading, spacing: 2) {
                 Text(request.profile.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text("@\(request.profile.username)").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                Text("@\(request.profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             Button { Task { await social.removeFriendship(request.friendship) } } label: {
                 Image(systemName: "xmark").font(.system(size: 13, weight: .bold))
                     .foregroundColor(.ncSecondary)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.3), lineWidth: 1))
             }
             .smoothButton()
             Button { Task { await social.accept(request.friendship) } } label: {
                 Image(systemName: "checkmark").font(.system(size: 13, weight: .bold))
                     .foregroundColor(.ncOnPrimary)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .background(Color.ncPrimary)
             }
             .smoothButton()
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .glassCard(radius: 16)
     }
 }

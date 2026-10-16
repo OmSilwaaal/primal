@@ -313,10 +313,10 @@ struct RiskSummaryCard: View {
                     .background(Color.ncError.opacity(0.12), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                 }
                 ForEach(assessment.notes, id: \.self) { n in
-                    Text("• \(n)").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text("• \(n)").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 }
                 if !assessment.mitigationNote.isEmpty {
-                    Text(assessment.mitigationNote).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text(assessment.mitigationNote).font(.system(size: 13)).foregroundColor(.ncSecondary)
                 }
                 if !assessment.pathogens.isEmpty {
                     FlowLayout(spacing: 6) {
@@ -330,18 +330,18 @@ struct RiskSummaryCard: View {
                         Text(expanded ? "Hide how it's scored" : "How it's scored")
                         Image(systemName: "chevron.down").rotationEffect(.degrees(expanded ? 180 : 0))
                     }
-                    .font(.system(size: 12, weight: .semibold)).foregroundColor(.ncIndigo)
+                    .font(.system(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
                 }
                 if expanded {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(assessment.factors) { f in
                             HStack { Text(f.label); Spacer(); Text(f.detail).foregroundColor(.ncSecondary) }
-                                .font(.system(size: 12)).foregroundColor(.ncPrimary)
+                                .font(.system(size: 13)).foregroundColor(.ncPrimary)
                         }
                     }
                 }
                 Text("Risk information, not a safety clearance. Lower risk never means safe.")
-                    .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
         }
     }

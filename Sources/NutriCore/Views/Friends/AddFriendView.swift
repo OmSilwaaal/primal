@@ -74,15 +74,15 @@ private struct SearchRow: View {
                 HStack(spacing: 4) {
                     Text(profile.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                     if profile.isPrivate {
-                        Image(systemName: "lock.fill").font(.system(size: 10)).foregroundColor(.ncSecondary)
+                        Image(systemName: "lock.fill").font(.system(size: 11)).foregroundColor(.ncSecondary)
                     }
                 }
-                Text("@\(profile.username)").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                Text("@\(profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             FriendActionButton(profile: profile)
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .glassCard(radius: 16)
     }
 }

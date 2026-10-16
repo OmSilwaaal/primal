@@ -51,11 +51,11 @@ struct DashboardView: View {
                 AppBackdrop()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 28) {
                         // ── Sticky Header ───────────────────────────────────
                         LightStitchHeader(onProfile: onProfile)
                             .padding(.top, 12)
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
                             .padding(.bottom, 4)
 
                         // ── Calorie Clock ───────────────────────────────────
@@ -65,7 +65,7 @@ struct DashboardView: View {
                             fat: todaysMeals.totalFat, fatGoal: goals.fat,
                             carbs: todaysMeals.totalCarbs, carbGoal: goals.carbohydrates
                         )
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 20)
 
                         // ── Hydration & Minerals ──────────────────────────
                         if let hydration = todaysHydration {
@@ -77,20 +77,20 @@ struct DashboardView: View {
                                 },
                                 onAddSalt: { hydration.addedSodiumMg += 400; try? modelContext.save() }
                             )
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
                         }
 
                         // ── Raw snapshot ──────────────────────────────────
                         RawSnapshotCard(meals: todaysMeals, weekMeals: meals, onOpen: onRaw,
                                         onLogRaw: { showRawLog = true }, onSearch: { showSearch = true })
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
 
                         // ── Automated Log (Meal Stream) ───────────────────
                         LightMealLogSection(meals: todaysMeals) { meal in
                             Haptics.success()
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { MealLogger.delete(meal, in: modelContext) }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 20)
 
                         Spacer().frame(height: 110)
                     }
@@ -123,19 +123,18 @@ private struct LightStitchHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(dateText).spacedCaps(10, tracking: 2.4).foregroundColor(.ncSecondary)
+                Text(dateText).spacedCaps(11, tracking: 2.4).foregroundColor(.ncSecondary)
                 Spacer()
                 Button(action: onProfile) {
                     Image(systemName: "person")
                         .font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                        .frame(width: 34, height: 34)
+                        .frame(width: 44, height: 44)
                         .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
                 }
                 .smoothButton()
             }
-            Spacer().frame(height: 48)
+            Spacer().frame(height: 28)
             Wordmark(size: 86)
-            Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1).padding(.top, 6)
         }
     }
 }
@@ -156,7 +155,7 @@ struct CalorieClockCard: View {
                     .font(.ncTitle).foregroundColor(.ncPrimary)
                 Spacer()
                 Text(isOver ? "\(-remaining) over" : "\(remaining) left")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(isOver ? .ncOrange : .ncIndigo)
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .background(isOver ? Color.ncOrangeLight : Color.ncIndigoLight, in: Rectangle())
@@ -169,7 +168,7 @@ struct CalorieClockCard: View {
                     .rotationEffect(.degrees(135))
                 Circle()
                     .trim(from: 0, to: 0.75 * progress)
-                    .stroke(isOver ? Color.ncOrange : Color.ncPrimary, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(isOver ? Color.ncError : Color.ncPrimary, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(135))
                     .animation(.smooth(duration: 0.7), value: progress)
 
@@ -189,11 +188,11 @@ struct CalorieClockCard: View {
 
             HStack(spacing: 8) {
                 MacroStat(color: .ncPrimary, title: "Protein", value: protein, target: proteinGoal)
-                MacroStat(color: .ncOrange, title: "Fat", value: fat, target: fatGoal)
-                MacroStat(color: .ncGreen, title: "Carbs", value: carbs, target: carbGoal)
+                MacroStat(color: .ncPrimary.opacity(0.6), title: "Fat", value: fat, target: fatGoal)
+                MacroStat(color: .ncPrimary.opacity(0.35), title: "Carbs", value: carbs, target: carbGoal)
             }
         }
-        .padding(20)
+        .padding(.vertical, 20)
         .glassCard()
     }
 }
@@ -208,7 +207,7 @@ private struct MacroStat: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 7, height: 7)
-                Text(title).font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                Text(title).font(.system(size: 13, weight: .medium)).foregroundColor(.ncSecondary)
             }
             Text("\(Int(value))g")
                 .font(.system(size: 18, weight: .bold).monospacedDigit())
@@ -221,11 +220,10 @@ private struct MacroStat: View {
                 }
             }
             .frame(height: 4)
-            Text("/ \(Int(target))g").font(.system(size: 11)).foregroundColor(.ncSecondary)
+            Text("/ \(Int(target))g").font(.system(size: 12)).foregroundColor(.ncSecondary)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
         .animation(.smooth(duration: 0.5), value: value)
     }
 }
@@ -245,22 +243,20 @@ struct LightHydrationCard: View {
                     .font(.ncTitle).foregroundColor(.ncPrimary)
                 Spacer()
                 Text("\(Int(min(waterLiters / 3.5, 1) * 100))% of water goal")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.ncGreen)
-                    .padding(.horizontal, 8).padding(.vertical, 2)
-                    .background(Color.ncGreenLight).cornerRadius(12)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.ncSecondary)
             }
 
             HStack(spacing: 12) {
-                HydrationTile(icon: "drop.fill", tint: .ncSky, tintBg: .ncSkyLight,
+                HydrationTile(icon: "drop.fill", tint: .ncPrimary, tintBg: .clear,
                               value: String(format: "%.1fL", waterLiters), target: "Target 3.5L",
                               progress: waterLiters / 3.5, buttonTitle: "+250ml", action: onAddWater)
-                HydrationTile(icon: "sparkles", tint: .ncGreen, tintBg: .ncGreenLight,
+                HydrationTile(icon: "sparkles", tint: .ncPrimary, tintBg: .clear,
                               value: String(format: "%.1fg", saltGrams), target: "Target 5.0g",
                               progress: saltGrams / 5.0, buttonTitle: "+Salt", action: onAddSalt)
             }
         }
-        .padding(20)
+        .padding(.vertical, 20)
         .glassCard()
     }
 }
@@ -282,10 +278,10 @@ private struct HydrationTile: View {
                 Spacer()
                 Button(action: action) {
                     Text(buttonTitle)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(tint)
                         .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(tint.opacity(0.15), in: Rectangle())
+                        .overlay(Rectangle().stroke(tint.opacity(0.4), lineWidth: 1))
                 }
                 .smoothButton()
             }
@@ -294,7 +290,7 @@ private struct HydrationTile: View {
                     .font(.system(size: 18, weight: .bold).monospacedDigit())
                     .foregroundColor(.ncPrimary)
                     .contentTransition(.numericText())
-                Text(target).font(.system(size: 11)).foregroundColor(.ncSecondary)
+                Text(target).font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             GeometryReader { geo in
@@ -306,10 +302,7 @@ private struct HydrationTile: View {
             .frame(height: 5)
             .animation(.smooth(duration: 0.5), value: progress)
         }
-        .padding(14)
-        .background(tintBg.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(tint.opacity(0.2), lineWidth: 1))
+        .padding(.vertical, 6)
     }
 }
 
@@ -327,7 +320,7 @@ struct LightMealLogSection: View {
                 }
                 Spacer()
                 Text("\(meals.count) logged")
-                    .font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 13, weight: .medium)).foregroundColor(.ncSecondary)
             }
             
             VStack(spacing: 10) {
@@ -376,12 +369,11 @@ struct LightMealRow: View {
             }
             
             HStack(spacing: 14) {
-                // Image placeholder (light gray rounded box)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.ncSurfaceContHigh)
-                    .frame(width: 64, height: 64)
-                    .overlay(Image(systemName: "fork.knife").foregroundColor(.ncOutline))
-                
+                if let data = meal.photoData, let img = UIImage(data: data) {
+                    Image(uiImage: img).resizable().scaledToFill()
+                        .frame(width: 56, height: 56).clipShape(Rectangle())
+                }
+
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(meal.foodName.capitalized)
@@ -389,28 +381,21 @@ struct LightMealRow: View {
                             .lineLimit(1)
                         Spacer()
                         Text("\(Int(meal.calories)) kcal")
-                            .font(.system(size: 12, weight: .bold)).foregroundColor(.ncPrimary)
+                            .font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
                     }
                     
                     HStack(spacing: 8) {
                         if !meal.source.isEmpty {
                             Text(meal.source)
-                                .font(.system(size: 10, weight: .semibold)).foregroundColor(.ncGreen)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.ncGreenLight)
-                                .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.ncGreen.opacity(0.3), lineWidth: 1))
+                                .spacedCaps(11, tracking: 1).foregroundColor(.ncSecondary)
                         }
                         if meal.riskScore > 0 {
                             Text("Risk \(Int(meal.riskScore))")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(meal.riskScore >= 65 ? .ncError : meal.riskScore >= 40 ? .ncOrange : .ncSky)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background((meal.riskScore >= 65 ? Color.ncError : meal.riskScore >= 40 ? Color.ncOrange : Color.ncSky).opacity(0.14))
-                                .cornerRadius(4)
+                                .spacedCaps(11, tracking: 1)
+                                .foregroundColor(meal.riskScore >= 65 ? .ncError : .ncSecondary)
                         }
                         Text(timeStr)
-                            .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                            .font(.system(size: 12)).foregroundColor(.ncSecondary)
                     }
                     .padding(.top, 2)
                     
@@ -421,14 +406,14 @@ struct LightMealRow: View {
                         Text("•")
                         Text("C: \(Int(meal.carbohydrates))g")
                     }
-                    .font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
                     .padding(.top, 2)
                 }
             }
-            .padding(12)
-            .background(Color.ncSurfaceContLowest)
-            .cornerRadius(16)
-            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.07), lineWidth: 1))
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(offset == 0 ? Color.clear : Color.ncBg)
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.ncPrimary.opacity(0.1)).frame(height: 1) }
             .offset(x: offset)
             .gesture(
                 DragGesture()
@@ -461,16 +446,16 @@ struct RawSnapshotCard: View {
                     HStack {
                         Text("Raw & carnivore").font(.ncTitle).foregroundColor(.ncPrimary)
                         Spacer()
-                        Text(rating.tier.title).font(.system(size: 11, weight: .semibold)).foregroundColor(.ncIndigo)
+                        Text(rating.tier.title).font(.system(size: 12, weight: .semibold)).foregroundColor(.ncIndigo)
                             .padding(.horizontal, 10).padding(.vertical, 4).background(Color.ncIndigoLight, in: Rectangle())
                     }
                     SpectrumBar(position: rating.position, active: rating.tier != .insufficient)
                     HStack(spacing: 8) {
                         MiniStat(title: "Fat of kcal", value: fat.map { "\(Int($0))%" } ?? "—",
-                                 color: fat.map { mode.fatRange.contains($0) ? .ncGreen : .ncOrange } ?? .ncSecondary)
+                                 color: .ncPrimary)
                         MiniStat(title: "Vit A budget", value: "\(Int(budget.vitaminAPct * 100))%",
-                                 color: budget.status == .ok ? .ncGreen : budget.status == .approaching ? .ncOrange : .ncError)
-                        MiniStat(title: "Raw (7d)", value: "\(Int(rating.rawPct))%", color: .ncError)
+                                 color: budget.status == .over ? .ncError : .ncPrimary)
+                        MiniStat(title: "Raw (7d)", value: "\(Int(rating.rawPct))%", color: .ncPrimary)
                     }
                 }
             }
@@ -480,7 +465,7 @@ struct RawSnapshotCard: View {
                 Button(action: onSearch) { Label("Search food", systemImage: "magnifyingglass") }.buttonStyle(.primalSecondary).frame(height: 52)
             }
         }
-        .padding(18)
+        .padding(.vertical, 18)
         .glassCard()
     }
 }
@@ -489,10 +474,9 @@ private struct MiniStat: View {
     let title: String, value: String, color: Color
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
+            Text(title).font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             Text(value).font(.system(size: 18, weight: .bold).monospacedDigit()).foregroundColor(color)
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }

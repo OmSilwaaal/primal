@@ -10,9 +10,9 @@ struct RawScreen<Content: View>: View {
         ZStack {
             AppBackdrop()
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) { content }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                VStack(spacing: 24) { content }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
                     .padding(.bottom, 120)
             }
         }
@@ -28,19 +28,19 @@ struct RawCard<Content: View>: View {
     var trailingColor: Color = .ncSecondary
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 18) {
             if let title {
                 HStack {
                     Text(title).font(.ncTitle).foregroundColor(.ncPrimary)
                     Spacer()
                     if let trailing {
-                        Text(trailing).font(.system(size: 12, weight: .semibold)).foregroundColor(trailingColor)
+                        Text(trailing).font(.system(size: 13, weight: .semibold)).foregroundColor(trailingColor)
                     }
                 }
             }
             content
         }
-        .padding(18)
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard()
     }
@@ -51,7 +51,7 @@ struct Tag: View {
     var color: Color = .ncSecondary
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.system(size: 12, weight: .semibold))
             .foregroundColor(color)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(color.opacity(0.14), in: Rectangle())
@@ -62,8 +62,8 @@ struct Disclaimer: View {
     var text = "Risk information only — nothing here clears food as safe or replaces medical advice. Reference values are general RDA/UL figures, not personalised."
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "info.circle").font(.system(size: 12)).foregroundColor(.ncSecondary)
-            Text(text).font(.system(size: 11)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true)
+            Image(systemName: "info.circle").font(.system(size: 13)).foregroundColor(.ncSecondary)
+            Text(text).font(.system(size: 12)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 4).padding(.top, 4)
     }
@@ -80,7 +80,7 @@ struct BandGauge: View {
             ZStack(alignment: .leading) {
                 Rectangle().fill(Color.white.opacity(0.08))
                 if let band {
-                    Rectangle().fill(Color.ncGreen.opacity(0.22))
+                    Rectangle().fill(Color.ncPrimary.opacity(0.14))
                         .frame(width: geo.size.width * (band.upperBound - band.lowerBound))
                         .offset(x: geo.size.width * band.lowerBound)
                 }
@@ -104,11 +104,11 @@ struct Chip: View {
             withAnimation(.snappy(duration: 0.2)) { action() }
         } label: {
             HStack(spacing: 5) {
-                if let icon { Image(systemName: icon).font(.system(size: 11, weight: .medium)) }
+                if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)) }
                 Text(label).font(.system(size: 13, weight: .semibold))
             }
             .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
-            .padding(.horizontal, 12).frame(height: 34)
+            .padding(.horizontal, 14).frame(height: 40)
             .background(selected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())
             .overlay(Rectangle().stroke(Color.white.opacity(selected ? 0 : 0.08), lineWidth: 1))
         }
@@ -157,7 +157,7 @@ struct FlowLayout: Layout {
 struct FieldLabel: View {
     let text: String
     var body: some View {
-        Text(text.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(0.8).foregroundColor(.ncSecondary)
+        Text(text.uppercased()).font(.system(size: 12, weight: .semibold)).tracking(0.8).foregroundColor(.ncSecondary)
     }
 }
 
@@ -189,7 +189,7 @@ struct ScalePicker: View {
             HStack {
                 Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
                 Spacer()
-                Text(value == 0 ? "—" : "\(value)/5").font(.system(size: 12, weight: .semibold).monospacedDigit()).foregroundColor(.ncSecondary)
+                Text(value == 0 ? "—" : "\(value)/5").font(.system(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncSecondary)
             }
             HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { n in
@@ -200,7 +200,7 @@ struct ScalePicker: View {
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(n == value ? Color.ncPrimary : Color.ncSurfaceContHigh)
                             .frame(height: 32)
-                            .overlay(Text("\(n)").font(.system(size: 12, weight: .bold))
+                            .overlay(Text("\(n)").font(.system(size: 13, weight: .bold))
                                 .foregroundColor(n == value ? .ncOnPrimary : .ncSecondary))
                     }
                     .buttonStyle(.plain)
@@ -209,7 +209,7 @@ struct ScalePicker: View {
             HStack {
                 Text(lowLabel); Spacer(); Text(highLabel)
             }
-            .font(.system(size: 10)).foregroundColor(.ncSecondary)
+            .font(.system(size: 11)).foregroundColor(.ncSecondary)
         }
     }
 }
@@ -223,17 +223,17 @@ struct NavRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                .frame(width: 34, height: 34)
+                .frame(width: 44, height: 44)
                 .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                if let detail { Text(detail).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
+                if let detail { Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1) }
             }
             Spacer()
             if let badge { Tag(text: badge, color: badgeColor) }
-            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .glassCard(radius: 3)
         .contentShape(Rectangle())
     }

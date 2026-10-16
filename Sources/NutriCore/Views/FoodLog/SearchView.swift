@@ -32,7 +32,7 @@ struct SearchView: View {
                             .onChange(of: query) { _, newValue in usdaService.search(newValue) }
                         if !query.isEmpty {
                             Button { query = ""; usdaService.clearResults(); selectedFood = nil } label: {
-                                Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundColor(.ncSecondary)
+                                Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundColor(.ncSecondary)
                             }
                         }
                     }
@@ -80,7 +80,7 @@ struct SearchView: View {
                                         .font(.system(size: 32, weight: .ultraLight))
                                         .foregroundColor(.ncSecondary)
                                     Text("No results")
-                                        .spacedCaps(11, tracking: 2.4).foregroundColor(.ncSecondary)
+                                        .spacedCaps(12, tracking: 2.4).foregroundColor(.ncSecondary)
                                     Text("No results for \"\(query)\"")
                                         .font(.ncBodySm).foregroundColor(.ncSecondary)
                                 }
@@ -92,7 +92,7 @@ struct SearchView: View {
                                         .font(.system(size: 40, weight: .ultraLight))
                                         .foregroundColor(.ncSecondary.opacity(0.5))
                                     Text("Start typing")
-                                        .spacedCaps(11, tracking: 2.4).foregroundColor(.ncSecondary)
+                                        .spacedCaps(12, tracking: 2.4).foregroundColor(.ncSecondary)
                                     Text("Search USDA FoodData Central")
                                         .font(.ncBodySm).foregroundColor(.ncSecondary.opacity(0.6))
                                 }
@@ -147,18 +147,18 @@ private struct SearchResultRow: View {
                         .lineLimit(2)
                     HStack(spacing: 10) {
                         Text(food.dataType ?? "USDA")
-                            .spacedCaps(10, tracking: 1.2)
+                            .spacedCaps(11, tracking: 1.2)
                             .foregroundColor(.ncSecondary)
                         if let kcal = food.foodNutrients.first(where: { $0.nutrientId == 1008 }) {
                             Text("\(Int(kcal.value)) kcal / 100 g")
-                                .spacedCaps(10, tracking: 1)
+                                .spacedCaps(11, tracking: 1)
                                 .foregroundColor(.ncPrimary)
                         }
                     }
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundColor(.ncSecondary)
             }
             .padding(.horizontal, 16)

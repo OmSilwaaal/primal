@@ -133,15 +133,15 @@ private struct FieldRow<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(1).foregroundColor(.ncSecondary)
+            Text(label.uppercased()).font(.system(size: 12, weight: .semibold)).tracking(1).foregroundColor(.ncSecondary)
             content
                 .font(.system(size: 16))
                 .foregroundColor(.ncPrimary)
-                .padding(14)
+                .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassCard(radius: 3)
             if let footer {
-                Text(footer).font(.system(size: 11)).foregroundColor(.ncSecondary).frame(maxWidth: .infinity, alignment: .trailing)
+                Text(footer).font(.system(size: 12)).foregroundColor(.ncSecondary).frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }

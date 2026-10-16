@@ -72,7 +72,7 @@ struct PaywallView: View {
 
                         if let error = subManager.errorMessage {
                             Text(error)
-                                .font(.system(size: 12))
+                                .font(.system(size: 13))
                                 .foregroundColor(.ncError)
                                 .multilineTextAlignment(.center)
                         }
@@ -86,14 +86,14 @@ struct PaywallView: View {
                         .disabled(subManager.isWorking)
 
                         Text("Payments are processed securely by Stripe. Your subscription renews automatically until you cancel in Settings.")
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundColor(.ncSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 12)
 
                         #if DEBUG
                         Button("DEBUG: skip paywall") { subManager.debugUnlock() }
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundColor(.ncSecondary.opacity(0.6))
                         #endif
                     }
@@ -123,7 +123,7 @@ private struct PlanCard: View {
                             .foregroundColor(.ncPrimary)
                         if plan == .annual {
                             Text("SAVE 40%")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.ncGreen)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(Color.ncGreenLight)
@@ -161,7 +161,7 @@ struct PaywallFeatureRow: View {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(tint)
-                .frame(width: 34, height: 34)
+                .frame(width: 44, height: 44)
                 .background(tintBg)
                 .cornerRadius(10)
             VStack(alignment: .leading, spacing: 2) {

@@ -117,7 +117,7 @@ struct CameraView: View {
             HStack(spacing: 6) {
                 ForEach(["Barcode", "Image"], id: \.self) { mode in
                     Button(mode.uppercased()) { withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { selectedMode = mode } }
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundColor(selectedMode == mode ? .black : .white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -255,7 +255,7 @@ struct LoadingCard: View {
         VStack(spacing: 8) {
             ProgressView().tint(.white)
             Text(text)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 12, weight: .bold))
                 .tracking(1)
                 .foregroundColor(.white)
         }
@@ -270,7 +270,7 @@ struct PromptCard: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .bold))
+            .font(.system(size: 13, weight: .bold))
             .tracking(1)
             .foregroundColor(.white)
             .padding()
@@ -287,7 +287,7 @@ struct ErrorCard: View {
     var body: some View {
         VStack(spacing: 10) {
             Text(text)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 12, weight: .bold))
                 .tracking(1)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.white)
@@ -324,7 +324,7 @@ struct QuickLogCard: View {
                 // Title block
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title.uppercased())
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .tracking(1.5)
                         .foregroundColor(.white.opacity(0.6))
                     Text(foodName.uppercased())
@@ -337,7 +337,7 @@ struct QuickLogCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Portion")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .tracking(1.5)
                             .foregroundColor(.white.opacity(0.6))
                         Spacer()
@@ -376,7 +376,7 @@ struct QuickLogCard: View {
                     HStack {
                         ForEach(["5g", "250g", "500g", "1000g"], id: \.self) { label in
                             Text(label)
-                                .font(.system(size: 8))
+                                .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.6))
                             if label != "1000g" { Spacer() }
                         }

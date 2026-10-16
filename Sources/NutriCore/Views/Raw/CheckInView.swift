@@ -36,7 +36,7 @@ struct CheckInView: View {
                                 Chip(label: "\(n)", selected: log.bristol == n) { log.bristol = log.bristol == n ? 0 : n; save() }
                             }
                         }
-                        Text(bristolText(log.bristol)).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        Text(bristolText(log.bristol)).font(.system(size: 13)).foregroundColor(.ncSecondary)
                     }
                 }
                 RawCard(title: "Training") {
@@ -131,7 +131,7 @@ struct InsightsView: View {
                 RawCard(title: "Still learning") {
                     Text("Log food and a daily check-in for a couple of weeks. Patterns appear once there are at least 3 days on each side of a comparison.")
                         .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    Text("\(outcomes.filter { $0.energy > 0 }.count) check-ins so far").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncPrimary)
+                    Text("\(outcomes.filter { $0.energy > 0 }.count) check-ins so far").font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
                 }
             }
             ForEach(insights.prefix(12)) { i in
@@ -142,7 +142,7 @@ struct InsightsView: View {
                                 .foregroundColor(i.diff > 0 ? .ncGreen : .ncOrange)
                             Text(i.text).font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
                         }
-                        Text("\(i.withDays) vs \(i.withoutDays) days").font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        Text("\(i.withDays) vs \(i.withoutDays) days").font(.system(size: 12)).foregroundColor(.ncSecondary)
                     }
                 }
             }

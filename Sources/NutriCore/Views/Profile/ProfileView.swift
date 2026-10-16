@@ -27,19 +27,19 @@ struct ProfileView: View {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 28) {
                         // ── Header ───────────────────────────────────────────
                         ZStack(alignment: .topTrailing) {
                             PageHeader(title: "Profile", caption: social.myProfile.map { "@\($0.username)" } ?? "Account")
                             Button { showSettings = true } label: {
                                 Image(systemName: "gearshape")
                                     .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 44, height: 44)
                                     .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
                             }
                             .smoothButton()
                         }
-                        .padding(.horizontal, 16).padding(.top, 12)
+                        .padding(.horizontal, 20).padding(.top, 12)
 
                         if let profile = profile {
                             // ── Identity ─────────────────────────────────────
@@ -48,12 +48,12 @@ struct ProfileView: View {
                                     AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 56)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(displayName(profile)).font(.ncTitle).foregroundColor(.ncPrimary)
-                                        Text(profile.dietType).spacedCaps(10, tracking: 2).foregroundColor(.ncSecondary)
+                                        Text(profile.dietType).spacedCaps(11, tracking: 2).foregroundColor(.ncSecondary)
                                     }
                                     Spacer()
                                     Button { startEditing(profile) } label: {
                                         Text(isEditing ? "Cancel" : "Edit")
-                                            .spacedCaps(11, tracking: 1.6).fontWeight(.bold)
+                                            .spacedCaps(12, tracking: 1.6).fontWeight(.bold)
                                             .foregroundColor(.ncPrimary)
                                             .padding(.horizontal, 12).padding(.vertical, 8)
                                             .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
@@ -68,9 +68,9 @@ struct ProfileView: View {
                                     ProfileStatTile(label: "Sex", value: profile.sex.prefix(1).uppercased(), unit: profile.sex)
                                 }
                             }
-                            .padding(16)
+                            .padding(.vertical, 16)
                             .glassCard(radius: 3)
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
 
                             // ── Edit form ────────────────────────────────────
                             if isEditing {
@@ -92,9 +92,9 @@ struct ProfileView: View {
                                     }
                                     .buttonStyle(.primal)
                                 }
-                                .padding(16)
+                                .padding(.vertical, 16)
                                 .glassCard(radius: 3)
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, 20)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                             }
 
@@ -107,22 +107,22 @@ struct ProfileView: View {
                                     TelemetryTile(label: "Meals", value: "\(todaysMeals.count)", unit: "today")
                                 }
                             }
-                            .padding(16)
+                            .padding(.vertical, 16)
                             .glassCard(radius: 3)
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
 
                             // ── Sign out ─────────────────────────────────────
                             Button {
                                 Task { await authManager.signOut() }
                             } label: {
                                 Text("Sign out")
-                                    .spacedCaps(12, tracking: 1.6).fontWeight(.bold)
+                                    .spacedCaps(13, tracking: 1.6).fontWeight(.bold)
                                     .foregroundColor(.ncError)
                                     .frame(maxWidth: .infinity).frame(height: 48)
                                     .overlay(Rectangle().stroke(Color.ncError.opacity(0.5), lineWidth: 1))
                             }
                             .smoothButton()
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
                             .padding(.bottom, 100)
 
                         } else {
@@ -133,7 +133,7 @@ struct ProfileView: View {
                                     .frame(maxWidth: .infinity).frame(height: 52)
                                     .background(Color.ncPrimary)
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
                         }
                     }
                     .animation(.smooth, value: isEditing)
@@ -174,14 +174,12 @@ struct ProfileStatTile: View {
     let label, value, unit: String
     var body: some View {
         VStack(spacing: 3) {
-            Text(label).spacedCaps(9, tracking: 1.4).foregroundColor(.ncSecondary)
+            Text(label).spacedCaps(11, tracking: 1.4).foregroundColor(.ncSecondary)
             Text(value).font(.brutal(20, weight: .heavy)).foregroundColor(.ncPrimary)
-            Text(unit).spacedCaps(8, tracking: 1.2).foregroundColor(.ncSecondary)
+            Text(unit).spacedCaps(11, tracking: 1.2).foregroundColor(.ncSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(Color.ncSurfaceContLow)
-        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.1), lineWidth: 1))
     }
 }
 
@@ -189,14 +187,12 @@ struct TelemetryTile: View {
     let label, value, unit: String
     var body: some View {
         VStack(spacing: 3) {
-            Text(label).spacedCaps(9, tracking: 1.4).foregroundColor(.ncSecondary)
+            Text(label).spacedCaps(11, tracking: 1.4).foregroundColor(.ncSecondary)
             Text(value).font(.brutal(24, weight: .heavy)).foregroundColor(.ncPrimary).minimumScaleFactor(0.6).lineLimit(1)
-            Text(unit).spacedCaps(8, tracking: 1.2).foregroundColor(.ncSecondary)
+            Text(unit).spacedCaps(11, tracking: 1.2).foregroundColor(.ncSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .background(Color.ncSurfaceContLow)
-        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.1), lineWidth: 1))
     }
 }
 
@@ -205,7 +201,7 @@ struct StitchInputField: View {
     @Binding var text: String
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).spacedCaps(9, tracking: 1.4).foregroundColor(.ncSecondary)
+            Text(label).spacedCaps(11, tracking: 1.4).foregroundColor(.ncSecondary)
             TextField("", text: $text)
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.ncPrimary)

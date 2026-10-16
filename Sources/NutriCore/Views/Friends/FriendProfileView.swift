@@ -53,7 +53,7 @@ struct FriendProfileView: View {
                 HStack(spacing: 6) {
                     Text(profile.name).font(.system(size: 22, weight: .bold)).foregroundColor(.ncPrimary)
                     if profile.isPrivate {
-                        Image(systemName: "lock.fill").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        Image(systemName: "lock.fill").font(.system(size: 13)).foregroundColor(.ncSecondary)
                     }
                 }
                 Text("@\(profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
@@ -70,7 +70,7 @@ struct FriendProfileView: View {
         switch social.relation(to: profile.userId) {
         case .none:
             Button("Add friend") { Task { await social.sendRequest(to: profile.userId) } }
-                .buttonStyle(PrimaryButtonStyle(height: 46, radius: 3))
+                .buttonStyle(PrimaryButtonStyle(height: 50, radius: 2))
         case .requestSent:
             Button("Cancel request") { Task { await social.removeFriendship(with: profile.userId) } }
                 .buttonStyle(SecondaryButtonStyle(height: 46))
@@ -79,7 +79,7 @@ struct FriendProfileView: View {
                 Button("Decline") { Task { await social.removeFriendship(friendship) } }
                     .buttonStyle(SecondaryButtonStyle(height: 46))
                 Button("Accept") { Task { await social.accept(friendship) } }
-                    .buttonStyle(PrimaryButtonStyle(height: 46, radius: 3))
+                    .buttonStyle(PrimaryButtonStyle(height: 50, radius: 2))
             }
         case .friend:
             Button { confirmRemove = true } label: {
@@ -93,14 +93,14 @@ struct FriendProfileView: View {
         VStack(spacing: 14) {
             HStack {
                 Button { withAnimation(.snappy) { dayOffset -= 1 } } label: {
-                    Image(systemName: "chevron.left").frame(width: 36, height: 36)
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
                 }
                 Spacer()
                 Text(dayLabel).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                     .contentTransition(.opacity)
                 Spacer()
                 Button { withAnimation(.snappy) { dayOffset += 1 } } label: {
-                    Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
                 }
                 .disabled(dayOffset >= 0)
                 .opacity(dayOffset >= 0 ? 0.3 : 1)
@@ -123,7 +123,7 @@ struct FriendProfileView: View {
                     MacroChip(label: "Fat", value: summary.fat, tint: .ncOrange)
                 }
             }
-            .padding(16)
+            .padding(.vertical, 16)
             .glassCard(radius: 3)
             .animation(.smooth, value: summary.calories)
 
@@ -173,11 +173,10 @@ private struct MacroChip: View {
             Text("\(Int(value))g").font(.system(size: 15, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
             HStack(spacing: 4) {
                 Circle().fill(tint).frame(width: 6, height: 6)
-                Text(label).font(.system(size: 11)).foregroundColor(.ncSecondary)
+                Text(label).font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 10)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }
 
@@ -188,12 +187,12 @@ private struct MealLine: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(meal.foodName.capitalized).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary).lineLimit(1)
                 Text("\(meal.eatenAt.formatted(date: .omitted, time: .shortened)) · P \(Int(meal.protein))g · C \(Int(meal.carbohydrates))g · F \(Int(meal.totalFat))g")
-                    .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
             }
             Spacer()
             Text("\(Int(meal.calories)) kcal").font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
         }
-        .padding(14)
+        .padding(.vertical, 14)
         .glassCard(radius: 3)
     }
 }

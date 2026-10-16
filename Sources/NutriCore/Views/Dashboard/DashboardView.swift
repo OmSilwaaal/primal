@@ -11,9 +11,13 @@ struct DashboardView: View {
     @StateObject private var healthManager = HealthKitManager.shared
 
     var onProfile: () -> Void = {}
+    var onRaw: () -> Void = {}
+    @State private var showSearch = false
+    @State private var showRawLog = false
 
-    init(onProfile: @escaping () -> Void = {}) {
+    init(onProfile: @escaping () -> Void = {}, onRaw: @escaping () -> Void = {}) {
         self.onProfile = onProfile
+        self.onRaw = onRaw
         // Only load recent rows; "today" is filtered precisely in memory so the view survives midnight.
         let cutoff = Calendar.current.date(byAdding: .day, value: -2, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= cutoff }, sort: \.date)
@@ -76,6 +80,11 @@ struct DashboardView: View {
                             .padding(.horizontal, 16)
                         }
 
+                        // ── Raw snapshot ──────────────────────────────────
+                        RawSnapshotCard(meals: todaysMeals, weekMeals: meals, onOpen: onRaw,
+                                        onLogRaw: { showRawLog = true }, onSearch: { showSearch = true })
+                            .padding(.horizontal, 16)
+
                         // ── Automated Log (Meal Stream) ───────────────────
                         LightMealLogSection(meals: todaysMeals) { meal in
                             Haptics.success()
@@ -88,6 +97,8 @@ struct DashboardView: View {
                 }
             }
             .navigationBarHidden(true)
+            .sheet(isPresented: $showSearch) { SearchView() }
+            .sheet(isPresented: $showRawLog) { NavigationStack { RawLogView() } }
             .task {
                 ensureRecords()
                 await healthManager.fetchTodayData()
@@ -404,6 +415,14 @@ struct LightMealRow: View {
                                 .cornerRadius(4)
                                 .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.ncGreen.opacity(0.3), lineWidth: 1))
                         }
+                        if meal.riskScore > 0 {
+                            Text("Risk \(Int(meal.riskScore))")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(meal.riskScore >= 65 ? .ncError : meal.riskScore >= 40 ? .ncOrange : .ncSky)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background((meal.riskScore >= 65 ? Color.ncError : meal.riskScore >= 40 ? Color.ncOrange : Color.ncSky).opacity(0.14))
+                                .cornerRadius(4)
+                        }
                         Text(timeStr)
                             .font(.system(size: 11)).foregroundColor(.ncSecondary)
                     }
@@ -433,5 +452,61 @@ struct LightMealRow: View {
                     }
             )
         }
+    }
+}
+
+// MARK: - Raw snapshot (Today tab)
+struct RawSnapshotCard: View {
+    let meals: [MealEntry]
+    let weekMeals: [MealEntry]
+    let onOpen: () -> Void
+    let onLogRaw: () -> Void
+    let onSearch: () -> Void
+    @AppStorage(RawSettings.modeKey) private var modeRaw = DietMode.rawCarnivore.rawValue
+
+    var body: some View {
+        let rating = DietRater.rate(meals: weekMeals, days: 7)
+        let budget = NutrientAnalyzer.liverBudget(weekMeals)
+        let mode = DietMode(rawValue: modeRaw) ?? .rawCarnivore
+        let fat = NutrientAnalyzer.fatCaloriePct(meals)
+        VStack(alignment: .leading, spacing: 14) {
+            Button(action: onOpen) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Raw & carnivore").font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                        Spacer()
+                        Text(rating.tier.title).font(.system(size: 11, weight: .semibold)).foregroundColor(.ncIndigo)
+                            .padding(.horizontal, 10).padding(.vertical, 4).background(Color.ncIndigoLight, in: Capsule())
+                    }
+                    SpectrumBar(position: rating.position, active: rating.tier != .insufficient)
+                    HStack(spacing: 8) {
+                        MiniStat(title: "Fat of kcal", value: fat.map { "\(Int($0))%" } ?? "—",
+                                 color: fat.map { mode.fatRange.contains($0) ? .ncGreen : .ncOrange } ?? .ncSecondary)
+                        MiniStat(title: "Vit A budget", value: "\(Int(budget.vitaminAPct * 100))%",
+                                 color: budget.status == .ok ? .ncGreen : budget.status == .approaching ? .ncOrange : .ncError)
+                        MiniStat(title: "Raw (7d)", value: "\(Int(rating.rawPct))%", color: .ncError)
+                    }
+                }
+            }
+            .buttonStyle(SmoothButtonStyle())
+            HStack(spacing: 10) {
+                Button(action: onLogRaw) { Label("Log raw", systemImage: "flame") }.buttonStyle(.primal)
+                Button(action: onSearch) { Label("Search food", systemImage: "magnifyingglass") }.buttonStyle(.primalSecondary).frame(height: 52)
+            }
+        }
+        .padding(18)
+        .glassCard()
+    }
+}
+
+private struct MiniStat: View {
+    let title: String, value: String, color: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
+            Text(value).font(.system(size: 18, weight: .bold).monospacedDigit()).foregroundColor(color)
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }

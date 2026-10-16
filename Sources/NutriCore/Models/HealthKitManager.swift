@@ -5,7 +5,7 @@ import HealthKit
 class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
     private let healthStore = HKHealthStore()
-    private static let requestedKey = "healthKitAuthorizationRequested"
+    private static let requestedKey = "healthKitAuthorizationRequested.v2"
     
     @Published var isAuthorized = false
     @Published var todaySteps: Double = 0
@@ -19,7 +19,16 @@ class HealthKitManager: ObservableObject {
     private var typesToRead: Set<HKObjectType> {
         return [
             HKObjectType.quantityType(forIdentifier: .stepCount)!,
-            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
+            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKObjectType.quantityType(forIdentifier: .timeInDaylight)!,
+            HKObjectType.quantityType(forIdentifier: .bodyMass)!,
+            HKObjectType.quantityType(forIdentifier: .bodyFatPercentage)!,
+            HKObjectType.quantityType(forIdentifier: .waistCircumference)!,
+            HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic)!,
+            HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic)!,
+            HKObjectType.quantityType(forIdentifier: .restingHeartRate)!,
+            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
+            HKObjectType.quantityType(forIdentifier: .bloodGlucose)!,
         ]
     }
     
@@ -119,5 +128,66 @@ class HealthKitManager: ObservableObject {
         healthStore.save(sample) { _, error in
             if let error = error { print("Error saving water to HealthKit: \(error)") }
         }
+    }
+
+    // MARK: - Daylight (Apple Watch "Time in Daylight")
+    /// Minutes of daylight per calendar day for the last `days` days (oldest first).
+    func dailyDaylightMinutes(days: Int) async -> [Date: Double] {
+        guard isAuthorized, let type = HKObjectType.quantityType(forIdentifier: .timeInDaylight) else { return [:] }
+        let cal = Calendar.current
+        let start = cal.date(byAdding: .day, value: -(days - 1), to: cal.startOfDay(for: Date())) ?? Date()
+        return await withCheckedContinuation { continuation in
+            let q = HKStatisticsCollectionQuery(quantityType: type,
+                                                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: Date()),
+                                                options: .cumulativeSum, anchorDate: start,
+                                                intervalComponents: DateComponents(day: 1))
+            q.initialResultsHandler = { _, collection, _ in
+                var out: [Date: Double] = [:]
+                collection?.enumerateStatistics(from: start, to: Date()) { stat, _ in
+                    if let sum = stat.sumQuantity() { out[stat.startDate] = sum.doubleValue(for: .minute()) }
+                }
+                continuation.resume(returning: out)
+            }
+            healthStore.execute(q)
+        }
+    }
+
+    // MARK: - Biomarker import
+    struct ImportedReading { let kind: BiomarkerKind; let date: Date; let value: Double }
+
+    /// Latest samples (one per day per type) from Health for body measures, BP, HR, HRV and glucose.
+    func importBiomarkers(days: Int = 90) async -> [ImportedReading] {
+        guard isAuthorized else { return [] }
+        let specs: [(HKQuantityTypeIdentifier, HKUnit, BiomarkerKind, Double)] = [
+            (.bodyMass, .gramUnit(with: .kilo), .weight, 1),
+            (.bodyFatPercentage, .percent(), .bodyFat, 100),
+            (.waistCircumference, .meterUnit(with: .centi), .waist, 1),
+            (.bloodPressureSystolic, .millimeterOfMercury(), .systolic, 1),
+            (.bloodPressureDiastolic, .millimeterOfMercury(), .diastolic, 1),
+            (.restingHeartRate, HKUnit.count().unitDivided(by: .minute()), .restingHR, 1),
+            (.heartRateVariabilitySDNN, .secondUnit(with: .milli), .hrv, 1),
+            (.bloodGlucose, HKUnit(from: "mg/dL"), .fastingGlucose, 1),
+        ]
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        var out: [ImportedReading] = []
+        for (id, unit, kind, scale) in specs {
+            guard let type = HKObjectType.quantityType(forIdentifier: id) else { continue }
+            let samples: [HKQuantitySample] = await withCheckedContinuation { continuation in
+                let q = HKSampleQuery(sampleType: type,
+                                      predicate: HKQuery.predicateForSamples(withStart: start, end: Date()),
+                                      limit: 200,
+                                      sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]) { _, r, _ in
+                    continuation.resume(returning: (r as? [HKQuantitySample]) ?? [])
+                }
+                healthStore.execute(q)
+            }
+            var seenDays = Set<Date>()
+            for s in samples {
+                let day = Calendar.current.startOfDay(for: s.endDate)
+                guard seenDays.insert(day).inserted else { continue }
+                out.append(ImportedReading(kind: kind, date: s.endDate, value: s.quantity.doubleValue(for: unit) * scale))
+            }
+        }
+        return out
     }
 }

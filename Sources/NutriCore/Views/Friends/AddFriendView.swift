@@ -11,7 +11,7 @@ struct AddFriendView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.ncBg.ignoresSafeArea()
+                AppBackdrop()
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundColor(.ncSecondary)

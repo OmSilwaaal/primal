@@ -7,7 +7,7 @@ struct PaywallView: View {
 
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop()
 
             Circle()
                 .fill(Color.ncIndigo.opacity(0.12))

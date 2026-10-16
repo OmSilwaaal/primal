@@ -15,7 +15,7 @@ struct FriendProfileView: View {
 
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop()
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
                     header

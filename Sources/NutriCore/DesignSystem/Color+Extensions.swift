@@ -8,40 +8,40 @@ import SwiftUI
 
 extension Color {
     // Backgrounds (darkest -> lightest)
-    static let ncBg                  = Color(hex: "#060B07")
-    static let ncSurface             = Color(hex: "#0A110C")
-    static let ncSurfaceContLowest   = Color(hex: "#0D150F") // cards
-    static let ncSurfaceContLow      = Color(hex: "#111A13")
-    static let ncSurfaceCont         = Color(hex: "#151F17")
-    static let ncSurfaceContHigh     = Color(hex: "#1B271E")
-    static let ncSurfaceContHighest  = Color(hex: "#263528")
-    static let ncSurfaceBright       = Color(hex: "#223024")
+    static let ncBg                  = Color(hex: "#050505")
+    static let ncSurface             = Color(hex: "#0B0B0C")
+    static let ncSurfaceContLowest   = Color(hex: "#101012") // cards
+    static let ncSurfaceContLow      = Color(hex: "#141416")
+    static let ncSurfaceCont         = Color(hex: "#17171A")
+    static let ncSurfaceContHigh     = Color(hex: "#202024")
+    static let ncSurfaceContHighest  = Color(hex: "#2A2A2F")
+    static let ncSurfaceBright       = Color(hex: "#26262B")
 
     // Text
-    static let ncPrimary             = Color(hex: "#EDEFE4")
-    static let ncOnPrimary           = Color(hex: "#07100A") // text/icons on a ncPrimary fill
-    static let ncOnSurface           = Color(hex: "#EDEFE4")
-    static let ncSecondary           = Color(hex: "#8FA092")
+    static let ncPrimary             = Color(hex: "#FAFAFA")
+    static let ncOnPrimary           = Color(hex: "#09090B") // text/icons on a ncPrimary fill
+    static let ncOnSurface           = Color(hex: "#FAFAFA")
+    static let ncSecondary           = Color(hex: "#8E8E96")
 
     // Lines
-    static let ncOutline             = Color(hex: "#4C5E50")
-    static let ncOutlineVariant      = Color(hex: "#1F2B22")
-    static let ncBorder              = Color(hex: "#EDEFE4").opacity(0.12)
+    static let ncOutline             = Color(hex: "#52525B")
+    static let ncOutlineVariant      = Color(hex: "#27272A")
+    static let ncBorder              = Color(hex: "#FAFAFA").opacity(0.12)
     static let ncBorderSub           = Color.white.opacity(0.05)
 
     // Accents (tuned for dark backgrounds). *Light variants are translucent tints.
-    static let ncIndigo              = Color(hex: "#A8C686")
-    static let ncIndigoLight         = Color(hex: "#A8C686").opacity(0.16)
-    static let ncGreen               = Color(hex: "#5FB978")
-    static let ncGreenLight          = Color(hex: "#5FB978").opacity(0.14)
-    static let ncOrange              = Color(hex: "#E0A458")
-    static let ncOrangeLight         = Color(hex: "#E0A458").opacity(0.16)
-    static let ncSky                 = Color(hex: "#7FB5B0")
-    static let ncSkyLight            = Color(hex: "#7FB5B0").opacity(0.14)
-    static let ncError               = Color(hex: "#D9694F")
+    static let ncIndigo              = Color(hex: "#C9D6C0")
+    static let ncIndigoLight         = Color(hex: "#C9D6C0").opacity(0.16)
+    static let ncGreen               = Color(hex: "#4FC48A")
+    static let ncGreenLight          = Color(hex: "#4FC48A").opacity(0.14)
+    static let ncOrange              = Color(hex: "#F0A35E")
+    static let ncOrangeLight         = Color(hex: "#F0A35E").opacity(0.16)
+    static let ncSky                 = Color(hex: "#6FB7D6")
+    static let ncSkyLight            = Color(hex: "#6FB7D6").opacity(0.14)
+    static let ncError               = Color(hex: "#F07167")
 
     // Legacy alias
-    static let ncSurface2            = Color(hex: "#151F17")
+    static let ncSurface2            = Color(hex: "#17171A")
 }
 
 extension Color {
@@ -74,10 +74,10 @@ struct CardModifier: ViewModifier {
     func body(content: Content) -> some View {
         let r = min(cornerRadius, 3)
         content
-            .background(Color.ncSurfaceContLowest, in: RoundedRectangle(cornerRadius: r, style: .continuous))
+            .background(Color.ncSurfaceContLowest.opacity(0.80), in: RoundedRectangle(cornerRadius: r, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: r, style: .continuous)
-                    .stroke(Color.ncPrimary.opacity(0.16), lineWidth: 1)
+                    .stroke(Color.ncPrimary.opacity(0.14), lineWidth: 1)
             )
     }
 }
@@ -125,7 +125,7 @@ extension View {
     func smoothButton() -> some View { self.buttonStyle(SmoothButtonStyle()) }
 }
 
-/// Filled call-to-action: bone block with dark caps text and an offset outline echo that closes on press.
+/// Filled call-to-action: square bone block with dark spaced-caps text.
 struct PrimaryButtonStyle: ButtonStyle {
     var height: CGFloat = 52
     var radius: CGFloat = 2
@@ -136,12 +136,8 @@ struct PrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(Color.ncPrimary, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .background(
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(Color.ncIndigo.opacity(0.7), lineWidth: 1)
-                    .offset(x: configuration.isPressed ? 0 : 4, y: configuration.isPressed ? 0 : 4)
-            )
-            .offset(x: configuration.isPressed ? 2 : 0, y: configuration.isPressed ? 2 : 0)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .brightness(configuration.isPressed ? -0.08 : 0)
             .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, pressed in
                 if pressed { Haptics.tap() }

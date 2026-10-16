@@ -8,7 +8,7 @@ struct RawScreen<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop()
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 12) { content }
                     .padding(.horizontal, 16)

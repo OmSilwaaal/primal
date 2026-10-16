@@ -20,7 +20,7 @@ struct SettingsView: View {
 
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop()
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
                     header

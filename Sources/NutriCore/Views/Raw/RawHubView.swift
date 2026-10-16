@@ -20,10 +20,10 @@ struct RawHubView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.ncBg.ignoresSafeArea()
+                AppBackdrop()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
-                        LeafHeader(title: "Raw", caption: mode.label, seed: 21).padding(.top, 12)
+                        PageHeader(title: "Raw", caption: mode.label).padding(.top, 12)
 
                         if !accepted { disclaimerGate }
 

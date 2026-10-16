@@ -10,7 +10,7 @@ struct BodyGoalsView: View {
 
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop()
             if let profile = profiles.first {
                 Form {
                     Section("Body") {

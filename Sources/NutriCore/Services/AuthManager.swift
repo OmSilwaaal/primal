@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 import Supabase
 import Combine
@@ -80,6 +81,11 @@ class AuthManager: ObservableObject {
             )
             
             print("Successfully signed in with Apple via native sheet.")
+        } catch let error as ASAuthorizationError where error.code == .canceled {
+            authError = nil   // user closed the sheet
+        } catch let error as ASAuthorizationError {
+            authError = "Apple sign-in couldn't start. Make sure you're signed in to an Apple Account in Settings."
+            print("Apple SignIn Error: \(error)")
         } catch {
             authError = error.localizedDescription
             print("Apple SignIn Error: \(error)")

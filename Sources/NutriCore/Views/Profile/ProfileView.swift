@@ -27,115 +27,91 @@ struct ProfileView: View {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 28) {
-                        // ── Header ───────────────────────────────────────────
-                        ZStack(alignment: .topTrailing) {
-                            PageHeader(title: "Profile", caption: social.myProfile.map { "@\($0.username)" } ?? "Account")
-                            Button { showSettings = true } label: {
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                                    .frame(width: 44, height: 44)
-                                    .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
-                            }
-                            .smoothButton()
+                    VStack(alignment: .leading, spacing: Space.section) {
+                        PageHeader(title: "Profile", caption: social.myProfile.map { "@\($0.username)" } ?? "Account") {
+                            HeaderIconButton(systemName: "gearshape", label: "Settings") { showSettings = true }
                         }
-                        .padding(.horizontal, 20).padding(.top, 12)
 
                         if let profile = profile {
-                            // ── Identity ─────────────────────────────────────
-                            VStack(spacing: 16) {
-                                HStack(spacing: 14) {
-                                    AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 56)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(displayName(profile)).font(.ncTitle).foregroundColor(.ncPrimary)
-                                        Text(profile.dietType).spacedCaps(11, tracking: 2).foregroundColor(.ncSecondary)
+                            RawCard(title: "Identity", index: "01") {
+                                HStack(alignment: .center, spacing: 16) {
+                                    AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 64)
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(displayName(profile)).font(.serif(26)).foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
+                                        Text(profile.dietType).serifCaps(10).foregroundColor(.ncSecondary)
                                     }
                                     Spacer()
-                                    Button { startEditing(profile) } label: {
-                                        Text(isEditing ? "Cancel" : "Edit")
-                                            .spacedCaps(12, tracking: 1.6).fontWeight(.bold)
-                                            .foregroundColor(.ncPrimary)
-                                            .padding(.horizontal, 12).padding(.vertical, 8)
-                                            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
-                                    }
-                                    .smoothButton()
-                                }
-
-                                HStack(spacing: 8) {
-                                    ProfileStatTile(label: "Weight", value: "\(Int(profile.weightKg))", unit: "kg")
-                                    ProfileStatTile(label: "Height", value: "\(Int(profile.heightCm))", unit: "cm")
-                                    ProfileStatTile(label: "Age", value: "\(profile.age)", unit: "yrs")
-                                    ProfileStatTile(label: "Sex", value: profile.sex.prefix(1).uppercased(), unit: profile.sex)
                                 }
                             }
-                            .padding(.vertical, 16)
-                            .glassCard(radius: 3)
-                            .padding(.horizontal, 20)
 
-                            // ── Edit form ────────────────────────────────────
-                            if isEditing {
-                                VStack(alignment: .leading, spacing: 14) {
-                                    RuleLabel(text: "Edit body stats")
-                                    HStack(spacing: 10) {
-                                        StitchInputField(label: "Weight kg", text: $weightStr)
-                                        StitchInputField(label: "Height cm", text: $heightStr)
-                                        StitchInputField(label: "Age", text: $ageStr)
-                                    }
-                                    HStack(spacing: 8) {
-                                        ForEach(["Male", "Female"], id: \.self) { sex in
-                                            Chip(label: sex, selected: selectedSex == sex) { selectedSex = sex }
+                            RawCard(title: "Body", index: "02") {
+                                VStack(alignment: .leading, spacing: 22) {
+                                    StatStrip(items: [
+                                        .init(label: "Weight", value: "\(Int(profile.weightKg))", note: "kg"),
+                                        .init(label: "Height", value: "\(Int(profile.heightCm))", note: "cm"),
+                                        .init(label: "Age", value: "\(profile.age)", note: "years"),
+                                        .init(label: "Sex", value: profile.sex.prefix(1).uppercased(), note: profile.sex.lowercased()),
+                                    ])
+                                    if isEditing {
+                                        VStack(alignment: .leading, spacing: 20) {
+                                            HStack(spacing: 16) {
+                                                RawField(title: "Weight (kg)", text: $weightStr, keyboard: .decimalPad)
+                                                RawField(title: "Height (cm)", text: $heightStr, keyboard: .decimalPad)
+                                                RawField(title: "Age", text: $ageStr, keyboard: .numberPad)
+                                            }
+                                            HStack(spacing: 8) {
+                                                ForEach(["Male", "Female"], id: \.self) { sex in
+                                                    Chip(label: sex, selected: selectedSex == sex) { selectedSex = sex }
+                                                }
+                                            }
+                                            HStack(spacing: 10) {
+                                                Button("Save") { saveProfile(profile); isEditing = false }.buttonStyle(.primal)
+                                                Button("Cancel") { isEditing = false }.buttonStyle(SecondaryButtonStyle(height: 54))
+                                            }
                                         }
+                                        .transition(.opacity.combined(with: .move(edge: .top)))
+                                    } else {
+                                        Button("Edit body stats") { startEditing(profile) }.buttonStyle(.primalSecondary)
                                     }
-                                    Button("Save changes") {
-                                        saveProfile(profile)
-                                        isEditing = false
-                                    }
-                                    .buttonStyle(.primal)
-                                }
-                                .padding(.vertical, 16)
-                                .glassCard(radius: 3)
-                                .padding(.horizontal, 20)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                            }
-
-                            // ── Stats ────────────────────────────────────────
-                            VStack(alignment: .leading, spacing: 14) {
-                                RuleLabel(text: "Intake")
-                                HStack(spacing: 8) {
-                                    TelemetryTile(label: "Today", value: "\(Int(todaysMeals.totalCalories))", unit: "kcal")
-                                    TelemetryTile(label: "7 days", value: "\(Int(weekTotal))", unit: "kcal")
-                                    TelemetryTile(label: "Meals", value: "\(todaysMeals.count)", unit: "today")
                                 }
                             }
-                            .padding(.vertical, 16)
-                            .glassCard(radius: 3)
-                            .padding(.horizontal, 20)
 
-                            // ── Sign out ─────────────────────────────────────
-                            Button {
-                                Task { await authManager.signOut() }
-                            } label: {
-                                Text("Sign out")
-                                    .spacedCaps(13, tracking: 1.6).fontWeight(.bold)
-                                    .foregroundColor(.ncError)
-                                    .frame(maxWidth: .infinity).frame(height: 48)
-                                    .overlay(Rectangle().stroke(Color.ncError.opacity(0.5), lineWidth: 1))
+                            RawCard(title: "Intake", index: "03") {
+                                StatStrip(items: [
+                                    .init(label: "Today", value: Int(todaysMeals.totalCalories).formatted(), note: "kcal"),
+                                    .init(label: "7 days", value: Int(weekTotal).formatted(), note: "kcal"),
+                                    .init(label: "Meals", value: "\(todaysMeals.count)", note: "today"),
+                                ])
                             }
-                            .smoothButton()
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 100)
 
+                            RawCard(title: "Account", index: "04") {
+                                VStack(spacing: 0) {
+                                    Button { showSettings = true } label: {
+                                        NavRow(icon: "gearshape", title: "Settings", detail: "Account, privacy, subscription")
+                                    }.buttonStyle(.plain)
+                                    Button { Task { await authManager.signOut() } } label: {
+                                        VStack(spacing: 0) {
+                                            HStack {
+                                                Text("Sign out").font(.system(size: 17, weight: .medium)).foregroundColor(.ncError)
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 18)
+                                            Hairline(opacity: 0.12)
+                                        }
+                                        .contentShape(Rectangle())
+                                    }.buttonStyle(.plain)
+                                }
+                            }
                         } else {
-                            NavigationLink(destination: ProfileSetupView()) {
-                                Text("Set up profile")
-                                    .font(.system(size: 13, weight: .heavy)).tracking(1.4).textCase(.uppercase)
-                                    .foregroundColor(.ncOnPrimary)
-                                    .frame(maxWidth: .infinity).frame(height: 52)
-                                    .background(Color.ncPrimary)
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Set up your profile so goals can be calculated for you.").font(.serif(18)).foregroundColor(.ncPrimary)
+                                NavigationLink(destination: ProfileSetupView()) { Text("Set up profile") }.buttonStyle(.primal)
                             }
-                            .padding(.horizontal, 20)
                         }
                     }
+                    .padding(.horizontal, Space.margin)
+                    .padding(.top, 12)
+                    .padding(.bottom, 140)
                     .animation(.smooth, value: isEditing)
                 }
             }

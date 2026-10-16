@@ -10,11 +10,19 @@ struct FriendsView: View {
                 AppBackdrop()
 
                 if social.myId == nil {
-                    EmptyState(icon: "person.2.slash", title: "Sign in to add friends",
-                               message: "Friends need an account so you can share what you eat.")
+                    VStack(alignment: .leading, spacing: 0) {
+                        PageHeader(title: "Friends", caption: "Eat together")
+                        Spacer()
+                        EmptyState(icon: "person.2", title: "Sign in to add friends",
+                                   message: "Friends need an account so you can share what you eat.")
+                        Spacer()
+                        Spacer()
+                    }
+                    .padding(.horizontal, Space.margin)
+                    .padding(.top, 12)
                 } else {
                     ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 28) {
+                        VStack(alignment: .leading, spacing: Space.section) {
                             header
 
                             if !social.incoming.isEmpty {
@@ -68,21 +76,14 @@ struct FriendsView: View {
     }
 
     private var header: some View {
-        ZStack(alignment: .topTrailing) {
-            PageHeader(title: "Friends", caption: "\(social.friends.count) connected")
-            Button { showAdd = true } label: {
-                Image(systemName: "person.badge.plus")
-                    .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                    .frame(width: 44, height: 44)
-                    .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
-            }
-            .smoothButton()
+        PageHeader(title: "Friends", caption: social.friends.isEmpty ? "Eat together" : "\(social.friends.count) connected") {
+            HeaderIconButton(systemName: "person.badge.plus", label: "Add friend") { showAdd = true }
         }
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            RuleLabel(text: title)
+        VStack(alignment: .leading, spacing: 4) {
+            SectionLabel(title: title)
             content()
         }
     }
@@ -110,8 +111,8 @@ private struct FriendRow: View {
             }
             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
         }
-        .padding(.vertical, 12)
-        .glassCard(radius: 16)
+        .padding(.vertical, 16)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
     }
 }
 
@@ -142,8 +143,8 @@ private struct RequestRow: View {
             }
             .smoothButton()
         }
-        .padding(.vertical, 12)
-        .glassCard(radius: 16)
+        .padding(.vertical, 16)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
     }
 }
 
@@ -171,10 +172,10 @@ struct EmptyState: View {
     var compact = false
 
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: compact ? 24 : 40, weight: .light)).foregroundColor(.ncOutline)
-            Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-            Text(message).font(.system(size: 13)).foregroundColor(.ncSecondary).multilineTextAlignment(.center)
+        VStack(spacing: 12) {
+            Image(systemName: icon).font(.system(size: compact ? 22 : 34, weight: .ultraLight)).foregroundColor(.ncSecondary)
+            Text(title).font(.serif(compact ? 20 : 26)).foregroundColor(.ncPrimary).multilineTextAlignment(.center)
+            Text(message).font(.system(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.center).lineSpacing(2)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, compact ? 24 : 0)

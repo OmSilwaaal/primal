@@ -110,9 +110,9 @@ struct RawLogView: View {
                             }
                         }
                         Button { showNewBatch = true } label: {
-                            Label("New batch", systemImage: "plus").font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.ncIndigo).padding(.horizontal, 12).frame(height: 34)
-                                .background(Color.ncIndigoLight, in: Rectangle())
+                            Label("New batch", systemImage: "plus").font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.ncPrimary).padding(.horizontal, 14).frame(height: 40)
+                                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.28), style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
                         }.buttonStyle(.plain)
                     }
                 }

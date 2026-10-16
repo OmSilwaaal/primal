@@ -313,110 +313,50 @@ struct QuickLogCard: View {
     let onLog: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Drag handle
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color.white.opacity(0.2))
-                .frame(width: 40, height: 4)
-                .padding(.top, 12)
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).serifCaps(10).foregroundColor(.ncSecondary).lineLimit(1)
+                Text(foodName.capitalized).font(.serif(24)).foregroundColor(.ncPrimary).lineLimit(2)
+            }
 
             VStack(alignment: .leading, spacing: 14) {
-                // Title block
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title.uppercased())
-                        .font(.system(size: 11, weight: .semibold))
-                        .tracking(1.5)
-                        .foregroundColor(.white.opacity(0.6))
-                    Text(foodName.uppercased())
-                        .font(.system(size: 18, weight: .black))
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-                }
-
-                // Serving size control
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Portion")
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(1.5)
-                            .foregroundColor(.white.opacity(0.6))
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Text(String(format: "%.0fg", servingSize)).contentTransition(.numericText())
-                                .font(.system(size: 14, weight: .black))
-                                .foregroundColor(.white)
-                            Button {
-                                servingSize = max(5, servingSize - 25)
-                            } label: {
-                                Text("−")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 28, height: 28)
-                                    .background(Color.white.opacity(0.08))
-                                    .cornerRadius(6)
-                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.ncBorder, lineWidth: 1))
-                            }
-                            .smoothButton()
-                            Button {
-                                servingSize = min(1000, servingSize + 25)
-                            } label: {
-                                Text("+")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 28, height: 28)
-                                    .background(Color.white.opacity(0.08))
-                                    .cornerRadius(6)
-                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.ncBorder, lineWidth: 1))
-                            }
-                            .smoothButton()
-                        }
+                HStack(alignment: .center) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(Int(servingSize))").font(.metric(36)).foregroundColor(.ncPrimary)
+                            .contentTransition(.numericText())
+                        Text("g").font(.serif(14)).foregroundColor(.ncSecondary)
                     }
-                    Slider(value: $servingSize, in: 5...1000, step: 5)
-                        .tint(.white)
-                    HStack {
-                        ForEach(["5g", "250g", "500g", "1000g"], id: \.self) { label in
-                            Text(label)
-                                .font(.system(size: 11))
-                                .foregroundColor(.white.opacity(0.6))
-                            if label != "1000g" { Spacer() }
-                        }
+                    .animation(.smooth, value: Int(servingSize))
+                    Spacer()
+                    step("minus") { servingSize = max(5, servingSize - 25) }
+                    step("plus") { servingSize = min(1000, servingSize + 25) }
+                }
+                Slider(value: $servingSize, in: 5...1000, step: 5).tint(.ncPrimary)
+                HStack(spacing: 8) {
+                    ForEach([100.0, 200, 300, 500], id: \.self) { g in
+                        Chip(label: "\(Int(g)) g", selected: Int(servingSize) == Int(g)) { servingSize = g }
                     }
                 }
-                .padding(12)
-                .background(Color.black.opacity(0.4))
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.05), lineWidth: 1))
-
-                // Log CTA
-                Button {
-                    Haptics.success()
-                    onLog()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("Log entry")
-                    }
-                }
-                .buttonStyle(PrimaryButtonStyle(height: 52, radius: 3))
             }
-            .padding(16)
+
+            Button {
+                Haptics.success()
+                onLog()
+            } label: { Label("Log entry", systemImage: "plus") }
+                .buttonStyle(.primal)
         }
-        .background(
-            ZStack {
-                Color(red: 0.063, green: 0.063, blue: 0.063)
-            }
-            .background(.ultraThinMaterial)
-            .environment(\.colorScheme, .dark)
-        )
-        .cornerRadius(24)
-        .overlay(
-            RoundedRectangle(cornerRadius: 3)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1),
-            alignment: .top
-        )
-        .padding(.horizontal, 12)
-        .padding(.bottom, 24)
+        .padding(Space.margin)
+        .background(Color.ncBg.opacity(0.94))
+        .overlay(alignment: .top) { Hairline(opacity: 0.2) }
+    }
+
+    private func step(_ icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon).font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
+                .frame(width: 44, height: 44)
+                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.3), lineWidth: 1))
+        }
+        .smoothButton()
     }
 }
 

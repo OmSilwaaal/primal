@@ -30,9 +30,9 @@ struct SourcingView: View {
             HStack(spacing: 8) {
                 StatTile(title: "7 days", value: money(week))
                 StatTile(title: "30 days", value: money(month))
-                StatTile(title: "Per g protein", value: protein > 0 ? String(format: "$%.3f", allCost / protein) : "—")
+                StatTile(title: "Protein/g", value: protein > 0 ? String(format: "$%.3f", allCost / protein) : "—")
             }
-            RawCard(title: "Daily spend", trailing: "30 days") {
+            RawCard(title: "Daily spend", trailing: "30 days", index: "01") {
                 if costed.isEmpty {
                     Text("Costs appear when you log food from a batch that has a price per lb.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 } else {
@@ -41,13 +41,13 @@ struct SourcingView: View {
                 }
             }
 
-            RawCard(title: "Suppliers") {
-                VStack(spacing: 12) {
-                    if suppliers.isEmpty { Text("Suppliers are added when you log a farm or brand.").font(.system(size: 13)).foregroundColor(.ncSecondary) }
+            RawCard(title: "Suppliers", index: "02") {
+                VStack(spacing: 0) {
+                    if suppliers.isEmpty { Text("Suppliers are added when you log a farm or brand.").font(.serif(16)).italic().foregroundColor(.ncSecondary) }
                     ForEach(suppliers) { s in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(s.name).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
+                                Text(s.name).font(.serif(20)).foregroundColor(.ncPrimary)
                                 Spacer()
                                 HStack(spacing: 2) {
                                     ForEach(1...5, id: \.self) { n in
@@ -57,32 +57,37 @@ struct SourcingView: View {
                                     }
                                 }
                             }
-                            TextField("Notes", text: Binding(get: { s.notes }, set: { s.notes = $0; try? context.save() }))
-                                .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                            TextField("", text: Binding(get: { s.notes }, set: { s.notes = $0; try? context.save() }),
+                                      prompt: Text("Add a note").italic().foregroundColor(.ncSecondary))
+                                .font(.system(size: 14)).foregroundColor(.ncPrimary)
                             let sb = batches.filter { $0.supplierName == s.name }
-                            if !sb.isEmpty { Text("\(sb.count) purchase(s)").font(.system(size: 12)).foregroundColor(.ncSecondary) }
+                            if !sb.isEmpty { Text("\(sb.count) purchase\(sb.count == 1 ? "" : "s")").serifCaps(10).foregroundColor(.ncSecondary) }
                         }
+                        .padding(.vertical, 16)
+                        .overlay(alignment: .bottom) { Hairline(opacity: 0.1) }
                     }
                 }
             }
 
-            RawCard(title: "Purchase history") {
-                VStack(spacing: 10) {
-                    if batches.isEmpty { Text("No batches yet.").font(.system(size: 13)).foregroundColor(.ncSecondary) }
+            RawCard(title: "Purchase history", index: "03") {
+                VStack(spacing: 0) {
+                    if batches.isEmpty { Text("No batches yet.").font(.serif(16)).italic().foregroundColor(.ncSecondary) }
                     ForEach(batches.prefix(15)) { b in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(b.label.isEmpty ? b.speciesEnum.label : b.label).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
-                                Text(b.purchaseDate.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                Text(b.label.isEmpty ? b.speciesEnum.label : b.label).font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
+                                Text(b.purchaseDate.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 13)).foregroundColor(.ncSecondary)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                if b.pricePerLb > 0 { Text(String(format: "$%.2f/lb", b.pricePerLb)).font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary) }
+                                if b.pricePerLb > 0 { Text(String(format: "$%.2f/lb", b.pricePerLb)).font(.metric(15)).foregroundColor(.ncPrimary) }
                                 if b.pricePerLb > 0 && b.totalWeightG > 0 {
                                     Text(money(b.totalWeightG / 453.592 * b.pricePerLb)).font(.system(size: 12)).foregroundColor(.ncSecondary)
                                 }
                             }
                         }
+                        .padding(.vertical, 14)
+                        .overlay(alignment: .bottom) { Hairline(opacity: 0.1) }
                     }
                 }
             }
@@ -101,29 +106,39 @@ struct DietModeView: View {
 
     var body: some View {
         RawScreen(title: "Diet mode") {
-            ForEach(DietMode.allCases) { m in
-                Button {
-                    Haptics.selection()
-                    withAnimation(.snappy) { modeRaw = m.rawValue }
-                } label: {
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: modeRaw == m.rawValue ? "largecircle.fill.circle" : "circle")
-                            .foregroundColor(modeRaw == m.rawValue ? .ncPrimary : .ncOutline).font(.system(size: 18))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(m.label).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-                            Text(m.blurb).font(.system(size: 13)).foregroundColor(.ncSecondary)
-                            Text("Fat \(Int(m.fatRange.lowerBound))–\(Int(m.fatRange.upperBound))% of calories · carbs under ~\(Int(m.carbCap)) g")
-                                .font(.system(size: 12)).foregroundColor(.ncSecondary)
+            RawCard(title: "Way of eating", index: "01") {
+                VStack(spacing: 0) {
+                    ForEach(DietMode.allCases) { m in
+                        Button {
+                            Haptics.selection()
+                            withAnimation(.snappy) { modeRaw = m.rawValue }
+                        } label: {
+                            VStack(spacing: 0) {
+                                HStack(alignment: .top, spacing: 16) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(m.label).font(.serif(22)).foregroundColor(.ncPrimary)
+                                        Text(m.blurb).font(.system(size: 14)).foregroundColor(.ncSecondary)
+                                        Text("Fat \(Int(m.fatRange.lowerBound))–\(Int(m.fatRange.upperBound))% · carbs under ~\(Int(m.carbCap)) g")
+                                            .serifCaps(10).foregroundColor(.ncSecondary)
+                                    }
+                                    Spacer()
+                                    Rectangle()
+                                        .fill(modeRaw == m.rawValue ? Color.ncPrimary : Color.clear)
+                                        .frame(width: 16, height: 16)
+                                        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(modeRaw == m.rawValue ? 1 : 0.4), lineWidth: 1))
+                                        .padding(.top, 6)
+                                }
+                                .padding(.vertical, 18)
+                                Hairline(opacity: 0.12)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(modeRaw == m.rawValue ? .isSelected : [])
                     }
-                    .padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading)
-                    .glassCard(radius: 3)
-                    .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(modeRaw == m.rawValue ? Color.ncPrimary.opacity(0.6) : .clear, lineWidth: 1))
                 }
-                .buttonStyle(.plain)
             }
-            RawCard(title: "Start date") {
+            RawCard(title: "Start date", index: "02") {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("I know when I started", isOn: Binding(get: { startInterval > 0 }, set: { startInterval = $0 ? Date().timeIntervalSince1970 : 0 }))
                         .tint(.ncIndigo).foregroundColor(.ncPrimary)

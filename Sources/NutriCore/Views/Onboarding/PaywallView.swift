@@ -9,144 +9,110 @@ struct PaywallView: View {
         ZStack {
             AppBackdrop()
 
-            Circle()
-                .fill(Color.ncIndigo.opacity(0.12))
-                .frame(width: 300, height: 300)
-                .blur(radius: 70)
-                .offset(y: -250)
-                .ignoresSafeArea()
-
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
-                    // ── Brand ─────────────────────────────────────────────
-                    VStack(spacing: 12) {
-                        Image(systemName: "hexagon")
-                            .font(.system(size: 30, weight: .light))
-                            .foregroundColor(.ncIndigo)
-                            .frame(width: 68, height: 68)
-                            .glassCard(radius: 20)
-                        Text("Primal Pro")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.ncPrimary)
-                        Text("Unlock the full system")
-                            .font(.system(size: 15))
-                            .foregroundColor(.ncSecondary)
+                VStack(alignment: .leading, spacing: Space.section) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text("Membership").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
+                        Wordmark(text: "PRIMAL PRO", size: 64)
+                        Text("Everything Primal measures, with nothing held back.")
+                            .font(.serif(19)).foregroundColor(.ncPrimary).lineSpacing(3)
                     }
-                    .padding(.top, 48)
+                    .padding(.top, 24)
 
-                    // ── Features ──────────────────────────────────────────
-                    VStack(spacing: 0) {
-                        PaywallFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
-                                          label: "Food scanner", sub: "Barcode and AI photo logging")
-                        Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
-                        PaywallFeatureRow(icon: "heart.text.square.fill", tint: .ncError, tintBg: Color.ncError.opacity(0.1),
-                                          label: "Apple Health sync", sub: "Steps, activity and nutrition")
-                        Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
-                        PaywallFeatureRow(icon: "chart.bar.xaxis", tint: .ncGreen, tintBg: .ncGreenLight,
-                                          label: "Full nutrient tracking", sub: "Macros, vitamins and minerals")
-                    }
-                    .glassCard(radius: 3)
-
-                    // ── Plans ─────────────────────────────────────────────
-                    VStack(spacing: 10) {
-                        ForEach(SubscriptionManager.Plan.allCases.reversed()) { plan in
-                            PlanCard(plan: plan, isSelected: selectedPlan == plan) { selectedPlan = plan }
+                    RawCard(title: "Included", index: "01") {
+                        VStack(spacing: 0) {
+                            OnboardingFeatureRow(icon: "A", tint: .ncPrimary, tintBg: .clear,
+                                                 label: "Food scanner", sub: "Barcode and AI photo logging")
+                            OnboardingFeatureRow(icon: "B", tint: .ncPrimary, tintBg: .clear,
+                                                 label: "Raw-food safety", sub: "Risk score, freezer log, recalls")
+                            OnboardingFeatureRow(icon: "C", tint: .ncPrimary, tintBg: .clear,
+                                                 label: "Full nutrient tracking", sub: "Liver budget, gaps, biomarkers")
+                            OnboardingFeatureRow(icon: "D", tint: .ncPrimary, tintBg: .clear,
+                                                 label: "Apple Health sync", sub: "Activity, daylight, body measures")
                         }
                     }
 
-                    // ── CTA ───────────────────────────────────────────────
-                    VStack(spacing: 12) {
+                    RawCard(title: "Plan", index: "02") {
+                        VStack(spacing: 0) {
+                            ForEach(SubscriptionManager.Plan.allCases.reversed()) { plan in
+                                PlanRow(plan: plan, isSelected: selectedPlan == plan) { selectedPlan = plan }
+                            }
+                        }
+                    }
+
+                    VStack(spacing: 16) {
                         Button {
                             Task { await subManager.subscribe(to: selectedPlan) }
                         } label: {
                             ZStack {
-                                if subManager.isWorking {
-                                    ProgressView().tint(.ncOnPrimary)
-                                } else {
-                                    Text("Subscribe · \(selectedPlan.priceLabel)")
-                                }
+                                if subManager.isWorking { ProgressView().tint(.ncOnPrimary) }
+                                else { Text("Continue · \(selectedPlan.priceLabel)") }
                             }
                         }
-                        .buttonStyle(PrimaryButtonStyle(height: 54))
+                        .buttonStyle(.primal)
                         .disabled(subManager.isWorking)
 
                         if let error = subManager.errorMessage {
-                            Text(error)
-                                .font(.system(size: 13))
-                                .foregroundColor(.ncError)
-                                .multilineTextAlignment(.center)
+                            Text(error).font(.system(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
                         }
 
-                        HStack(spacing: 20) {
+                        HStack(spacing: 28) {
                             Button("Restore") { Task { await subManager.restorePurchases() } }
                             Button("Sign out") { Task { await authManager.signOut() } }
                         }
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.ncSecondary)
+                        .spacedCaps(11)
+                        .foregroundColor(.ncPrimary.opacity(0.8))
                         .disabled(subManager.isWorking)
 
                         Text("Payments are processed securely by Stripe. Your subscription renews automatically until you cancel in Settings.")
-                            .font(.system(size: 12))
-                            .foregroundColor(.ncSecondary)
+                            .font(.serif(12)).italic().foregroundColor(.ncSecondary)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 12)
 
                         #if DEBUG
                         Button("DEBUG: skip paywall") { subManager.debugUnlock() }
-                            .font(.system(size: 12))
-                            .foregroundColor(.ncSecondary.opacity(0.6))
+                            .font(.system(size: 12)).foregroundColor(.ncSecondary.opacity(0.6))
                         #endif
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Space.margin)
                 .padding(.bottom, 32)
             }
         }
     }
 }
 
-private struct PlanCard: View {
+private struct PlanRow: View {
     let plan: SubscriptionManager.Plan
     let isSelected: Bool
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 14) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundColor(isSelected ? .ncIndigo : .ncOutline)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(plan.title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.ncPrimary)
-                        if plan == .annual {
-                            Text("SAVE 40%")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.ncGreen)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.ncGreenLight)
-                                .cornerRadius(4)
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 16) {
+                    Rectangle()
+                        .fill(isSelected ? Color.ncPrimary : Color.clear)
+                        .frame(width: 16, height: 16)
+                        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(isSelected ? 1 : 0.4), lineWidth: 1))
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(plan.title).font(.serif(21)).foregroundColor(.ncPrimary)
+                            if plan == .annual { Tag(text: "Save 40%", color: .ncPrimary) }
                         }
+                        Text(plan.detail).font(.system(size: 13)).foregroundColor(.ncSecondary)
                     }
-                    Text(plan.detail).font(.ncBodySm).foregroundColor(.ncSecondary)
+                    Spacer()
+                    Text(plan.priceLabel).font(.metric(15)).foregroundColor(.ncPrimary)
                 }
-                Spacer()
-                Text(plan.priceLabel)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.ncPrimary)
+                .padding(.vertical, 18)
+                Hairline(opacity: 0.12)
             }
-            .padding(14)
-            .background(Color.ncSurfaceContLowest)
-            .cornerRadius(14)
-            .overlay(
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(isSelected ? Color.ncIndigo : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
-            )
+            .contentShape(Rectangle())
         }
-        .buttonStyle(SmoothButtonStyle())
+        .buttonStyle(.plain)
         .animation(.easeOut(duration: 0.2), value: isSelected)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -157,19 +123,6 @@ struct PaywallFeatureRow: View {
     let label: String
     let sub: String
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(tint)
-                .frame(width: 44, height: 44)
-                .background(tintBg)
-                .cornerRadius(10)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text(sub).font(.ncBodySm).foregroundColor(.ncSecondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 14).padding(.vertical, 10)
+        OnboardingFeatureRow(icon: icon, tint: tint, tintBg: tintBg, label: label, sub: sub)
     }
 }

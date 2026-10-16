@@ -5,47 +5,44 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            AppBackdrop(intensity: 1.25)
+            AppBackdrop(intensity: 1)
 
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 22) {
-                    Text("Raw").spacedCaps(11, tracking: 2.4)
-                    Text("Sun").spacedCaps(11, tracking: 2.4)
-                    Text("Index").spacedCaps(11, tracking: 2.4)
+                HStack {
+                    Text("Primal").font(.serif(17)).foregroundColor(.ncPrimary)
                     Spacer()
+                    Text("Raw  ·  Sun  ·  Index").serifCaps(10).foregroundColor(.ncPrimary.opacity(0.8))
                 }
-                .foregroundColor(.ncPrimary.opacity(0.85))
-                .padding(.horizontal, 20).padding(.top, 16)
+                .padding(.top, 12)
 
                 Spacer()
 
-                Wordmark(size: 92)
-                    .padding(.leading, 20)
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Ancestral nutrition, measured").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.85))
+                    Wordmark(size: 86)
+                }
 
                 Spacer()
 
                 VStack(spacing: 0) {
-                    OnboardingFeatureRow(icon: "flame", tint: .ncPrimary, tintBg: .clear,
-                                         label: "Raw-food safety score", sub: "Freezer log, batches and recalls")
-                    Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
-                    OnboardingFeatureRow(icon: "leaf", tint: .ncPrimary, tintBg: .clear,
-                                         label: "Diet rater", sub: "Where you sit from omnivore to raw")
-                    Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
-                    OnboardingFeatureRow(icon: "sun.max", tint: .ncPrimary, tintBg: .clear,
-                                         label: "Sunlight tracker", sub: "Time outside and the vitamin D window")
+                    OnboardingFeatureRow(icon: "01", tint: .ncPrimary, tintBg: .clear,
+                                         label: "Raw-food safety", sub: "Risk score, freezer log, batches and recalls")
+                    OnboardingFeatureRow(icon: "02", tint: .ncPrimary, tintBg: .clear,
+                                         label: "Diet rater", sub: "Where you sit from omnivore to raw carnivore")
+                    OnboardingFeatureRow(icon: "03", tint: .ncPrimary, tintBg: .clear,
+                                         label: "Sunlight", sub: "Time outside and today's vitamin D window")
                 }
-                .glassCard(radius: 3)
-                .padding(.horizontal, 20)
+                .overlay(alignment: .top) { Hairline() }
 
-                VStack(spacing: 14) {
-                    HStack(spacing: 12) {
+                VStack(spacing: 16) {
+                    HStack(spacing: 10) {
                         CompactAuthButton(title: "Apple", icon: .system("applelogo"),
                                           fg: .ncOnPrimary, bg: .ncPrimary, border: .clear) {
                             Task { await authManager.signInWithApple() }
                         }
                         CompactAuthButton(title: "Google", icon: .google,
                                           fg: .ncPrimary, bg: .clear,
-                                          border: Color.ncPrimary.opacity(0.5)) {
+                                          border: Color.ncPrimary.opacity(0.45)) {
                             Task { await authManager.signInWithGoogle() }
                         }
                     }
@@ -56,12 +53,13 @@ struct OnboardingView: View {
                         Text(error).font(.system(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
                     }
 
-                    Text("By continuing, you agree to our **Terms of Service** and **Privacy Policy**")
-                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
-                        .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.horizontal, 24)
+                    Text("By continuing you agree to the Terms of Service and Privacy Policy.")
+                        .font(.serif(12)).italic().foregroundColor(.ncSecondary)
+                        .multilineTextAlignment(.center).frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 28)
+                .padding(.top, 28).padding(.bottom, 20)
             }
+            .padding(.horizontal, Space.margin)
         }
     }
 }
@@ -90,10 +88,9 @@ struct CompactAuthButton: View {
             }
             .foregroundColor(fg)
             .frame(maxWidth: .infinity)
-            .frame(height: 44)
+            .frame(height: 54)
             .background(bg)
-            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(border, lineWidth: 1))
+            .overlay(Rectangle().stroke(border, lineWidth: 1))
         }
         .smoothButton()
     }
@@ -134,31 +131,25 @@ struct GoogleGMark: View {
 }
 
 struct OnboardingFeatureRow: View {
-    let icon: String
+    let icon: String      // index label, e.g. "01"
     let tint: Color
     let tintBg: Color
     let label: String
     let sub: String
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(tint)
-                .frame(width: 44, height: 44)
-                .background(tintBg)
-                .cornerRadius(10)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.ncPrimary)
-                Text(sub)
-                    .font(.ncBodySm)
-                    .foregroundColor(.ncSecondary)
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                Text(icon).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                    .frame(width: 22, alignment: .leading)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(label).font(.serif(19)).foregroundColor(.ncPrimary)
+                    Text(sub).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                }
+                Spacer()
             }
-            Spacer()
+            .padding(.vertical, 14)
+            Hairline(opacity: 0.12)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
     }
 }

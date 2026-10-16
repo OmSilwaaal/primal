@@ -124,7 +124,7 @@ struct FriendProfileView: View {
                 }
             }
             .padding(.vertical, 16)
-            .glassCard(radius: 3)
+            .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
             .animation(.smooth, value: summary.calories)
 
             if meals.isEmpty {
@@ -192,7 +192,7 @@ private struct MealLine: View {
             Spacer()
             Text("\(Int(meal.calories)) kcal").font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
         }
-        .padding(.vertical, 14)
-        .glassCard(radius: 3)
+        .padding(.vertical, 16)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
     }
 }

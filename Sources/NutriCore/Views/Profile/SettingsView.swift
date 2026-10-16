@@ -22,23 +22,23 @@ struct SettingsView: View {
         ZStack {
             AppBackdrop()
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 28) {
+                VStack(alignment: .leading, spacing: Space.section) {
                     header
 
                     // ── Account ─────────────────────────────────────────────
                     SettingsSection(title: "Account") {
                         if let profile = social.myProfile {
                             NavigationLink(destination: EditProfileView()) {
-                                HStack(spacing: 14) {
+                                HStack(spacing: 16) {
                                     AvatarView(url: profile.avatarUrl, name: profile.name, size: 52)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(profile.name).font(.system(size: 16, weight: .semibold)).foregroundColor(.ncPrimary)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(profile.name).font(.serif(20)).foregroundColor(.ncPrimary)
                                         Text("@\(profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
                                     }
                                     Spacer()
-                                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundColor(.ncOutline)
+                                    Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
                                 }
-                                .padding(14)
+                                .padding(.vertical, 16)
                             }
                             .buttonStyle(SmoothButtonStyle())
                             SettingsDivider()
@@ -49,7 +49,7 @@ struct SettingsView: View {
                         }
                         if let emailMessage {
                             Text(emailMessage).font(.system(size: 13)).foregroundColor(.ncSecondary)
-                                .padding(.horizontal, 14).padding(.bottom, 12)
+                                .padding(.bottom, 12)
                         }
                         SettingsDivider()
                         NavigationLink(destination: BodyGoalsView()) {
@@ -106,7 +106,7 @@ struct SettingsView: View {
                         }
                         if let error = subManager.errorMessage {
                             Text(error).font(.system(size: 13)).foregroundColor(.ncError)
-                                .padding(.horizontal, 14).padding(.bottom, 12)
+                                .padding(.bottom, 12)
                         }
                     }
 
@@ -141,7 +141,7 @@ struct SettingsView: View {
                         }
                         if let deleteError {
                             Text(deleteError).font(.system(size: 13)).foregroundColor(.ncError)
-                                .padding(.horizontal, 14).padding(.bottom, 12)
+                                .padding(.bottom, 12)
                         }
                     }
 
@@ -179,18 +179,9 @@ struct SettingsView: View {
     // MARK: - Pieces
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.ncPrimary)
-                    .frame(width: 44, height: 44)
-                    .background(Color.ncSurfaceContHigh, in: Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.08), lineWidth: 1))
-            }
-            .smoothButton()
-            Text("Settings").font(.system(size: 28, weight: .bold)).foregroundColor(.ncPrimary)
-            Spacer()
+        VStack(alignment: .leading, spacing: 20) {
+            HeaderIconButton(systemName: "arrow.left", label: "Back") { dismiss() }
+            PageHeader(title: "Settings", caption: "Account · privacy · app")
         }
     }
 
@@ -242,22 +233,18 @@ struct SettingsSection<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.system(size: 12, weight: .semibold)).tracking(1)
-                .foregroundColor(.ncSecondary)
-                .padding(.horizontal, 4)
+        VStack(alignment: .leading, spacing: 4) {
+            SectionLabel(title: title)
             VStack(spacing: 0) { content }
-                .glassCard(radius: 16)
             if let footer {
-                Text(footer).font(.system(size: 13)).foregroundColor(.ncSecondary).padding(.horizontal, 4)
+                Text(footer).font(.system(size: 13)).foregroundColor(.ncSecondary).lineSpacing(2).padding(.top, 8)
             }
         }
     }
 }
 
 private struct SettingsDivider: View {
-    var body: some View { Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 60) }
+    var body: some View { Hairline(opacity: 0.1) }
 }
 
 private struct SettingsIcon: View {
@@ -265,10 +252,9 @@ private struct SettingsIcon: View {
     var destructive = false
     var body: some View {
         Image(systemName: name)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundColor(destructive ? .ncError : .ncSecondary)
-            .frame(width: 32, height: 32)
-            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .font(.system(size: 16, weight: .regular))
+            .foregroundColor(destructive ? .ncError : .ncPrimary)
+            .frame(width: 24)
     }
 }
 
@@ -280,18 +266,18 @@ private struct SettingsRowLabel: View {
     var showsChevron = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             SettingsIcon(name: icon, destructive: destructive)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .medium)).foregroundColor(destructive ? .ncError : .ncPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 17, weight: .medium)).foregroundColor(destructive ? .ncError : .ncPrimary)
                 if let subtitle { Text(subtitle).font(.system(size: 13)).foregroundColor(.ncSecondary) }
             }
             Spacer()
             if showsChevron {
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundColor(.ncOutline)
+                Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             }
         }
-        .padding(14)
+        .padding(.vertical, 16)
         .contentShape(Rectangle())
     }
 }
@@ -321,15 +307,15 @@ private struct SettingsToggleRow: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             SettingsIcon(name: icon)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
                 Text(subtitle).font(.system(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
-            Toggle("", isOn: $isOn).labelsHidden().tint(.ncIndigo)
+            Toggle("", isOn: $isOn).labelsHidden().tint(.ncPrimary.opacity(0.85))
         }
-        .padding(14)
+        .padding(.vertical, 16)
     }
 }

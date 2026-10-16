@@ -1,63 +1,77 @@
 import SwiftUI
 
-// MARK: - Nature × brutalist toolkit
-// Black canvas, out-of-focus foliage glowing through a heavy gaussian blur, bone-white wide type,
-// square edges and hairlines.
+// MARK: - Nature × brutalist design system
+//
+// Three voices, used consistently:
+//   • Brutal  – heavy, wide grotesque for the wordmark and every number that matters.
+//   • Nature  – a quiet serif in widely spaced capitals for labels and captions, and for
+//               qualitative headlines ("Mostly raw carnivore").
+//   • Body    – plain system sans for reading.
+// Surfaces are not boxed: sections sit on an out-of-focus foliage photograph and are divided by
+// hairlines, with a strict 20pt margin and an 8pt spacing rhythm.
+
+enum Space {
+    static let margin: CGFloat = 20
+    static let section: CGFloat = 40     // between sections
+    static let block: CGFloat = 20       // label → content, between blocks inside a section
+    static let item: CGFloat = 12        // between rows/items
+}
 
 extension Font {
-    /// Heavy, wide grotesque used for the wordmark and titles.
+    /// Heavy, wide grotesque for the wordmark and titles.
     static func brutal(_ size: CGFloat, weight: Font.Weight = .black) -> Font {
         .system(size: size, weight: weight).width(.expanded)
     }
-    static let ncTitle = Font.brutal(15, weight: .heavy)
+    /// Numbers: wide, heavy, tabular so values don't jitter while animating.
+    static func metric(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .heavy).width(.expanded).monospacedDigit()
+    }
+    /// Serif for qualitative headlines and captions.
+    static func serif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .serif)
+    }
+    static let ncTitle = Font.serif(22)
 }
 
 extension View {
-    /// Small spaced capitals used for labels and navigation.
-    func spacedCaps(_ size: CGFloat = 11, tracking: CGFloat = 1.6) -> some View {
+    /// Small spaced capitals (sans) — navigation and controls.
+    func spacedCaps(_ size: CGFloat = 12, tracking: CGFloat = 1.8) -> some View {
         self.font(.system(size: size, weight: .medium)).tracking(tracking).textCase(.uppercase)
+    }
+    /// Serif spaced capitals — section labels and captions, like "W H E R E  B E A U T Y  G R O W S".
+    func serifCaps(_ size: CGFloat = 12, tracking: CGFloat? = nil) -> some View {
+        self.font(.serif(size)).tracking(tracking ?? size * 0.3).textCase(.uppercase)
     }
 }
 
-/// Black background with soft, heavily blurred foliage-coloured light — like out-of-focus leaves in the dark.
+/// Out-of-focus foliage photograph, darkened so content stays readable, fading to black toward the bottom.
 struct AppBackdrop: View {
     var intensity: Double = 1
 
     var body: some View {
         GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
             ZStack {
                 Color.ncBg
-                Group {
-                    blob("#245A33", 0.85, w * 0.95, h * 0.30, -26, x: -w * 0.30, y: -h * 0.22)
-                    blob("#38804B", 0.55, w * 0.50, h * 0.22, 32, x: w * 0.34, y: -h * 0.06)
-                    blob("#12402A", 0.85, w * 0.90, h * 0.26, -12, x: w * 0.10, y: h * 0.26)
-                    blob("#5E9E6C", 0.30, w * 0.30, h * 0.12, 55, x: -w * 0.18, y: h * 0.10)
-                    blob("#C5DDBE", 0.16, w * 0.24, h * 0.07, -40, x: w * 0.30, y: -h * 0.26)
-                    blob("#1A4025", 0.55, w * 0.80, h * 0.20, 18, x: -w * 0.20, y: h * 0.42)
-                }
-                .opacity(intensity)
-                // keep the lower half calm so content stays legible
-                LinearGradient(colors: [.clear, Color.ncBg.opacity(0.6), Color.ncBg.opacity(0.94)], startPoint: .top, endPoint: .bottom)
+                Image("Foliage")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .opacity(intensity)
+                    .clipped()
+                LinearGradient(stops: [
+                    .init(color: .black.opacity(0.0), location: 0),
+                    .init(color: .black.opacity(0.12), location: 0.3),
+                    .init(color: .black.opacity(0.55), location: 0.62),
+                    .init(color: .black.opacity(0.85), location: 1),
+                ], startPoint: .top, endPoint: .bottom)
             }
-            .frame(width: w, height: h)
-            .clipped()
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .drawingGroup()
         .ignoresSafeArea()
-    }
-
-    private func blob(_ hex: String, _ opacity: Double, _ w: CGFloat, _ h: CGFloat, _ angle: Double, x: CGFloat, y: CGFloat) -> some View {
-        Ellipse().fill(Color(hex: hex).opacity(opacity))
-            .frame(width: w, height: h)
-            .rotationEffect(.degrees(angle))
-            .offset(x: x, y: y)
-            .blur(radius: 55)
     }
 }
 
-/// The name in a heavy wide face. It is laid out at a fixed size and allowed to run past the right edge,
-/// so the last letter is cropped by the screen.
+/// The name in a heavy wide face, laid out at a fixed size and allowed to run past the right edge.
 struct Wordmark: View {
     var text = "PRIMAL"
     var size: CGFloat = 56
@@ -74,27 +88,151 @@ struct Wordmark: View {
     }
 }
 
-/// Hairline rule with spaced-caps label.
-struct RuleLabel: View {
-    let text: String
+/// Section opener: optional index number, serif spaced-caps title, optional trailing note, then a hairline.
+struct SectionLabel: View {
+    var index: String? = nil
+    let title: String
+    var trailing: String? = nil
+    var trailingColor: Color = .ncSecondary
+
     var body: some View {
-        HStack(spacing: 10) {
-            Text(text).spacedCaps(11, tracking: 2).foregroundColor(.ncSecondary)
-            Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
+        VStack(spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                if let index {
+                    Text(index).font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                }
+                Text(title).serifCaps(12).foregroundColor(.ncPrimary)
+                Spacer(minLength: 8)
+                if let trailing {
+                    Text(trailing).font(.system(size: 12, weight: .medium)).foregroundColor(trailingColor)
+                        .lineLimit(1)
+                }
+            }
+            Hairline()
         }
     }
 }
 
-/// Page title block: wide wordmark, spaced caption and a hairline underneath.
-struct PageHeader: View {
+struct Hairline: View {
+    var opacity: Double = 0.16
+    var body: some View { Rectangle().fill(Color.ncPrimary.opacity(opacity)).frame(height: 1) }
+}
+
+/// Kept for older call sites.
+struct RuleLabel: View {
+    let text: String
+    var body: some View { SectionLabel(title: text) }
+}
+
+/// Page title: serif caption (with an optional control on the right), then the big cropped title.
+struct PageHeader<Accessory: View>: View {
     let title: String
     var caption: String = ""
+    @ViewBuilder var accessory: Accessory
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(caption).spacedCaps(11, tracking: 2.6).foregroundColor(.ncSecondary)
-                .opacity(caption.isEmpty ? 0 : 1).frame(height: caption.isEmpty ? 0 : nil)
-            Wordmark(text: title.uppercased(), size: 62)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center) {
+                Text(caption).serifCaps(11).foregroundColor(.ncPrimary.opacity(0.75))
+                Spacer()
+                accessory
+            }
+            .frame(minHeight: 44)
+            Wordmark(text: title.uppercased(), size: 64)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension PageHeader where Accessory == EmptyView {
+    init(title: String, caption: String = "") {
+        self.title = title; self.caption = caption; self.accessory = EmptyView()
+    }
+}
+
+/// Square hairline icon button used in page headers.
+struct HeaderIconButton: View {
+    let systemName: String
+    let label: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
+                .frame(width: 44, height: 44)
+                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
+        }
+        .smoothButton()
+        .accessibilityLabel(label)
+    }
+}
+
+/// Big number + unit + caption, the main way the app shows a value.
+struct Metric: View {
+    let value: String
+    var unit: String = ""
+    var caption: String? = nil
+    var size: CGFloat = 56
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(value).font(.metric(size)).foregroundColor(.ncPrimary)
+                    .contentTransition(.numericText())
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                if !unit.isEmpty {
+                    Text(unit).font(.serif(size * 0.32)).foregroundColor(.ncSecondary)
+                }
+            }
+            if let caption { Text(caption).font(.system(size: 14)).foregroundColor(.ncSecondary) }
+        }
+    }
+}
+
+/// Thin progress line with optional target band.
+struct LineGauge: View {
+    let value: Double
+    var band: ClosedRange<Double>? = nil
+    var tint: Color = .ncPrimary
+    var height: CGFloat = 3
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Color.ncPrimary.opacity(0.14))
+                if let band {
+                    Rectangle().fill(Color.ncPrimary.opacity(0.22))
+                        .frame(width: geo.size.width * max(0, band.upperBound - band.lowerBound))
+                        .offset(x: geo.size.width * band.lowerBound)
+                }
+                Rectangle().fill(tint)
+                    .frame(width: geo.size.width * min(max(value, 0), 1))
+                    .animation(.smooth(duration: 0.6), value: value)
+            }
+        }
+        .frame(height: height)
+    }
+}
+
+/// A row of values divided by vertical hairlines.
+struct StatStrip: View {
+    struct Item: Identifiable { let id = UUID(); let label: String; let value: String; var note: String? = nil; var progress: Double? = nil }
+    let items: [Item]
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(item.label).serifCaps(10).foregroundColor(.ncSecondary).lineLimit(1)
+                    Text(item.value).font(.metric(22)).foregroundColor(.ncPrimary)
+                        .lineLimit(1).minimumScaleFactor(0.55)
+                        .contentTransition(.numericText())
+                    if let p = item.progress { LineGauge(value: p, height: 2) }
+                    if let note = item.note { Text(note).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, i == 0 ? 0 : 14)
+                .overlay(alignment: .leading) {
+                    if i > 0 { Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1) }
+                }
+            }
+        }
     }
 }

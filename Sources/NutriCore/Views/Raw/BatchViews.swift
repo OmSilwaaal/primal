@@ -244,20 +244,18 @@ struct SafetyView: View {
                 }
             }
 
-            HStack {
-                Text("Batches & freezer").font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
-                Spacer()
-                Button { showNew = true } label: { Label("New", systemImage: "plus").font(.system(size: 13, weight: .semibold)) }
-                    .foregroundColor(.ncIndigo)
-            }
-            .padding(.top, 6)
-
-            if batches.isEmpty {
-                RawCard { Text("No batches yet. Add a pack to track its lot number, freezer history and cost.")
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary) }
-            }
-            ForEach(batches) { b in
-                NavigationLink { BatchEditView(batch: b) } label: { BatchRow(batch: b, meals: meals) }.buttonStyle(.plain)
+            RawCard(title: "Batches & freezer", trailing: "\(batches.count)") {
+                VStack(alignment: .leading, spacing: 0) {
+                    if batches.isEmpty {
+                        Text("No batches yet. Add a pack to track its lot number, freezer history and cost.")
+                            .font(.serif(16)).italic().foregroundColor(.ncSecondary).padding(.bottom, 16)
+                    }
+                    ForEach(batches) { b in
+                        NavigationLink { BatchEditView(batch: b) } label: { BatchRow(batch: b, meals: meals) }.buttonStyle(.plain)
+                    }
+                    Button { showNew = true } label: { Label("Add batch", systemImage: "plus") }
+                        .buttonStyle(.primalSecondary).padding(.top, 20)
+                }
             }
 
             Disclaimer()
@@ -299,7 +297,7 @@ private struct BatchRow: View {
             }
             .font(.system(size: 13)).foregroundColor(.ncSecondary)
         }
-        .padding(.vertical, 14)
-        .glassCard(radius: 3)
+        .padding(.vertical, 16)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
     }
 }

@@ -140,7 +140,7 @@ struct InsightsView: View {
                         HStack {
                             Image(systemName: i.diff > 0 ? "arrow.up.right" : "arrow.down.right")
                                 .foregroundColor(i.diff > 0 ? .ncGreen : .ncOrange)
-                            Text(i.text).font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
+                            Text(i.text).font(.serif(18)).foregroundColor(.ncPrimary)
                         }
                         Text("\(i.withDays) vs \(i.withoutDays) days").font(.system(size: 12)).foregroundColor(.ncSecondary)
                     }

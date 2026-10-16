@@ -52,16 +52,6 @@ final class Supplier {
 }
 
 @Model
-final class SymptomLog {
-    var id: UUID = UUID()
-    var date: Date = Date()
-    var kind: String = GISymptom.nausea.rawValue
-    var severity: Int = 2             // 1…5
-    var notes: String = ""
-    init() {}
-}
-
-@Model
 final class BiomarkerReading {
     var id: UUID = UUID()
     var date: Date = Date()

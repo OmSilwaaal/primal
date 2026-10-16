@@ -44,7 +44,7 @@ struct RawHubView: View {
 
                         VStack(spacing: 8) {
                             link(NutrientsView(), "chart.bar.doc.horizontal", "Nutrients", "Gaps, omega ratio, purines, organ budget")
-                            link(SafetyView(), "shield.lefthalf.filled", "Food safety", "Batches, freezer log, recalls, symptoms", badge: flagged > 0 ? "\(flagged) recall" : nil)
+                            link(SafetyView(), "shield.lefthalf.filled", "Food safety", "Batches, freezer log, recalls", badge: flagged > 0 ? "\(flagged) recall" : nil)
                             link(CheckInView(), "face.smiling", "Daily check-in", "Energy, mood, digestion, adaptation")
                             link(BiomarkersView(), "drop.fill", "Biomarkers", "Labs, Health import, doctor export")
                             link(InsightsView(), "sparkles", "Insights", "What your own data says")

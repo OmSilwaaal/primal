@@ -260,10 +260,6 @@ struct SafetyView: View {
                 NavigationLink { BatchEditView(batch: b) } label: { BatchRow(batch: b, meals: meals) }.buttonStyle(.plain)
             }
 
-            NavigationLink { SymptomsView() } label: {
-                NavRow(icon: "stethoscope", title: "Log a symptom", detail: "Trace GI symptoms back through incubation windows")
-            }.buttonStyle(.plain)
-
             Disclaimer()
         }
         .sheet(isPresented: $showNew) { NavigationStack { BatchEditView(batch: nil) } }
@@ -305,84 +301,5 @@ private struct BatchRow: View {
         }
         .padding(14)
         .glassCard(radius: 14)
-    }
-}
-
-// MARK: - Symptoms → culprit batches
-struct SymptomsView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \SymptomLog.date, order: .reverse) private var symptoms: [SymptomLog]
-    @Query(sort: \MealEntry.date, order: .reverse) private var meals: [MealEntry]
-    @Query private var batches: [SourceBatch]
-
-    @State private var kind: GISymptom = .nausea
-    @State private var severity = 2
-    @State private var when = Date()
-    @State private var notes = ""
-
-    var body: some View {
-        RawScreen(title: "Symptoms") {
-            RawCard(title: "Log a symptom") {
-                VStack(alignment: .leading, spacing: 12) {
-                    FlowLayout(spacing: 8) {
-                        ForEach(GISymptom.allCases) { s in Chip(label: s.label, selected: s == kind) { kind = s } }
-                    }
-                    DatePicker("When it started", selection: $when, in: ...Date()).foregroundColor(.ncPrimary)
-                    ScalePicker(title: "Severity", lowLabel: "Mild", highLabel: "Severe", value: $severity)
-                    RawField(title: "Notes", text: $notes)
-                    Button("Save & trace") {
-                        let s = SymptomLog()
-                        s.kind = kind.rawValue; s.severity = max(1, severity); s.date = when; s.notes = notes
-                        context.insert(s); try? context.save()
-                        Haptics.success(); notes = ""
-                    }.buttonStyle(.primal)
-                }
-            }
-
-            if symptoms.isEmpty {
-                RawCard { Text("When you log a symptom, the app looks back through each food's incubation window (hours to days) and ranks the batches that fit.")
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary) }
-            }
-            ForEach(symptoms.prefix(10)) { s in
-                SymptomCard(symptom: s, meals: meals, batches: batches) { context.delete(s); try? context.save() }
-            }
-            Text("Matching a window does not show a food caused a symptom. Seek medical care for severe, bloody or persistent symptoms.")
-                .font(.system(size: 11)).foregroundColor(.ncSecondary)
-        }
-    }
-}
-
-private struct SymptomCard: View {
-    let symptom: SymptomLog
-    let meals: [MealEntry]
-    let batches: [SourceBatch]
-    let onDelete: () -> Void
-    var body: some View {
-        let culprits = SymptomCorrelator.culprits(for: symptom, meals: meals, batches: batches)
-        RawCard(title: GISymptom(rawValue: symptom.kind)?.label ?? symptom.kind,
-                trailing: symptom.date.formatted(date: .abbreviated, time: .shortened)) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Severity \(symptom.severity)/5").font(.system(size: 12)).foregroundColor(.ncSecondary)
-                if culprits.isEmpty {
-                    Text("No tagged raw meals fit an incubation window before this.").font(.system(size: 13)).foregroundColor(.ncSecondary)
-                } else {
-                    FieldLabel(text: "Possible culprits")
-                    ForEach(culprits.prefix(3)) { c in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(c.title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                                Spacer()
-                                Tag(text: "\(Int(c.score))", color: c.score >= 50 ? .ncError : .ncOrange)
-                            }
-                            if !c.lotNumber.isEmpty { Text("Lot \(c.lotNumber)").font(.system(size: 11)).foregroundColor(.ncSecondary) }
-                            FlowLayout(spacing: 6) { ForEach(c.pathogens) { p in Tag(text: "\(p.name) \(p.windowLabel)", color: .ncOrange) } }
-                            Text("\(c.meals.count) meal(s) in window").font(.system(size: 11)).foregroundColor(.ncSecondary)
-                        }
-                        .padding(10).background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-                Button("Remove", role: .destructive, action: onDelete).font(.system(size: 12))
-            }
-        }
     }
 }

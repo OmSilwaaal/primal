@@ -31,7 +31,7 @@ struct RawCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             if let title {
                 HStack {
-                    Text(title).font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                    Text(title).font(.ncTitle).foregroundColor(.ncPrimary)
                     Spacer()
                     if let trailing {
                         Text(trailing).font(.system(size: 12, weight: .semibold)).foregroundColor(trailingColor)
@@ -54,7 +54,7 @@ struct Tag: View {
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(color)
             .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(color.opacity(0.14), in: Capsule())
+            .background(color.opacity(0.14), in: Rectangle())
     }
 }
 
@@ -78,13 +78,13 @@ struct BandGauge: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.08))
+                Rectangle().fill(Color.white.opacity(0.08))
                 if let band {
-                    Capsule().fill(Color.ncGreen.opacity(0.22))
+                    Rectangle().fill(Color.ncGreen.opacity(0.22))
                         .frame(width: geo.size.width * (band.upperBound - band.lowerBound))
                         .offset(x: geo.size.width * band.lowerBound)
                 }
-                Capsule().fill(color)
+                Rectangle().fill(color)
                     .frame(width: max(height, geo.size.width * min(max(value, 0), 1)))
                     .animation(.smooth(duration: 0.6), value: value)
             }
@@ -109,8 +109,8 @@ struct Chip: View {
             }
             .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
             .padding(.horizontal, 12).frame(height: 34)
-            .background(selected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(selected ? 0 : 0.08), lineWidth: 1))
+            .background(selected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())
+            .overlay(Rectangle().stroke(Color.white.opacity(selected ? 0 : 0.08), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -172,8 +172,8 @@ struct RawField: View {
                 .keyboardType(keyboard)
                 .font(.system(size: 15)).foregroundColor(.ncPrimary)
                 .padding(.horizontal, 12).frame(height: 44)
-                .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
         }
     }
 }
@@ -197,7 +197,7 @@ struct ScalePicker: View {
                         Haptics.selection()
                         withAnimation(.snappy(duration: 0.2)) { value = (value == n ? 0 : n) }
                     } label: {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(n == value ? Color.ncPrimary : Color.ncSurfaceContHigh)
                             .frame(height: 32)
                             .overlay(Text("\(n)").font(.system(size: 12, weight: .bold))
@@ -224,7 +224,7 @@ struct NavRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
                 .frame(width: 34, height: 34)
-                .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
                 if let detail { Text(detail).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
@@ -234,7 +234,7 @@ struct NavRow: View {
             Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncOutline)
         }
         .padding(12)
-        .glassCard(radius: 14)
+        .glassCard(radius: 3)
         .contentShape(Rectangle())
     }
 }

@@ -27,6 +27,7 @@
 		466ADD84F0F08A774914349C /* SunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04462443C6FD3D13C31B39D0 /* SunView.swift */; };
 		4B9A8C5411439F152A803AC4 /* NutrientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D1957631168BB5774BD04D /* NutrientsView.swift */; };
 		4BB2207A9A46B59AD1E9B1A8 /* RecallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B01121074273574E03EA87A3 /* RecallService.swift */; };
+		525E04D2521C2588CE875FCE /* NatureBrutal.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2900E28FAD8503B46089A9 /* NatureBrutal.swift */; };
 		55CC0C95FCD1CF24CF7617F2 /* FoodSearchResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C7736E564069E5E8A1822BA /* FoodSearchResult.swift */; };
 		594166F222E3B23B5F6B79DF /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3619314069F75ECB5F473603 /* CheckInView.swift */; };
 		59C1BA7B2892DE7269E7ABF2 /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11684C00CECA16B864847336 /* EditProfileView.swift */; };
@@ -130,6 +131,7 @@
 		F2E907E2F0A8AA847C698087 /* MealLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealLogger.swift; sourceTree = "<group>"; };
 		F496E7479856A5090E10B5C1 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		F78859EB1EF10E4D7B7F4E92 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		FB2900E28FAD8503B46089A9 /* NatureBrutal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NatureBrutal.swift; sourceTree = "<group>"; };
 		FBB73B6DAC5C49D71952B63A /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -334,6 +336,7 @@
 			isa = PBXGroup;
 			children = (
 				AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */,
+				FB2900E28FAD8503B46089A9 /* NatureBrutal.swift */,
 				E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */,
 			);
 			path = DesignSystem;
@@ -452,6 +455,7 @@
 				124173302101384832CB9559 /* MealEntry.swift in Sources */,
 				750F6508177D60A155055D46 /* MealLogger.swift in Sources */,
 				D0CCA8172B9F7CE11D248C2E /* MicronutrientsView.swift in Sources */,
+				525E04D2521C2588CE875FCE /* NatureBrutal.swift in Sources */,
 				C3DBAB9B35225D2538E31F07 /* NutriCoreApp.swift in Sources */,
 				5FCFF79115DFB2AF3A1314A2 /* NutrientAnalyzer.swift in Sources */,
 				064DDF0FEE8E06C40F395580 /* NutrientGoals.swift in Sources */,

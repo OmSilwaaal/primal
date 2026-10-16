@@ -47,7 +47,7 @@ struct SearchView: View {
                         .background(Color.ncSurfaceContHigh)
                         .cornerRadius(8)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 3)
                                 .stroke(isSearchFocused ? Color.ncPrimary : Color.white.opacity(0.08), lineWidth: 1)
                         )
                         .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
@@ -149,8 +149,8 @@ struct SearchView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(Color.ncSurfaceContHighest, in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    .background(Color.ncSurfaceContHighest, in: Rectangle())
+                    .overlay(Rectangle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                     .padding(.top, 60)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }

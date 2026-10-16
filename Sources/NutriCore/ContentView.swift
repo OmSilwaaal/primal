@@ -56,20 +56,19 @@ struct PrimalLightTabBar: View {
                     Haptics.selection()
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) { selectedTab = index }
                 } label: {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 5) {
                         Image(systemName: isSelected ? tab.activeIcon : tab.icon)
-                            .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
+                            .font(.system(size: 19, weight: isSelected ? .semibold : .regular))
                             .symbolEffect(.bounce, value: isSelected)
                         Text(tab.label)
-                            .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
+                            .font(.system(size: 8.5, weight: isSelected ? .heavy : .medium)).tracking(1.1).textCase(.uppercase)
                     }
                     .foregroundColor(isSelected ? .ncPrimary : .ncSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .background {
+                    .overlay(alignment: .top) {
                         if isSelected {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.white.opacity(0.08))
+                            Rectangle().fill(Color.ncIndigo).frame(height: 2)
                                 .matchedGeometryEffect(id: "tabIndicator", in: indicator)
                         }
                     }

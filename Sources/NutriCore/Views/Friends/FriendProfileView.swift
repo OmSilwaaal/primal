@@ -70,7 +70,7 @@ struct FriendProfileView: View {
         switch social.relation(to: profile.userId) {
         case .none:
             Button("Add friend") { Task { await social.sendRequest(to: profile.userId) } }
-                .buttonStyle(PrimaryButtonStyle(height: 46, radius: 12))
+                .buttonStyle(PrimaryButtonStyle(height: 46, radius: 3))
         case .requestSent:
             Button("Cancel request") { Task { await social.removeFriendship(with: profile.userId) } }
                 .buttonStyle(SecondaryButtonStyle(height: 46))
@@ -79,7 +79,7 @@ struct FriendProfileView: View {
                 Button("Decline") { Task { await social.removeFriendship(friendship) } }
                     .buttonStyle(SecondaryButtonStyle(height: 46))
                 Button("Accept") { Task { await social.accept(friendship) } }
-                    .buttonStyle(PrimaryButtonStyle(height: 46, radius: 12))
+                    .buttonStyle(PrimaryButtonStyle(height: 46, radius: 3))
             }
         case .friend:
             Button { confirmRemove = true } label: {
@@ -124,7 +124,7 @@ struct FriendProfileView: View {
                 }
             }
             .padding(16)
-            .glassCard(radius: 18)
+            .glassCard(radius: 3)
             .animation(.smooth, value: summary.calories)
 
             if meals.isEmpty {
@@ -177,7 +177,7 @@ private struct MacroChip: View {
             }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 10)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }
 
@@ -194,6 +194,6 @@ private struct MealLine: View {
             Text("\(Int(meal.calories)) kcal").font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
         }
         .padding(14)
-        .glassCard(radius: 14)
+        .glassCard(radius: 3)
     }
 }

@@ -47,11 +47,7 @@ struct SunView: View {
                 Color.ncBg.ignoresSafeArea()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
-                        HStack {
-                            Text("Sunlight").font(.system(size: 22, weight: .bold)).tracking(-0.5).foregroundColor(.ncPrimary)
-                            Spacer()
-                        }
-                        .padding(.top, 12)
+                        LeafHeader(title: "Sun", caption: "Light, outdoors, vitamin D", seed: 33).padding(.top, 12)
 
                         todayCard
                         timerCard

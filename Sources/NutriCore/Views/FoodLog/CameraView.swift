@@ -122,7 +122,7 @@ struct CameraView: View {
                         .foregroundColor(selectedMode == mode ? .black : .white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(selectedMode == mode ? Color.white : Color.white.opacity(0.18), in: Capsule())
+                        .background(selectedMode == mode ? Color.white : Color.white.opacity(0.18), in: Rectangle())
                 }
             }
         }
@@ -355,7 +355,7 @@ struct QuickLogCard: View {
                                     .frame(width: 28, height: 28)
                                     .background(Color.white.opacity(0.08))
                                     .cornerRadius(6)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.ncBorder, lineWidth: 1))
+                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.ncBorder, lineWidth: 1))
                             }
                             .smoothButton()
                             Button {
@@ -367,7 +367,7 @@ struct QuickLogCard: View {
                                     .frame(width: 28, height: 28)
                                     .background(Color.white.opacity(0.08))
                                     .cornerRadius(6)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.ncBorder, lineWidth: 1))
+                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.ncBorder, lineWidth: 1))
                             }
                             .smoothButton()
                         }
@@ -386,7 +386,7 @@ struct QuickLogCard: View {
                 .padding(12)
                 .background(Color.black.opacity(0.4))
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.05), lineWidth: 1))
 
                 // Log CTA
                 Button {
@@ -399,7 +399,7 @@ struct QuickLogCard: View {
                         Text("Log entry")
                     }
                 }
-                .buttonStyle(PrimaryButtonStyle(height: 52, radius: 14))
+                .buttonStyle(PrimaryButtonStyle(height: 52, radius: 3))
             }
             .padding(16)
         }
@@ -412,7 +412,7 @@ struct QuickLogCard: View {
         )
         .cornerRadius(24)
         .overlay(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: 3)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1),
             alignment: .top
         )

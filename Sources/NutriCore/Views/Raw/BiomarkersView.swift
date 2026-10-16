@@ -120,7 +120,7 @@ struct AddReadingView: View {
                     } label: {
                         HStack { Text(kind?.label ?? "Choose…").foregroundColor(.ncPrimary); Spacer(); Image(systemName: "chevron.up.chevron.down").foregroundColor(.ncSecondary) }
                             .padding(.horizontal, 12).frame(height: 44)
-                            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                     }
                     RawField(title: "Value\(kind.map { " (\($0.unit))" } ?? "")", text: $value, keyboard: .decimalPad)
                     DatePicker("Date", selection: $date, in: ...Date()).foregroundColor(.ncPrimary)

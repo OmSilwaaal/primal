@@ -46,7 +46,7 @@ struct ProfileView: View {
                                     .frame(width: 44, height: 44)
                                     .background(Color.ncSurfaceContHigh)
                                     .cornerRadius(8)
-                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.08), lineWidth: 1))
                             }
                             .smoothButton()
                         }
@@ -89,7 +89,7 @@ struct ProfileView: View {
                             .padding(16)
                             .background(Color.ncSurfaceCont)
                             .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.06), lineWidth: 1))
                             .padding(.horizontal, 16)
 
                             // ── Edit Form ────────────────────────────────────
@@ -134,7 +134,7 @@ struct ProfileView: View {
                                 .padding(16)
                                 .background(Color.ncSurfaceCont)
                                 .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.06), lineWidth: 1))
                                 .padding(.horizontal, 16)
                             }
 
@@ -151,7 +151,7 @@ struct ProfileView: View {
                             .padding(16)
                             .background(Color.ncSurfaceCont)
                             .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.06), lineWidth: 1))
                             .padding(.horizontal, 16)
 
                             // ── Sign Out ─────────────────────────────────────
@@ -168,7 +168,7 @@ struct ProfileView: View {
                                 .frame(maxWidth: .infinity).frame(height: 48)
                                 .background(Color.red.opacity(0.08))
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.3), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.red.opacity(0.3), lineWidth: 1))
                             }
                             .smoothButton()
                             .padding(.horizontal, 16)
@@ -229,7 +229,7 @@ struct ProfileStatTile: View {
         .padding(.vertical, 10)
         .background(Color.ncSurfaceContLow)
         .cornerRadius(6)
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.05), lineWidth: 1))
     }
 }
 
@@ -245,7 +245,7 @@ struct TelemetryTile: View {
         .padding(.vertical, 12)
         .background(Color.ncSurfaceContLow)
         .cornerRadius(6)
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.05), lineWidth: 1))
     }
 }
 
@@ -262,7 +262,7 @@ struct StitchInputField: View {
                 .padding(10)
                 .background(Color(hex: "#0A0A0A"))
                 .cornerRadius(4)
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.1), lineWidth: 1))
         }
         .frame(maxWidth: .infinity)
     }

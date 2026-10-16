@@ -95,7 +95,7 @@ struct StatTile: View {
             Text(value).font(.system(size: 20, weight: .bold).monospacedDigit()).foregroundColor(color)
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }
 
@@ -107,7 +107,7 @@ struct SpectrumBar: View {
         VStack(spacing: 8) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(LinearGradient(colors: [.ncGreen.opacity(0.5), .ncSky.opacity(0.5), .ncOrange.opacity(0.6), .ncError.opacity(0.8)],
+                    Rectangle().fill(LinearGradient(colors: [.ncGreen.opacity(0.5), .ncSky.opacity(0.5), .ncOrange.opacity(0.6), .ncError.opacity(0.8)],
                                                   startPoint: .leading, endPoint: .trailing))
                         .frame(height: 10)
                     if active {
@@ -140,7 +140,7 @@ struct CompositionBar: View {
                     ForEach(segments.indices, id: \.self) { i in
                         let w = geo.size.width * segments[i].1 / total
                         if segments[i].1 > 0.5 {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous).fill(segments[i].2).frame(width: max(4, w - 2))
+                            RoundedRectangle(cornerRadius: 3, style: .continuous).fill(segments[i].2).frame(width: max(4, w - 2))
                         }
                     }
                 }

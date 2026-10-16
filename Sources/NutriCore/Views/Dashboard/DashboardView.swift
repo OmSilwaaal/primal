@@ -115,42 +115,37 @@ struct DashboardView: View {
 }
 
 // MARK: - Header
+/// Full-bleed leaf with the wordmark shifted slightly over it.
 private struct LightStitchHeader: View {
     let onProfile: () -> Void
-    @State private var pulse = false
+    private var dateText: String {
+        let f = DateFormatter(); f.dateFormat = "EEE d MMM"; return f.string(from: Date())
+    }
     var body: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Text("Primal")
-                    .font(.system(size: 22, weight: .bold))
-                    .tracking(-0.5)
-                    .foregroundColor(.ncPrimary)
-                
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.ncIndigo)
-                        .frame(width: 6, height: 6)
-                        .scaleEffect(pulse ? 1.4 : 1.0)
-                        .opacity(pulse ? 0.5 : 1.0)
-                    Text("AI active")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.ncIndigo)
-                }
-                .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(Color.ncIndigoLight)
-                .cornerRadius(12)
-                .onAppear { withAnimation(.easeInOut(duration: 1).repeatForever()) { pulse = true } }
-            }
-            Spacer()
-            HStack(spacing: 12) {
-                Button(action: onProfile) {
-                    ZStack {
-                        Circle().fill(Color.ncPrimary).frame(width: 32, height: 32)
-                        Image(systemName: "person.fill").font(.system(size: 14)).foregroundColor(.ncOnPrimary)
+        ZStack(alignment: .bottomLeading) {
+            LeafBackdrop(seed: 11)
+            LinearGradient(colors: [.clear, Color.ncBg.opacity(0.85)], startPoint: .center, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(dateText).spacedCaps(10, tracking: 2.4).foregroundColor(.ncPrimary.opacity(0.85))
+                    Spacer()
+                    Button(action: onProfile) {
+                        Image(systemName: "person")
+                            .font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
+                            .frame(width: 34, height: 34)
+                            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.7), lineWidth: 1))
                     }
+                    .smoothButton()
                 }
+                Spacer(minLength: 0)
+                Wordmark(size: 54)
+                Text("Eat what grows wild").spacedCaps(10, tracking: 3).foregroundColor(.ncPrimary.opacity(0.8))
             }
+            .padding(16)
         }
+        .frame(height: 210)
+        .clipShape(Rectangle())
+        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.16), lineWidth: 1))
     }
 }
 
@@ -167,13 +162,13 @@ struct CalorieClockCard: View {
         VStack(spacing: 20) {
             HStack {
                 Text("Calories")
-                    .font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                    .font(.ncTitle).foregroundColor(.ncPrimary)
                 Spacer()
                 Text(isOver ? "\(-remaining) over" : "\(remaining) left")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(isOver ? .ncOrange : .ncIndigo)
                     .padding(.horizontal, 10).padding(.vertical, 4)
-                    .background(isOver ? Color.ncOrangeLight : Color.ncIndigoLight, in: Capsule())
+                    .background(isOver ? Color.ncOrangeLight : Color.ncIndigoLight, in: Rectangle())
             }
 
             ZStack {
@@ -230,8 +225,8 @@ private struct MacroStat: View {
                 .contentTransition(.numericText())
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.08))
-                    Capsule().fill(color).frame(width: geo.size.width * min(max(target > 0 ? value / target : 0, 0), 1))
+                    Rectangle().fill(Color.white.opacity(0.08))
+                    Rectangle().fill(color).frame(width: geo.size.width * min(max(target > 0 ? value / target : 0, 0), 1))
                 }
             }
             .frame(height: 4)
@@ -239,7 +234,7 @@ private struct MacroStat: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
         .animation(.smooth(duration: 0.5), value: value)
     }
 }
@@ -256,7 +251,7 @@ struct LightHydrationCard: View {
         VStack(spacing: 12) {
             HStack {
                 Text("Hydration & Minerals")
-                    .font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                    .font(.ncTitle).foregroundColor(.ncPrimary)
                 Spacer()
                 Text("\(Int(min(waterLiters / 3.5, 1) * 100))% of water goal")
                     .font(.system(size: 11, weight: .semibold))
@@ -299,7 +294,7 @@ private struct HydrationTile: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(tint)
                         .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(tint.opacity(0.15), in: Capsule())
+                        .background(tint.opacity(0.15), in: Rectangle())
                 }
                 .smoothButton()
             }
@@ -313,8 +308,8 @@ private struct HydrationTile: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.08))
-                    Capsule().fill(tint).frame(width: geo.size.width * min(max(progress, 0), 1))
+                    Rectangle().fill(Color.white.opacity(0.08))
+                    Rectangle().fill(tint).frame(width: geo.size.width * min(max(progress, 0), 1))
                 }
             }
             .frame(height: 5)
@@ -322,8 +317,8 @@ private struct HydrationTile: View {
         }
         .padding(14)
         .background(tintBg.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(tint.opacity(0.2), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(tint.opacity(0.2), lineWidth: 1))
     }
 }
 
@@ -337,7 +332,7 @@ struct LightMealLogSection: View {
             HStack {
                 HStack(spacing: 8) {
                     Text("Today's Meals")
-                        .font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                        .font(.ncTitle).foregroundColor(.ncPrimary)
                 }
                 Spacer()
                 Text("\(meals.count) logged")
@@ -391,7 +386,7 @@ struct LightMealRow: View {
             
             HStack(spacing: 14) {
                 // Image placeholder (light gray rounded box)
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 3)
                     .fill(Color.ncSurfaceContHigh)
                     .frame(width: 64, height: 64)
                     .overlay(Image(systemName: "fork.knife").foregroundColor(.ncOutline))
@@ -413,7 +408,7 @@ struct LightMealRow: View {
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(Color.ncGreenLight)
                                 .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.ncGreen.opacity(0.3), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.ncGreen.opacity(0.3), lineWidth: 1))
                         }
                         if meal.riskScore > 0 {
                             Text("Risk \(Int(meal.riskScore))")
@@ -442,7 +437,7 @@ struct LightMealRow: View {
             .padding(12)
             .background(Color.ncSurfaceContLowest)
             .cornerRadius(16)
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.07), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.07), lineWidth: 1))
             .offset(x: offset)
             .gesture(
                 DragGesture()
@@ -473,10 +468,10 @@ struct RawSnapshotCard: View {
             Button(action: onOpen) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Raw & carnivore").font(.system(size: 16, weight: .bold)).foregroundColor(.ncPrimary)
+                        Text("Raw & carnivore").font(.ncTitle).foregroundColor(.ncPrimary)
                         Spacer()
                         Text(rating.tier.title).font(.system(size: 11, weight: .semibold)).foregroundColor(.ncIndigo)
-                            .padding(.horizontal, 10).padding(.vertical, 4).background(Color.ncIndigoLight, in: Capsule())
+                            .padding(.horizontal, 10).padding(.vertical, 4).background(Color.ncIndigoLight, in: Rectangle())
                     }
                     SpectrumBar(position: rating.position, active: rating.tier != .insufficient)
                     HStack(spacing: 8) {
@@ -507,6 +502,6 @@ private struct MiniStat: View {
             Text(value).font(.system(size: 18, weight: .bold).monospacedDigit()).foregroundColor(color)
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.ncSurfaceContLow, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }

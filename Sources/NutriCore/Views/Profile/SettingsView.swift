@@ -268,7 +268,7 @@ private struct SettingsIcon: View {
             .font(.system(size: 14, weight: .medium))
             .foregroundColor(destructive ? .ncError : .ncSecondary)
             .frame(width: 32, height: 32)
-            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
     }
 }
 

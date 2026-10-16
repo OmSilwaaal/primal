@@ -23,7 +23,7 @@ struct AddFriendView: View {
                         if isSearching { ProgressView().controlSize(.small) }
                     }
                     .padding(.horizontal, 14).frame(height: 46)
-                    .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                     .padding(16)
 
                     ScrollView {
@@ -111,7 +111,7 @@ struct FriendActionButton: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(filled ? .ncOnPrimary : .ncSecondary)
                 .padding(.horizontal, 14).padding(.vertical, 7)
-                .background(filled ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Capsule())
+                .background(filled ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())
         }
         .smoothButton()
         .disabled(action == nil)

@@ -112,7 +112,7 @@ struct RawLogView: View {
                         Button { showNewBatch = true } label: {
                             Label("New batch", systemImage: "plus").font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.ncIndigo).padding(.horizontal, 12).frame(height: 34)
-                                .background(Color.ncIndigoLight, in: Capsule())
+                                .background(Color.ncIndigoLight, in: Rectangle())
                         }.buttonStyle(.plain)
                     }
                 }
@@ -139,7 +139,7 @@ struct RawLogView: View {
                 HStack(spacing: 12) {
                     if let photoData, let img = UIImage(data: photoData) {
                         Image(uiImage: img).resizable().scaledToFill().frame(width: 64, height: 64)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                     }
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         Label(photoData == nil ? "Add photo" : "Change photo", systemImage: "photo")
@@ -310,7 +310,7 @@ struct RiskSummaryCard: View {
                         Text(w).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                     }
                     .padding(10)
-                    .background(Color.ncError.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(Color.ncError.opacity(0.12), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                 }
                 ForEach(assessment.notes, id: \.self) { n in
                     Text("• \(n)").font(.system(size: 12)).foregroundColor(.ncSecondary)

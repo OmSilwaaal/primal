@@ -49,7 +49,7 @@ struct BatchEditView: View {
                         .font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                 }
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.ncError.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Color.ncError.opacity(0.14), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
             }
 
             RawCard(title: "Product") {
@@ -300,6 +300,6 @@ private struct BatchRow: View {
             .font(.system(size: 12)).foregroundColor(.ncSecondary)
         }
         .padding(14)
-        .glassCard(radius: 14)
+        .glassCard(radius: 3)
     }
 }

@@ -38,7 +38,7 @@ struct PlacesMapView: View {
                     Button("Enable location") {
                         locationManager.requestPermission()
                     }
-                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 14))
+                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 3))
                     .frame(maxWidth: 220)
                     .padding(.top, 12)
                 }
@@ -58,7 +58,7 @@ struct PlacesMapView: View {
                     Button("Open Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                     }
-                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 14))
+                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 3))
                     .frame(maxWidth: 220)
                 }
             } else {
@@ -90,7 +90,7 @@ struct PlacesMapView: View {
                             ProgressView()
                                 .tint(.white)
                                 .padding(12)
-                                .background(Color.ncSurfaceContHigh, in: Capsule())
+                                .background(Color.ncSurfaceContHigh, in: Rectangle())
                         }
                         
                         if let item = selectedItem {
@@ -116,8 +116,8 @@ struct PlacesMapView: View {
                                             .foregroundColor(isSelected ? .ncOnPrimary : .ncPrimary)
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 9)
-                                            .background(isSelected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Capsule())
-                                            .overlay(Capsule().stroke(Color.white.opacity(isSelected ? 0 : 0.1), lineWidth: 1))
+                                            .background(isSelected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())
+                                            .overlay(Rectangle().stroke(Color.white.opacity(isSelected ? 0 : 0.1), lineWidth: 1))
                                     }
                                     .smoothButton()
                                 }
@@ -223,16 +223,16 @@ struct PlaceDetailCard: View {
             Button("Open in Maps") {
                 item.openInMaps(launchOptions: nil)
             }
-            .buttonStyle(PrimaryButtonStyle(height: 46, radius: 12))
+            .buttonStyle(PrimaryButtonStyle(height: 46, radius: 3))
             .padding(.top, 8)
         }
         .padding()
         .background(Color.ncSurfaceContLowest)
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
         .padding(.horizontal)
     }
 }

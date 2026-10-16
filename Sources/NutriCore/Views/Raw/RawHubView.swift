@@ -23,12 +23,7 @@ struct RawHubView: View {
                 Color.ncBg.ignoresSafeArea()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
-                        HStack {
-                            Text("Raw").font(.system(size: 22, weight: .bold)).tracking(-0.5).foregroundColor(.ncPrimary)
-                            Tag(text: mode.label, color: .ncIndigo)
-                            Spacer()
-                        }
-                        .padding(.top, 12)
+                        LeafHeader(title: "Raw", caption: mode.label, seed: 21).padding(.top, 12)
 
                         if !accepted { disclaimerGate }
 
@@ -82,8 +77,8 @@ struct RawHubView: View {
             Button("I understand") { withAnimation(.snappy) { accepted = true } }.buttonStyle(.primal)
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ncOrange.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.ncOrange.opacity(0.35), lineWidth: 1))
+        .background(Color.ncOrange.opacity(0.10), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(Color.ncOrange.opacity(0.35), lineWidth: 1))
     }
 
     private var dietCard: some View {

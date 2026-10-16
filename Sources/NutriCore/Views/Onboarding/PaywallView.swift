@@ -45,7 +45,7 @@ struct PaywallView: View {
                         PaywallFeatureRow(icon: "chart.bar.xaxis", tint: .ncGreen, tintBg: .ncGreenLight,
                                           label: "Full nutrient tracking", sub: "Macros, vitamins and minerals")
                     }
-                    .glassCard(radius: 18)
+                    .glassCard(radius: 3)
 
                     // ── Plans ─────────────────────────────────────────────
                     VStack(spacing: 10) {
@@ -141,7 +141,7 @@ private struct PlanCard: View {
             .background(Color.ncSurfaceContLowest)
             .cornerRadius(14)
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 3)
                     .stroke(isSelected ? Color.ncIndigo : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
             )
         }

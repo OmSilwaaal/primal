@@ -7,52 +7,42 @@ struct OnboardingView: View {
         ZStack {
             Color.ncBg.ignoresSafeArea()
 
-            // Soft indigo glow behind the brand mark
-            Circle()
-                .fill(Color.ncIndigo.opacity(0.14))
-                .frame(width: 320, height: 320)
-                .blur(radius: 70)
-                .offset(y: -230)
-                .ignoresSafeArea()
-
             VStack(spacing: 0) {
-                Spacer(minLength: 24)
-
-                // ── Brand ────────────────────────────────────────────────────
-                VStack(spacing: 18) {
-                    Image(systemName: "hexagon")
-                        .font(.system(size: 34, weight: .light))
-                        .foregroundColor(.ncIndigo)
-                        .frame(width: 76, height: 76)
-                        .glassCard(radius: 22)
-
-                    VStack(spacing: 8) {
-                        Text("Primal")
-                            .font(.system(size: 38, weight: .bold))
-                            .foregroundColor(.ncPrimary)
-                        Text("Ancestral nutrition, measured.")
-                            .font(.system(size: 15))
-                            .foregroundColor(.ncSecondary)
+                // ── Leaf hero with the shifted wordmark ──────────────────────
+                ZStack(alignment: .bottomLeading) {
+                    LeafBackdrop(seed: 5)
+                    LinearGradient(colors: [.clear, Color.ncBg.opacity(0.7)], startPoint: .center, endPoint: .bottom)
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 22) {
+                            Text("Raw").spacedCaps(10, tracking: 2.4)
+                            Text("Sun").spacedCaps(10, tracking: 2.4)
+                            Text("Index").spacedCaps(10, tracking: 2.4)
+                            Spacer()
+                        }
+                        .foregroundColor(.ncPrimary.opacity(0.9))
+                        Spacer()
+                        Wordmark(size: 74, shift: CGSize(width: 10, height: 7))
+                        Text("Eat what grows wild").spacedCaps(11, tracking: 4).foregroundColor(.ncPrimary.opacity(0.85))
                     }
+                    .padding(.horizontal, 20).padding(.top, 64).padding(.bottom, 24)
                 }
-
-                Spacer(minLength: 24)
+                .frame(maxHeight: .infinity)
+                .ignoresSafeArea(edges: .top)
 
                 // ── Features ─────────────────────────────────────────────────
                 VStack(spacing: 0) {
-                    OnboardingFeatureRow(icon: "barcode.viewfinder", tint: .ncIndigo, tintBg: .ncIndigoLight,
-                                         label: "Optical food scanner", sub: "AI-powered nutrient tracking")
-                    Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
-                    OnboardingFeatureRow(icon: "flame.fill", tint: .ncOrange, tintBg: .ncOrangeLight,
-                                         label: "Calorie & macro tracking", sub: "Daily goals built from your profile")
-                    Divider().overlay(Color.white.opacity(0.07)).padding(.leading, 62)
-                    OnboardingFeatureRow(icon: "drop.fill", tint: .ncGreen, tintBg: .ncGreenLight,
-                                         label: "Electrolyte monitor", sub: "Water & salt balance")
+                    OnboardingFeatureRow(icon: "flame", tint: .ncOrange, tintBg: .clear,
+                                         label: "Raw-food safety score", sub: "Freezer log, batches and recalls")
+                    Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
+                    OnboardingFeatureRow(icon: "leaf", tint: .ncIndigo, tintBg: .clear,
+                                         label: "Diet rater", sub: "Where you sit from omnivore to raw")
+                    Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
+                    OnboardingFeatureRow(icon: "sun.max", tint: .ncGreen, tintBg: .clear,
+                                         label: "Sunlight tracker", sub: "Time outside and the vitamin D window")
                 }
-                .glassCard(radius: 18)
+                .glassCard(radius: 3)
                 .padding(.horizontal, 20)
-
-                Spacer(minLength: 24)
+                .padding(.top, 20)
 
                 // ── Auth ─────────────────────────────────────────────────────
                 VStack(spacing: 14) {
@@ -62,8 +52,8 @@ struct OnboardingView: View {
                             Task { await authManager.signInWithApple() }
                         }
                         CompactAuthButton(title: "Google", icon: .google,
-                                          fg: .ncPrimary, bg: .ncSurfaceContHigh,
-                                          border: Color.white.opacity(0.1)) {
+                                          fg: .ncPrimary, bg: .clear,
+                                          border: Color.ncPrimary.opacity(0.5)) {
                             Task { await authManager.signInWithGoogle() }
                         }
                     }
@@ -71,20 +61,14 @@ struct OnboardingView: View {
                     .opacity(authManager.isLoading ? 0.6 : 1)
 
                     if let error = authManager.authError {
-                        Text(error)
-                            .font(.system(size: 12))
-                            .foregroundColor(.ncError)
-                            .multilineTextAlignment(.center)
+                        Text(error).font(.system(size: 12)).foregroundColor(.ncError).multilineTextAlignment(.center)
                     }
 
                     Text("By continuing, you agree to our **Terms of Service** and **Privacy Policy**")
-                        .font(.system(size: 11))
-                        .foregroundColor(.ncSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
+                        .font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        .multilineTextAlignment(.center).padding(.horizontal, 24)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 28)
             }
         }
     }
@@ -110,14 +94,14 @@ struct CompactAuthButton: View {
                 case .google:
                     GoogleGMark().frame(width: 16, height: 16)
                 }
-                Text(title).font(.system(size: 14, weight: .semibold))
+                Text(title).font(.system(size: 12, weight: .heavy)).tracking(1.2).textCase(.uppercase)
             }
             .foregroundColor(fg)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
             .background(bg)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(border, lineWidth: 1))
         }
         .smoothButton()
     }

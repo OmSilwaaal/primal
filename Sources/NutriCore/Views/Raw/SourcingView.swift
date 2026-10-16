@@ -118,8 +118,8 @@ struct DietModeView: View {
                         Spacer()
                     }
                     .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                    .glassCard(radius: 14)
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(modeRaw == m.rawValue ? Color.ncPrimary.opacity(0.6) : .clear, lineWidth: 1))
+                    .glassCard(radius: 3)
+                    .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(modeRaw == m.rawValue ? Color.ncPrimary.opacity(0.6) : .clear, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }

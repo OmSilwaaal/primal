@@ -139,7 +139,7 @@ private struct FieldRow<Content: View>: View {
                 .foregroundColor(.ncPrimary)
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassCard(radius: 14)
+                .glassCard(radius: 3)
             if let footer {
                 Text(footer).font(.system(size: 11)).foregroundColor(.ncSecondary).frame(maxWidth: .infinity, alignment: .trailing)
             }

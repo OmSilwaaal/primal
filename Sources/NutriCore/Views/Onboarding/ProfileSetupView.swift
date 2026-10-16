@@ -309,7 +309,7 @@ struct OptionList: View {
                         .padding()
                         .background(selected == option ? Color.white : Color.white.opacity(0.1))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: 3)
                                 .stroke(Color.white.opacity(selected == option ? 0 : 0.3), lineWidth: 1)
                         )
                         .cornerRadius(12)

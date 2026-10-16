@@ -19,11 +19,8 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                VStack(alignment: .leading, spacing: 14) {
-                    Wordmark(size: 76)
-                    Text("Eat what grows wild").spacedCaps(11, tracking: 4).foregroundColor(.ncSecondary)
-                }
-                .padding(.horizontal, 20)
+                Wordmark(size: 92)
+                    .padding(.leading, 20)
 
                 Spacer()
 

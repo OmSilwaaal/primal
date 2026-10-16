@@ -16,62 +16,34 @@ struct SearchView: View {
             AppBackdrop()
 
             VStack(spacing: 0) {
-                // ── HUD Header ───────────────────────────────────────────────
-                VStack(spacing: 10) {
+                // ── Header ───────────────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 16) {
+                    PageHeader(title: "Search", caption: usdaService.isLoading ? "Searching…" : "USDA FoodData Central")
                     HStack(spacing: 10) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(isSearchFocused ? .ncPrimary : .ncSecondary)
-                            TextField("", text: $query)
-                                .font(.system(size: 14, design: .monospaced))
-                                .foregroundColor(.ncPrimary)
-                                .focused($isSearchFocused)
-                                .placeholder(when: query.isEmpty) {
-                                    Text("QUERY FOOD DATABASE...")
-                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                                        .tracking(1)
-                                        .foregroundColor(.ncSecondary)
-                                }
-                                .onChange(of: query) { _, newValue in usdaService.search(newValue) }
-                            if !query.isEmpty {
-                                Button { query = ""; usdaService.clearResults(); selectedFood = nil } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.ncSecondary)
-                                        .font(.system(size: 14))
-                                }
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isSearchFocused ? .ncPrimary : .ncSecondary)
+                        TextField("", text: $query)
+                            .font(.system(size: 15)).foregroundColor(.ncPrimary)
+                            .focused($isSearchFocused)
+                            .placeholder(when: query.isEmpty) {
+                                Text("Search foods").font(.system(size: 15)).foregroundColor(.ncSecondary)
+                            }
+                            .onChange(of: query) { _, newValue in usdaService.search(newValue) }
+                        if !query.isEmpty {
+                            Button { query = ""; usdaService.clearResults(); selectedFood = nil } label: {
+                                Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundColor(.ncSecondary)
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .frame(height: 44)
-                        .background(Color.ncSurfaceContHigh)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(isSearchFocused ? Color.ncPrimary : Color.white.opacity(0.08), lineWidth: 1)
-                        )
-                        .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
                     }
-
-                    HStack {
-                        Text("USDA FOODDATA CENTRAL")
-                            .font(.ncLabelMonoReg)
-                            .tracking(1.5)
-                            .foregroundColor(.ncSecondary)
-                        Spacer()
-                        if usdaService.isLoading {
-                            Text("QUERYING...")
-                                .font(.ncLabelMonoBold)
-                                .tracking(1.5)
-                                .foregroundColor(.ncPrimary)
-                        }
-                    }
+                    .padding(.horizontal, 12).frame(height: 46)
+                    .background(Color.ncSurfaceContLowest.opacity(0.8))
+                    .overlay(Rectangle().stroke(isSearchFocused ? Color.ncPrimary : Color.ncPrimary.opacity(0.18), lineWidth: 1))
+                    .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.top, 20)
                 .padding(.bottom, 12)
-                .background(Color.ncSurfaceContLowest)
-                .overlay(Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1), alignment: .bottom)
 
                 // ── Results ──────────────────────────────────────────────────
                 if let selected = selectedFood {
@@ -104,11 +76,11 @@ struct SearchView: View {
                                     .padding(.horizontal, 24).padding(.top, 60)
                             } else if usdaService.results.isEmpty && !query.isEmpty && !usdaService.isLoading {
                                 VStack(spacing: 12) {
-                                    Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                                    Image(systemName: "magnifyingglass")
                                         .font(.system(size: 32, weight: .ultraLight))
                                         .foregroundColor(.ncSecondary)
-                                    Text("NO SIGNAL")
-                                        .font(.ncLabelMonoBold).tracking(2).foregroundColor(.ncSecondary)
+                                    Text("No results")
+                                        .spacedCaps(11, tracking: 2.4).foregroundColor(.ncSecondary)
                                     Text("No results for \"\(query)\"")
                                         .font(.ncBodySm).foregroundColor(.ncSecondary)
                                 }
@@ -116,11 +88,11 @@ struct SearchView: View {
                                 .padding(.top, 60)
                             } else if query.isEmpty {
                                 VStack(spacing: 12) {
-                                    Image(systemName: "viewfinder")
+                                    Image(systemName: "leaf")
                                         .font(.system(size: 40, weight: .ultraLight))
                                         .foregroundColor(.ncSecondary.opacity(0.5))
-                                    Text("BEGIN QUERY")
-                                        .font(.ncLabelMonoBold).tracking(2).foregroundColor(.ncSecondary)
+                                    Text("Start typing")
+                                        .spacedCaps(11, tracking: 2.4).foregroundColor(.ncSecondary)
                                     Text("Search USDA FoodData Central")
                                         .font(.ncBodySm).foregroundColor(.ncSecondary.opacity(0.6))
                                 }
@@ -174,14 +146,12 @@ private struct SearchResultRow: View {
                         .foregroundColor(.ncPrimary)
                         .lineLimit(2)
                     HStack(spacing: 10) {
-                        Text("FDCID: \(food.fdcId)")
-                            .font(.ncLabelMonoReg)
-                            .tracking(1)
+                        Text(food.dataType ?? "USDA")
+                            .spacedCaps(10, tracking: 1.2)
                             .foregroundColor(.ncSecondary)
                         if let kcal = food.foodNutrients.first(where: { $0.nutrientId == 1008 }) {
-                            Text("\(Int(kcal.value)) KCAL/100G")
-                                .font(.ncLabelMonoBold)
-                                .tracking(1)
+                            Text("\(Int(kcal.value)) kcal / 100 g")
+                                .spacedCaps(10, tracking: 1)
                                 .foregroundColor(.ncPrimary)
                         }
                     }
@@ -193,7 +163,7 @@ private struct SearchResultRow: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(pressed ? Color.ncSurfaceContHigh : Color.ncSurfaceCont)
+            .background(Color.ncSurfaceContLowest.opacity(0.6))
             .overlay(Rectangle().fill(Color.white.opacity(0.04)).frame(height: 1), alignment: .bottom)
         }
         .buttonStyle(PlainButtonStyle())

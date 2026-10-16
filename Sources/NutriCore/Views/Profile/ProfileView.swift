@@ -9,6 +9,7 @@ struct ProfileView: View {
     @StateObject private var social = SocialService.shared
 
     @State private var isEditing = false
+    @State private var showSettings = false
     @State private var weightStr = ""
     @State private var heightStr = ""
     @State private var ageStr = ""
@@ -27,168 +28,120 @@ struct ProfileView: View {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
-
                         // ── Header ───────────────────────────────────────────
-                        HStack(spacing: 10) {
-                            PrimalLogoMark()
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("PRIMAL")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .tracking(2).foregroundColor(.ncPrimary)
-                                Text("TELEMETRY // PROFILE")
-                                    .font(.ncLabelMonoReg).tracking(2).foregroundColor(.ncSecondary)
-                            }
-                            Spacer()
-                            NavigationLink(destination: SettingsView()) {
+                        ZStack(alignment: .topTrailing) {
+                            PageHeader(title: "Profile", caption: social.myProfile.map { "@\($0.username)" } ?? "Account")
+                            Button { showSettings = true } label: {
                                 Image(systemName: "gearshape")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.ncSecondary)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.ncSurfaceContHigh)
-                                    .cornerRadius(8)
-                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                                    .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
+                                    .frame(width: 36, height: 36)
+                                    .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
                             }
                             .smoothButton()
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-                        .padding(.bottom, 4)
+                        .padding(.horizontal, 16).padding(.top, 12)
 
                         if let profile = profile {
-                            // ── Identity Card ────────────────────────────────
-                            VStack(spacing: 12) {
-                                HStack {
+                            // ── Identity ─────────────────────────────────────
+                            VStack(spacing: 16) {
+                                HStack(spacing: 14) {
                                     AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 56)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(displayName(profile))
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .tracking(1).foregroundColor(.ncPrimary)
-                                        Text(social.myProfile.map { "@\($0.username)" } ?? profile.dietType)
-                                            .font(.ncLabelMonoReg).tracking(1.5).foregroundColor(.ncSecondary)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(displayName(profile)).font(.ncTitle).foregroundColor(.ncPrimary)
+                                        Text(profile.dietType).spacedCaps(10, tracking: 2).foregroundColor(.ncSecondary)
                                     }
                                     Spacer()
                                     Button { startEditing(profile) } label: {
-                                        Text(isEditing ? "CANCEL" : "EDIT")
-                                            .font(.ncLabelMonoBold).tracking(2)
+                                        Text(isEditing ? "Cancel" : "Edit")
+                                            .spacedCaps(11, tracking: 1.6).fontWeight(.bold)
                                             .foregroundColor(.ncPrimary)
-                                            .padding(.horizontal, 12).padding(.vertical, 6)
-                                            .background(Color.ncSurfaceContHighest)
-                                            .cornerRadius(4)
+                                            .padding(.horizontal, 12).padding(.vertical, 8)
+                                            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
                                     }
                                     .smoothButton()
                                 }
 
-                                // Biometric grid
                                 HStack(spacing: 8) {
-                                    ProfileStatTile(label: "WEIGHT", value: "\(Int(profile.weightKg))", unit: "KG")
-                                    ProfileStatTile(label: "HEIGHT", value: "\(Int(profile.heightCm))", unit: "CM")
-                                    ProfileStatTile(label: "AGE", value: "\(profile.age)", unit: "YRS")
-                                    ProfileStatTile(label: "SEX", value: profile.sex.prefix(1).uppercased(), unit: profile.sex.uppercased())
+                                    ProfileStatTile(label: "Weight", value: "\(Int(profile.weightKg))", unit: "kg")
+                                    ProfileStatTile(label: "Height", value: "\(Int(profile.heightCm))", unit: "cm")
+                                    ProfileStatTile(label: "Age", value: "\(profile.age)", unit: "yrs")
+                                    ProfileStatTile(label: "Sex", value: profile.sex.prefix(1).uppercased(), unit: profile.sex)
                                 }
                             }
                             .padding(16)
-                            .background(Color.ncSurfaceCont)
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                            .glassCard(radius: 3)
                             .padding(.horizontal, 16)
 
-                            // ── Edit Form ────────────────────────────────────
+                            // ── Edit form ────────────────────────────────────
                             if isEditing {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("BIOMETRIC OVERRIDE")
-                                        .font(.ncLabelMonoBold).tracking(2).foregroundColor(.ncSecondary)
-
+                                VStack(alignment: .leading, spacing: 14) {
+                                    RuleLabel(text: "Edit body stats")
                                     HStack(spacing: 10) {
-                                        StitchInputField(label: "WEIGHT KG", text: $weightStr)
-                                        StitchInputField(label: "HEIGHT CM", text: $heightStr)
-                                        StitchInputField(label: "AGE", text: $ageStr)
+                                        StitchInputField(label: "Weight kg", text: $weightStr)
+                                        StitchInputField(label: "Height cm", text: $heightStr)
+                                        StitchInputField(label: "Age", text: $ageStr)
                                     }
-
                                     HStack(spacing: 8) {
                                         ForEach(["Male", "Female"], id: \.self) { sex in
-                                            Button { selectedSex = sex } label: {
-                                                Text(sex.uppercased())
-                                                    .font(.ncLabelMonoBold).tracking(2)
-                                                    .foregroundColor(selectedSex == sex ? .ncOnPrimary : .ncSecondary)
-                                                    .frame(maxWidth: .infinity).frame(height: 36)
-                                                    .background(selectedSex == sex ? Color.ncPrimary : Color.ncSurfaceContHigh)
-                                                    .cornerRadius(4)
-                                            }
-                                            .smoothButton()
+                                            Chip(label: sex, selected: selectedSex == sex) { selectedSex = sex }
                                         }
                                     }
-
-                                    Button {
+                                    Button("Save changes") {
                                         saveProfile(profile)
                                         isEditing = false
-                                    } label: {
-                                        Text("COMMIT BIOMETRIC DATA")
-                                            .font(.ncLabelMonoBold).tracking(2)
-                                            .foregroundColor(.ncOnPrimary)
-                                            .frame(maxWidth: .infinity).frame(height: 48)
-                                            .background(Color.ncPrimary)
-                                            .cornerRadius(8)
                                     }
-                                    .smoothButton()
+                                    .buttonStyle(.primal)
                                 }
                                 .padding(16)
-                                .background(Color.ncSurfaceCont)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                                .glassCard(radius: 3)
                                 .padding(.horizontal, 16)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
                             }
 
-                            // ── Telemetry Stats ──────────────────────────────
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("OPERATIONAL TELEMETRY")
-                                    .font(.ncLabelMonoBold).tracking(2).foregroundColor(.ncSecondary)
+                            // ── Stats ────────────────────────────────────────
+                            VStack(alignment: .leading, spacing: 14) {
+                                RuleLabel(text: "Intake")
                                 HStack(spacing: 8) {
-                                    TelemetryTile(label: "TODAY", value: "\(Int(todaysMeals.totalCalories))", unit: "KCAL")
-                                    TelemetryTile(label: "7-DAY", value: "\(Int(weekTotal))", unit: "KCAL")
-                                    TelemetryTile(label: "MEALS", value: "\(todaysMeals.count)", unit: "TODAY")
+                                    TelemetryTile(label: "Today", value: "\(Int(todaysMeals.totalCalories))", unit: "kcal")
+                                    TelemetryTile(label: "7 days", value: "\(Int(weekTotal))", unit: "kcal")
+                                    TelemetryTile(label: "Meals", value: "\(todaysMeals.count)", unit: "today")
                                 }
                             }
                             .padding(16)
-                            .background(Color.ncSurfaceCont)
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                            .glassCard(radius: 3)
                             .padding(.horizontal, 16)
 
-                            // ── Sign Out ─────────────────────────────────────
+                            // ── Sign out ─────────────────────────────────────
                             Button {
                                 Task { await authManager.signOut() }
                             } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                                        .font(.system(size: 13))
-                                    Text("TERMINATE SESSION")
-                                        .font(.ncLabelMonoBold).tracking(2)
-                                }
-                                .foregroundColor(.ncError)
-                                .frame(maxWidth: .infinity).frame(height: 48)
-                                .background(Color.red.opacity(0.08))
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.red.opacity(0.3), lineWidth: 1))
+                                Text("Sign out")
+                                    .spacedCaps(12, tracking: 1.6).fontWeight(.bold)
+                                    .foregroundColor(.ncError)
+                                    .frame(maxWidth: .infinity).frame(height: 48)
+                                    .overlay(Rectangle().stroke(Color.ncError.opacity(0.5), lineWidth: 1))
                             }
                             .smoothButton()
                             .padding(.horizontal, 16)
                             .padding(.bottom, 100)
 
                         } else {
-                            // No profile yet
                             NavigationLink(destination: ProfileSetupView()) {
-                                Text("INITIALISE BIOMETRIC PROFILE")
-                                    .font(.ncLabelMonoBold).tracking(2)
+                                Text("Set up profile")
+                                    .font(.system(size: 13, weight: .heavy)).tracking(1.4).textCase(.uppercase)
                                     .foregroundColor(.ncOnPrimary)
                                     .frame(maxWidth: .infinity).frame(height: 52)
-                                    .background(Color.ncPrimary).cornerRadius(12)
+                                    .background(Color.ncPrimary)
                             }
                             .padding(.horizontal, 16)
                         }
                     }
+                    .animation(.smooth, value: isEditing)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarBackButtonHidden(true)
+            .navigationDestination(isPresented: $showSettings) { SettingsView() }
         }
     }
 
@@ -220,32 +173,30 @@ struct ProfileView: View {
 struct ProfileStatTile: View {
     let label, value, unit: String
     var body: some View {
-        VStack(spacing: 2) {
-            Text(label).font(.ncLabelMonoReg).tracking(1.5).foregroundColor(.ncSecondary)
-            Text(value).font(.system(size: 20, weight: .bold, design: .monospaced)).foregroundColor(.ncPrimary)
-            Text(unit).font(.system(size: 8, design: .monospaced)).tracking(1).foregroundColor(.ncSecondary)
+        VStack(spacing: 3) {
+            Text(label).spacedCaps(9, tracking: 1.4).foregroundColor(.ncSecondary)
+            Text(value).font(.brutal(20, weight: .heavy)).foregroundColor(.ncPrimary)
+            Text(unit).spacedCaps(8, tracking: 1.2).foregroundColor(.ncSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .background(Color.ncSurfaceContLow)
-        .cornerRadius(6)
-        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.1), lineWidth: 1))
     }
 }
 
 struct TelemetryTile: View {
     let label, value, unit: String
     var body: some View {
-        VStack(spacing: 2) {
-            Text(label).font(.ncLabelMonoReg).tracking(1.5).foregroundColor(.ncSecondary)
-            Text(value).font(.ncMetricMobile).foregroundColor(.ncPrimary)
-            Text(unit).font(.system(size: 8, design: .monospaced)).tracking(1).foregroundColor(.ncSecondary)
+        VStack(spacing: 3) {
+            Text(label).spacedCaps(9, tracking: 1.4).foregroundColor(.ncSecondary)
+            Text(value).font(.brutal(24, weight: .heavy)).foregroundColor(.ncPrimary).minimumScaleFactor(0.6).lineLimit(1)
+            Text(unit).spacedCaps(8, tracking: 1.2).foregroundColor(.ncSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
         .background(Color.ncSurfaceContLow)
-        .cornerRadius(6)
-        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.1), lineWidth: 1))
     }
 }
 
@@ -253,16 +204,15 @@ struct StitchInputField: View {
     let label: String
     @Binding var text: String
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.ncLabelMonoReg).tracking(1.5).foregroundColor(.ncSecondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).spacedCaps(9, tracking: 1.4).foregroundColor(.ncSecondary)
             TextField("", text: $text)
-                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.ncPrimary)
                 .keyboardType(.decimalPad)
                 .padding(10)
-                .background(Color(hex: "#0A0A0A"))
-                .cornerRadius(4)
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                .background(Color.ncSurfaceContHigh)
+                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.18), lineWidth: 1))
         }
         .frame(maxWidth: .infinity)
     }

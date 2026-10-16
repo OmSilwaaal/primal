@@ -3,89 +3,96 @@ import SwiftUI
 struct ContentView: View {
     @State private var selectedTab = 0
 
-    init() {
-        // Hide native tab bar - replaced by PrimalLightTabBar
-        let transparent = UITabBarAppearance()
-        transparent.configureWithTransparentBackground()
-        transparent.backgroundColor = .clear
-        transparent.shadowColor = .clear
-        UITabBar.appearance().standardAppearance = transparent
-        UITabBar.appearance().scrollEdgeAppearance = transparent
-        UITabBar.appearance().isHidden = true
-    }
-
     var body: some View {
         ZStack(alignment: .bottom) {
-            TabView(selection: $selectedTab) {
-                DashboardView(onProfile: { selectedTab = 5 }, onRaw: { selectedTab = 2 }).tag(0)
-                CameraView().tag(1)
-                RawHubView().tag(2)
-                SunView().tag(3)
-                FriendsView().tag(4)
-                ProfileView().tag(5)
+            // A native TabView folds tabs beyond the fifth into a "More" list (which adds a back button),
+            // so the selected screen is switched manually.
+            Group {
+                switch selectedTab {
+                case 0: DashboardView(onProfile: { selectedTab = 5 }, onRaw: { selectedTab = 2 })
+                case 1: CameraView()
+                case 2: RawHubView()
+                case 3: SunView()
+                case 4: FriendsView()
+                default: ProfileView()
+                }
             }
+            .transition(.opacity)
+            .id(selectedTab)
             .ignoresSafeArea(edges: .bottom)
 
             PrimalLightTabBar(selectedTab: $selectedTab)
         }
-        .ignoresSafeArea(edges: .bottom)
         .background(Color.ncBg.ignoresSafeArea())
     }
 }
 
 // MARK: - Tab Bar
+/// Floating island: Liquid Glass on iOS 26, blurred material before that. Only the selected tab shows its name.
 struct PrimalLightTabBar: View {
     @Binding var selectedTab: Int
     @Namespace private var indicator
 
     private let tabs: [(icon: String, activeIcon: String, label: String)] = [
         ("sparkles",             "sparkles",                "Today"),
-        ("camera.viewfinder",    "camera.viewfinder",       "AI Scan"),
-        ("flame",               "flame.fill",              "Raw"),
+        ("camera.viewfinder",    "camera.viewfinder",       "Scan"),
+        ("flame",                "flame.fill",              "Raw"),
         ("sun.max",              "sun.max.fill",            "Sun"),
         ("person.2",             "person.2.fill",           "Friends"),
         ("person",               "person.fill",             "Profile"),
     ]
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 2) {
             ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
                 let isSelected = selectedTab == index
                 Button {
                     guard selectedTab != index else { return }
                     Haptics.selection()
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) { selectedTab = index }
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) { selectedTab = index }
                 } label: {
-                    VStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: isSelected ? tab.activeIcon : tab.icon)
-                            .font(.system(size: 19, weight: isSelected ? .semibold : .regular))
+                            .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
                             .symbolEffect(.bounce, value: isSelected)
-                        Text(tab.label)
-                            .font(.system(size: 8.5, weight: isSelected ? .heavy : .medium)).tracking(1.1).textCase(.uppercase)
-                    }
-                    .foregroundColor(isSelected ? .ncPrimary : .ncSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .overlay(alignment: .top) {
                         if isSelected {
-                            Rectangle().fill(Color.ncPrimary).frame(height: 2)
+                            Text(tab.label).font(.system(size: 11, weight: .heavy)).tracking(1.2).textCase(.uppercase)
+                                .lineLimit(1).fixedSize()
+                                .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                        }
+                    }
+                    .foregroundColor(isSelected ? .ncPrimary : .ncPrimary.opacity(0.55))
+                    .padding(.horizontal, isSelected ? 14 : 12)
+                    .frame(height: 44)
+                    .frame(maxWidth: isSelected ? nil : .infinity)
+                    .background {
+                        if isSelected {
+                            Capsule().fill(Color.white.opacity(0.16))
                                 .matchedGeometryEffect(id: "tabIndicator", in: indicator)
                         }
                     }
-                    .contentShape(Rectangle())
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(TabButtonStyle())
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 8)
-        .padding(.bottom, 26) // home indicator
-        .background(
-            Color.ncBg.opacity(0.82)
-                .background(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-        )
-        .overlay(Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1), alignment: .top)
+        .padding(6)
+        .modifier(GlassIsland())
+        .padding(.horizontal, 18)
+        .padding(.bottom, 14)
+    }
+}
+
+private struct GlassIsland: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1))
+                .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
+        }
     }
 }
 

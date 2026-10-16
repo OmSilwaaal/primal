@@ -61,7 +61,7 @@ struct SunView: View {
                     .padding(.horizontal, 16)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .task { await loadAll() }
             .onChange(of: location.location) { _, loc in
                 if let loc { Task { await sun.refresh(location: loc) } }

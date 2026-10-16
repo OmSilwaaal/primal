@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Circular profile picture with an initials fallback.
+/// Square profile picture with an initials fallback.
 struct AvatarView: View {
     let url: String?
     let name: String
@@ -14,7 +14,7 @@ struct AvatarView: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(Color.ncSurfaceContHigh)
+            Rectangle().fill(Color.ncSurfaceContHigh)
             if let url, let parsed = URL(string: url) {
                 AsyncImage(url: parsed) { phase in
                     if let image = phase.image {
@@ -28,8 +28,8 @@ struct AvatarView: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+        .clipShape(Rectangle())
+        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.18), lineWidth: 1))
     }
 
     private var placeholder: some View {

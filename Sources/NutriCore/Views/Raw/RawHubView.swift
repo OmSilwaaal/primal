@@ -54,7 +54,7 @@ struct RawHubView: View {
                     .padding(.horizontal, 16)
                 }
             }
-            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showLog) { NavigationStack { RawLogView() } }
         }
     }

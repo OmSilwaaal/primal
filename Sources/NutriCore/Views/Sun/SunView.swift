@@ -44,10 +44,10 @@ struct SunView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.ncBg.ignoresSafeArea()
+                AppBackdrop()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
-                        LeafHeader(title: "Sun", caption: "Light, outdoors, vitamin D", seed: 33).padding(.top, 12)
+                        PageHeader(title: "Sun", caption: "Light · outdoors · vitamin D").padding(.top, 12)
 
                         todayCard
                         timerCard

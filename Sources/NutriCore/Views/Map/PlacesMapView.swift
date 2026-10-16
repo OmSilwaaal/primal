@@ -17,7 +17,7 @@ struct PlacesMapView: View {
     
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop()
             
             if locationManager.authorizationStatus == .notDetermined {
                 VStack(spacing: 24) {

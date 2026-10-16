@@ -24,7 +24,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.ncSurfaceContLowest.ignoresSafeArea()
+                AppBackdrop()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
 

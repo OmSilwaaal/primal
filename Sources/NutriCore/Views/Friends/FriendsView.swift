@@ -7,7 +7,7 @@ struct FriendsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.ncBg.ignoresSafeArea()
+                AppBackdrop()
 
                 if social.myId == nil {
                     EmptyState(icon: "person.2.slash", title: "Sign in to add friends",

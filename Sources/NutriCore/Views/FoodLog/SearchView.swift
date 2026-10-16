@@ -13,7 +13,7 @@ struct SearchView: View {
 
     var body: some View {
         ZStack {
-            Color.ncSurfaceContLowest.ignoresSafeArea()
+            AppBackdrop()
 
             VStack(spacing: 0) {
                 // ── HUD Header ───────────────────────────────────────────────

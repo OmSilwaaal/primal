@@ -1,7 +1,8 @@
 import SwiftUI
 
 // MARK: - Nature × brutalist toolkit
-// Deep forest blacks, bone-white type, hard edges and offset echoes. Leaf imagery is drawn in code.
+// Black canvas, out-of-focus foliage glowing through a heavy gaussian blur, bone-white wide type,
+// square edges and hairlines.
 
 extension Font {
     /// Heavy, wide grotesque used for the wordmark and titles.
@@ -18,112 +19,56 @@ extension View {
     }
 }
 
-/// Procedural macro-leaf: gradient, a dark overlapping lobe and a network of veins.
-struct LeafBackdrop: View {
-    var seed: UInt64 = 7
+/// Black background with soft, heavily blurred foliage-coloured light — like out-of-focus leaves in the dark.
+struct AppBackdrop: View {
+    var intensity: Double = 1
 
     var body: some View {
         GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
             ZStack {
-                LinearGradient(colors: [Color(hex: "#6FA676"), Color(hex: "#3A7646"), Color(hex: "#0B2F17"), Color(hex: "#03130A")],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-
-                // soft cast shadows, like the dark blades in the reference
-                Ellipse().fill(Color.black.opacity(0.28)).frame(width: geo.size.width * 0.25, height: geo.size.height * 1.4)
-                    .rotationEffect(.degrees(-28)).offset(x: -geo.size.width * 0.12, y: -geo.size.height * 0.08).blur(radius: 14)
-
-                Canvas { ctx, size in drawVeins(ctx, size) }
-
-                // dark lobe with a pale rim
-                Ellipse().fill(Color(hex: "#02140A"))
-                    .frame(width: geo.size.width * 0.85, height: geo.size.height * 1.6)
-                    .offset(x: geo.size.width * 0.62, y: geo.size.height * 0.1)
-                    .overlay(
-                        Ellipse().stroke(Color(hex: "#CFE3D6").opacity(0.55), lineWidth: 2)
-                            .frame(width: geo.size.width * 0.85, height: geo.size.height * 1.6)
-                            .offset(x: geo.size.width * 0.62, y: geo.size.height * 0.1).blur(radius: 1.5)
-                    )
+                Color.ncBg
+                Group {
+                    blob("#245A33", 0.85, w * 0.95, h * 0.30, -26, x: -w * 0.30, y: -h * 0.22)
+                    blob("#38804B", 0.55, w * 0.50, h * 0.22, 32, x: w * 0.34, y: -h * 0.06)
+                    blob("#12402A", 0.85, w * 0.90, h * 0.26, -12, x: w * 0.10, y: h * 0.26)
+                    blob("#5E9E6C", 0.30, w * 0.30, h * 0.12, 55, x: -w * 0.18, y: h * 0.10)
+                    blob("#C5DDBE", 0.16, w * 0.24, h * 0.07, -40, x: w * 0.30, y: -h * 0.26)
+                    blob("#1A4025", 0.55, w * 0.80, h * 0.20, 18, x: -w * 0.20, y: h * 0.42)
+                }
+                .opacity(intensity)
+                // keep the lower half calm so content stays legible
+                LinearGradient(colors: [.clear, Color.ncBg.opacity(0.6), Color.ncBg.opacity(0.94)], startPoint: .top, endPoint: .bottom)
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(width: w, height: h)
             .clipped()
         }
+        .drawingGroup()
+        .ignoresSafeArea()
     }
 
-    private func drawVeins(_ ctx: GraphicsContext, _ size: CGSize) {
-        var rng = SeededRNG(seed: seed)
-        let w = size.width, h = size.height
-        let p0 = CGPoint(x: -0.1 * w, y: 1.05 * h), p1 = CGPoint(x: 0.35 * w, y: 0.75 * h), p2 = CGPoint(x: 0.9 * w, y: 0.05 * h)
-        func point(_ t: CGFloat) -> CGPoint {
-            let a = 1 - t
-            return CGPoint(x: a * a * p0.x + 2 * a * t * p1.x + t * t * p2.x, y: a * a * p0.y + 2 * a * t * p1.y + t * t * p2.y)
-        }
-        func tangent(_ t: CGFloat) -> CGPoint {
-            let a = 1 - t
-            let dx = 2 * a * (p1.x - p0.x) + 2 * t * (p2.x - p1.x), dy = 2 * a * (p1.y - p0.y) + 2 * t * (p2.y - p1.y)
-            let l = max(hypot(dx, dy), 0.001); return CGPoint(x: dx / l, y: dy / l)
-        }
-        let light = Color(hex: "#DCEBDD")
-
-        var mid = Path(); mid.move(to: p0); mid.addQuadCurve(to: p2, control: p1)
-        ctx.stroke(mid, with: .color(light.opacity(0.28)), lineWidth: 1.8)
-
-        var t: CGFloat = 0.04
-        while t < 0.97 {
-            let p = point(t), tan = tangent(t), nrm = CGPoint(x: -tan.y, y: tan.x)
-            for side in [CGFloat(-1), 1] {
-                let len = w * 0.55 * pow(sin(.pi * t), 0.6) * CGFloat(0.55 + 0.45 * rng.next())
-                let ctrl = CGPoint(x: p.x + tan.x * len * 0.45 + nrm.x * side * len * 0.35, y: p.y + tan.y * len * 0.45 + nrm.y * side * len * 0.35)
-                let end = CGPoint(x: p.x + tan.x * len * 0.95 + nrm.x * side * len * 0.85, y: p.y + tan.y * len * 0.95 + nrm.y * side * len * 0.85)
-                var v = Path(); v.move(to: p); v.addQuadCurve(to: end, control: ctrl)
-                ctx.stroke(v, with: .color(light.opacity(0.16)), lineWidth: 0.9)
-
-                var u: CGFloat = 0.12
-                while u < 0.95 {
-                    let a = 1 - u
-                    let q = CGPoint(x: a * a * p.x + 2 * a * u * ctrl.x + u * u * end.x, y: a * a * p.y + 2 * a * u * ctrl.y + u * u * end.y)
-                    let sl = len * 0.22 * CGFloat(0.5 + 0.5 * rng.next())
-                    for s2 in [CGFloat(-1), 1] {
-                        let e = CGPoint(x: q.x + (tan.x * 0.6 + nrm.x * side * 0.4 + nrm.x * s2 * 0.5) * sl, y: q.y + (tan.y * 0.6 + nrm.y * side * 0.4 + nrm.y * s2 * 0.5) * sl)
-                        var sub = Path(); sub.move(to: q); sub.addLine(to: e)
-                        ctx.stroke(sub, with: .color(light.opacity(0.09)), lineWidth: 0.5)
-                    }
-                    u += 0.07
-                }
-            }
-            t += 0.03
-        }
+    private func blob(_ hex: String, _ opacity: Double, _ w: CGFloat, _ h: CGFloat, _ angle: Double, x: CGFloat, y: CGFloat) -> some View {
+        Ellipse().fill(Color(hex: hex).opacity(opacity))
+            .frame(width: w, height: h)
+            .rotationEffect(.degrees(angle))
+            .offset(x: x, y: y)
+            .blur(radius: 55)
     }
 }
 
-struct SeededRNG {
-    var state: UInt64
-    init(seed: UInt64) { state = seed &* 6364136223846793005 &+ 1442695040888963407 }
-    mutating func next() -> Double {
-        state = state &* 6364136223846793005 &+ 1442695040888963407
-        return Double((state >> 33) & 0xFFFFFF) / Double(0xFFFFFF)
-    }
-}
-
-/// The name in a heavy wide face with a second copy shifted slightly behind it.
+/// The name in a heavy wide face, nudged slightly off the margin.
 struct Wordmark: View {
     var text = "PRIMAL"
     var size: CGFloat = 56
-    var shift = CGSize(width: 7, height: 5)
-    @State private var drift = false
-
     var body: some View {
-        ZStack(alignment: .leading) {
-            Text(text).font(.brutal(size)).foregroundColor(Color(hex: "#A8C686").opacity(0.55))
-                .offset(x: drift ? shift.width : shift.width * 0.4, y: drift ? shift.height : shift.height * 0.4)
-            Text(text).font(.brutal(size)).foregroundColor(.ncPrimary)
-        }
-        .lineLimit(1).minimumScaleFactor(0.5)
-        .onAppear { withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { drift = true } }
-        .accessibilityLabel(text)
+        Text(text).font(.brutal(size)).foregroundColor(.ncPrimary)
+            .lineLimit(1).minimumScaleFactor(0.5)
+            .offset(x: -size * 0.04)
+            .accessibilityLabel(text)
     }
 }
 
-/// Hairline rule with spaced-caps label, used to open sections.
+/// Hairline rule with spaced-caps label.
 struct RuleLabel: View {
     let text: String
     var body: some View {
@@ -134,23 +79,17 @@ struct RuleLabel: View {
     }
 }
 
-/// Compact leaf banner with a shifted title, used at the top of the main tabs.
-struct LeafHeader: View {
+/// Page title block: wide wordmark, spaced caption and a hairline underneath.
+struct PageHeader: View {
     let title: String
     var caption: String = ""
-    var seed: UInt64 = 3
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            LeafBackdrop(seed: seed)
-            LinearGradient(colors: [.clear, Color.ncBg.opacity(0.8)], startPoint: .center, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 6) {
-                Wordmark(text: title.uppercased(), size: 40, shift: CGSize(width: 5, height: 4))
-                if !caption.isEmpty { Text(caption).spacedCaps(10, tracking: 2.6).foregroundColor(.ncPrimary.opacity(0.85)) }
-            }
-            .padding(16)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(caption).spacedCaps(10, tracking: 2.6).foregroundColor(.ncSecondary)
+                .opacity(caption.isEmpty ? 0 : 1).frame(height: caption.isEmpty ? 0 : nil)
+            Wordmark(text: title.uppercased(), size: 44)
+            Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1).padding(.top, 4)
         }
-        .frame(height: 130)
-        .clipShape(Rectangle())
-        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.16), lineWidth: 1))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

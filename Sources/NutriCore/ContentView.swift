@@ -68,7 +68,7 @@ struct PrimalLightTabBar: View {
                     .padding(.vertical, 8)
                     .overlay(alignment: .top) {
                         if isSelected {
-                            Rectangle().fill(Color.ncIndigo).frame(height: 2)
+                            Rectangle().fill(Color.ncPrimary).frame(height: 2)
                                 .matchedGeometryEffect(id: "tabIndicator", in: indicator)
                         }
                     }

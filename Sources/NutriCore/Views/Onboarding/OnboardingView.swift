@@ -5,46 +5,41 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            AppBackdrop(intensity: 1.25)
 
-            VStack(spacing: 0) {
-                // ── Leaf hero with the shifted wordmark ──────────────────────
-                ZStack(alignment: .bottomLeading) {
-                    LeafBackdrop(seed: 5)
-                    LinearGradient(colors: [.clear, Color.ncBg.opacity(0.7)], startPoint: .center, endPoint: .bottom)
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 22) {
-                            Text("Raw").spacedCaps(10, tracking: 2.4)
-                            Text("Sun").spacedCaps(10, tracking: 2.4)
-                            Text("Index").spacedCaps(10, tracking: 2.4)
-                            Spacer()
-                        }
-                        .foregroundColor(.ncPrimary.opacity(0.9))
-                        Spacer()
-                        Wordmark(size: 74, shift: CGSize(width: 10, height: 7))
-                        Text("Eat what grows wild").spacedCaps(11, tracking: 4).foregroundColor(.ncPrimary.opacity(0.85))
-                    }
-                    .padding(.horizontal, 20).padding(.top, 64).padding(.bottom, 24)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 22) {
+                    Text("Raw").spacedCaps(10, tracking: 2.4)
+                    Text("Sun").spacedCaps(10, tracking: 2.4)
+                    Text("Index").spacedCaps(10, tracking: 2.4)
+                    Spacer()
                 }
-                .frame(maxHeight: .infinity)
-                .ignoresSafeArea(edges: .top)
+                .foregroundColor(.ncPrimary.opacity(0.85))
+                .padding(.horizontal, 20).padding(.top, 16)
 
-                // ── Features ─────────────────────────────────────────────────
+                Spacer()
+
+                VStack(alignment: .leading, spacing: 14) {
+                    Wordmark(size: 76)
+                    Text("Eat what grows wild").spacedCaps(11, tracking: 4).foregroundColor(.ncSecondary)
+                }
+                .padding(.horizontal, 20)
+
+                Spacer()
+
                 VStack(spacing: 0) {
-                    OnboardingFeatureRow(icon: "flame", tint: .ncOrange, tintBg: .clear,
+                    OnboardingFeatureRow(icon: "flame", tint: .ncPrimary, tintBg: .clear,
                                          label: "Raw-food safety score", sub: "Freezer log, batches and recalls")
                     Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
-                    OnboardingFeatureRow(icon: "leaf", tint: .ncIndigo, tintBg: .clear,
+                    OnboardingFeatureRow(icon: "leaf", tint: .ncPrimary, tintBg: .clear,
                                          label: "Diet rater", sub: "Where you sit from omnivore to raw")
                     Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1)
-                    OnboardingFeatureRow(icon: "sun.max", tint: .ncGreen, tintBg: .clear,
+                    OnboardingFeatureRow(icon: "sun.max", tint: .ncPrimary, tintBg: .clear,
                                          label: "Sunlight tracker", sub: "Time outside and the vitamin D window")
                 }
                 .glassCard(radius: 3)
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
 
-                // ── Auth ─────────────────────────────────────────────────────
                 VStack(spacing: 14) {
                     HStack(spacing: 12) {
                         CompactAuthButton(title: "Apple", icon: .system("applelogo"),
@@ -66,7 +61,7 @@ struct OnboardingView: View {
 
                     Text("By continuing, you agree to our **Terms of Service** and **Privacy Policy**")
                         .font(.system(size: 11)).foregroundColor(.ncSecondary)
-                        .multilineTextAlignment(.center).padding(.horizontal, 24)
+                        .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.horizontal, 24)
                 }
                 .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 28)
             }

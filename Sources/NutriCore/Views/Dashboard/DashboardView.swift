@@ -48,7 +48,7 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                Color.ncBg.ignoresSafeArea()
+                AppBackdrop()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
@@ -115,37 +115,29 @@ struct DashboardView: View {
 }
 
 // MARK: - Header
-/// Full-bleed leaf with the wordmark shifted slightly over it.
 private struct LightStitchHeader: View {
     let onProfile: () -> Void
     private var dateText: String {
         let f = DateFormatter(); f.dateFormat = "EEE d MMM"; return f.string(from: Date())
     }
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            LeafBackdrop(seed: 11)
-            LinearGradient(colors: [.clear, Color.ncBg.opacity(0.85)], startPoint: .center, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(dateText).spacedCaps(10, tracking: 2.4).foregroundColor(.ncPrimary.opacity(0.85))
-                    Spacer()
-                    Button(action: onProfile) {
-                        Image(systemName: "person")
-                            .font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
-                            .frame(width: 34, height: 34)
-                            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.7), lineWidth: 1))
-                    }
-                    .smoothButton()
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(dateText).spacedCaps(10, tracking: 2.4).foregroundColor(.ncSecondary)
+                Spacer()
+                Button(action: onProfile) {
+                    Image(systemName: "person")
+                        .font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary)
+                        .frame(width: 34, height: 34)
+                        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.5), lineWidth: 1))
                 }
-                Spacer(minLength: 0)
-                Wordmark(size: 54)
-                Text("Eat what grows wild").spacedCaps(10, tracking: 3).foregroundColor(.ncPrimary.opacity(0.8))
+                .smoothButton()
             }
-            .padding(16)
+            Spacer().frame(height: 56)
+            Wordmark(size: 58)
+            Text("Eat what grows wild").spacedCaps(10, tracking: 3.2).foregroundColor(.ncSecondary)
+            Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1).padding(.top, 6)
         }
-        .frame(height: 210)
-        .clipShape(Rectangle())
-        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.16), lineWidth: 1))
     }
 }
 

@@ -1,138 +1,37 @@
 import SwiftUI
 import MapKit
 
+/// Primal food sources within 20 km: distance tags on a dark map, category chips, thick-glass place detail.
 struct PlacesMapView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var searchResults: [MKMapItem] = []
     @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var selectedQuery = "Butcher"
     @State private var isSearching = false
-    
+
     @State private var selectedItem: MKMapItem?
     @State private var searchError: String?
     @State private var searchTask: Task<Void, Never>?
     @State private var hasAutoSearched = false
-    
+
     let queries = ["Butcher", "Raw Meat", "Farm", "Organic Food"]
-    
+
     var body: some View {
         ZStack {
             AppBackdrop()
-            
-            if locationManager.authorizationStatus == .notDetermined {
-                VStack(spacing: 24) {
-                    Image(systemName: "location.circle")
-                        .font(.system(size: 60, weight: .ultraLight))
-                        .foregroundColor(.white)
-                    
-                    Text("Find sources nearby")
-                        .font(.serif(26))
-                        .foregroundColor(.white)
-                    
-                    Text("We need your location to find high-quality primal food sources near you.")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                    
-                    Button("Enable location") {
-                        locationManager.requestPermission()
-                    }
-                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 3))
-                    .frame(maxWidth: 220)
-                    .padding(.top, 12)
-                }
-            } else if locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
-                VStack(spacing: 24) {
-                    Image(systemName: "location.slash")
-                        .font(.system(size: 60, weight: .ultraLight))
-                        .foregroundColor(.gray)
-                    
-                    Text("Location off")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    Text("Please enable location in Settings to use the map.")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-                    }
-                    .buttonStyle(PrimaryButtonStyle(height: 48, radius: 3))
-                    .frame(maxWidth: 220)
-                }
-            } else {
-                // Map View
-                ZStack(alignment: .bottom) {
-                    Map(position: $position, selection: $selectedItem) {
-                        UserAnnotation()
-                        ForEach(searchResults, id: \.self) { item in
-                            Marker(item.name ?? "Place", systemImage: "mappin", coordinate: item.placemark.coordinate)
-                                .tint(.white) // stark monochrome marker
-                                .tag(item as MKMapItem?)
-                        }
-                    }
-                    .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-                    .ignoresSafeArea(edges: .top)
-                    
-                    // Controls Overlay
-                    VStack(spacing: 16) {
-                        if let searchError {
-                            Text(searchError)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(10)
-                                .background(Color.black.opacity(0.8))
-                                .cornerRadius(8)
-                        }
 
-                        if isSearching {
-                            ProgressView()
-                                .tint(.white)
-                                .padding(12)
-                                .background(Color.ncSurfaceContHigh, in: Rectangle())
-                        }
-                        
-                        if let item = selectedItem {
-                            PlaceDetailCard(item: item) {
-                                selectedItem = nil
-                            }
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(queries, id: \.self) { query in
-                                    let isSelected = selectedQuery == query
-                                    Button {
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                            selectedQuery = query
-                                            selectedItem = nil
-                                        }
-                                        searchPlaces()
-                                    } label: {
-                                        Text(query)
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundColor(isSelected ? .ncOnPrimary : .ncPrimary)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 9)
-                                            .background(isSelected ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())
-                                            .overlay(Rectangle().stroke(Color.white.opacity(isSelected ? 0 : 0.1), lineWidth: 1))
-                                    }
-                                    .smoothButton()
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.bottom, 100)
-                        .padding(.top, 40)
-                    }
-                    .background(
-                        LinearGradient(colors: [Color.ncBg, Color.ncBg.opacity(0)], startPoint: .bottom, endPoint: .top)
-                    )
-                    .animation(.spring(), value: selectedItem)
+            switch locationManager.authorizationStatus {
+            case .notDetermined:
+                permissionPrompt(label: "Find sources nearby",
+                                 text: "Allow location to find butchers, farms and raw-food suppliers within 20 km.",
+                                 button: "Enable location") { locationManager.requestPermission() }
+            case .denied, .restricted:
+                permissionPrompt(label: "Location off", text: "Turn on location in Settings to use the map.",
+                                 button: "Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }
-                .preferredColorScheme(.dark)
+            default:
+                mapContent
             }
         }
         .onAppear {
@@ -152,6 +51,100 @@ struct PlacesMapView: View {
                 searchPlaces()
             }
         }
+    }
+
+    private var mapContent: some View {
+        ZStack {
+            Map(position: $position) {
+                UserAnnotation {
+                    Circle().fill(Color.ncMoss).frame(width: 16, height: 16)
+                        .padding(8)
+                        .background(Circle().fill(Color.ncMoss.opacity(0.18)))
+                }
+                ForEach(searchResults, id: \.self) { item in
+                    Annotation(item.name ?? "Place", coordinate: item.placemark.coordinate, anchor: .bottom) {
+                        let on = selectedItem == item
+                        Button {
+                            Haptics.selection()
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { selectedItem = item }
+                        } label: {
+                            Text(distance(to: item) ?? "•")
+                                .font(.mono(10, .semibold)).tracking(0.6)
+                                .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .frame(minHeight: 32)
+                                .background(on ? Color.ncPrimary : Color.ncBg)
+                                .overlay(Rectangle().strokeBorder(Color.ncPrimary, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .annotationTitles(.hidden)
+                }
+            }
+            .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+            .mapControls { }
+            .environment(\.colorScheme, .dark)
+            .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                header
+                Spacer()
+                if let searchError { StatusPill(text: searchError) }
+                if let item = selectedItem {
+                    PlaceDetailCard(item: item, distance: distance(to: item)) {
+                        withAnimation(.easeOut(duration: 0.2)) { selectedItem = nil }
+                    }
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(queries, id: \.self) { query in
+                            OptionChip(label: query, selected: selectedQuery == query, glassy: true) {
+                                selectedQuery = query
+                                selectedItem = nil
+                                searchPlaces()
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.bottom, 100)
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Primal food sources").font(.mono(10)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
+                Text(isSearching ? "SEARCHING \(selectedQuery.uppercased())…"
+                                 : "\(searchResults.count) × \(selectedQuery.uppercased()) WITHIN 20 KM")
+                    .font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20).padding(.vertical, 12)
+        .glass(.tinted, in: Capsule())
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+    }
+
+    private func permissionPrompt(label: String, text: String, button: String, action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(label).monoLabel()
+            Text(text).font(.system(size: 15)).foregroundColor(.ncPrimary)
+            Button(button, action: action).buttonStyle(.primal).padding(.top, 6)
+        }
+        .padding(.horizontal, Space.margin)
+    }
+
+    /// "0.8 km" under 10 km, whole kilometres beyond.
+    private func distance(to item: MKMapItem) -> String? {
+        guard let here = locationManager.location, let there = item.placemark.location else { return nil }
+        let km = here.distance(from: there) / 1000
+        return km < 10 ? String(format: "%.1f km", km) : "\(Int(km.rounded())) km"
     }
 
     private func searchPlaces() {
@@ -184,55 +177,48 @@ struct PlacesMapView: View {
 
 struct PlaceDetailCard: View {
     let item: MKMapItem
+    var distance: String? = nil
     let onClose: () -> Void
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(item.name ?? "Unknown place")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.name ?? "Unknown place").font(.system(size: 18, weight: .bold)).foregroundColor(.ncPrimary)
+                    if let distance {
+                        Text("\(distance) away".uppercased()).font(.mono(12)).foregroundColor(.ncSecondary)
+                    }
+                }
                 Spacer()
                 Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                        .font(.system(size: 20))
+                    Text("CLOSE").font(.mono(11, .semibold)).foregroundColor(.ncPrimary)
+                        .padding(.horizontal, 12).frame(height: 36)
+                        .background(Color.white.opacity(0.12))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 0, verticalSpacing: 6) {
+                if let address = item.placemark.title {
+                    GridRow {
+                        Text("ADDRESS").font(.mono(11)).foregroundColor(.ncSecondary).frame(width: 72, alignment: .leading)
+                        Text(address).font(.system(size: 14)).foregroundColor(.ncPrimary)
+                    }
+                }
+                if let phone = item.phoneNumber {
+                    GridRow {
+                        Text("PHONE").font(.mono(11)).foregroundColor(.ncSecondary).frame(width: 72, alignment: .leading)
+                        Text(phone).font(.system(size: 14)).foregroundColor(.ncPrimary)
+                    }
                 }
             }
-            
-            if let address = item.placemark.title {
-                HStack(alignment: .top) {
-                    Image(systemName: "mappin.and.ellipse")
-                        .foregroundColor(.gray)
-                    Text(address)
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
-                }
-            }
-            
-            if let phone = item.phoneNumber {
-                HStack {
-                    Image(systemName: "phone.fill")
-                        .foregroundColor(.gray)
-                    Text(phone)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white)
-                }
-            }
-            
-            Button("Open in Maps") {
-                item.openInMaps(launchOptions: nil)
-            }
-            .buttonStyle(PrimaryButtonStyle(height: 46, radius: 3))
-            .padding(.top, 8)
+            .padding(.top, 12)
+            .overlay(alignment: .top) { Hairline(opacity: 0.14) }
+
+            Button("Open in Maps") { item.openInMaps(launchOptions: nil) }
+                .buttonStyle(PrimaryButtonStyle(height: 52))
         }
-        .padding()
-        .background(Color.ncSurfaceContLowest)
-        .overlay(
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        .padding(.horizontal)
+        .padding(20)
+        .glass(.thick)
     }
 }

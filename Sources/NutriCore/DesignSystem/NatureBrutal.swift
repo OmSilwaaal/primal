@@ -1,14 +1,13 @@
 import SwiftUI
 
-// MARK: - Nature × brutalist design system
+// MARK: - Primal design system: type, space, backdrop
 //
 // Three voices, used consistently:
-//   • Brutal  – heavy, wide grotesque for the wordmark and every number that matters.
-//   • Nature  – a quiet serif in widely spaced capitals for labels and captions, and for
-//               qualitative headlines ("Mostly raw carnivore").
-//   • Body    – plain system sans for reading.
-// Surfaces are not boxed: sections sit on an out-of-focus foliage photograph and are divided by
-// hairlines, with a strict 20pt margin and an 8pt spacing rhythm.
+//   • Display – Archivo Black for the wordmark and every number that matters.
+//   • Body    – Helvetica-style system sans: bold 15 for names, regular for reading.
+//   • Label   – IBM Plex Mono caps for section labels, units and data.
+// Structure is square (radius 0) and divided by rules; anything that floats is glass.
+// Every value carries its unit and goal. Tap targets are at least 44 pt.
 
 enum Space {
     static let margin: CGFloat = 20
@@ -18,33 +17,51 @@ enum Space {
 }
 
 extension Font {
-    /// Heavy, wide grotesque for the wordmark and titles.
-    static func brutal(_ size: CGFloat, weight: Font.Weight = .black) -> Font {
-        .system(size: size, weight: weight).width(.expanded)
+    /// Archivo Black. Bundled in Resources/Fonts; falls back to a heavy expanded system face.
+    static func display(_ size: CGFloat) -> Font {
+        UIFont(name: "ArchivoBlack-Regular", size: size) != nil
+            ? .custom("ArchivoBlack-Regular", fixedSize: size)
+            : .system(size: size, weight: .black).width(.expanded)
     }
-    /// Numbers: wide, heavy, tabular so values don't jitter while animating.
-    static func metric(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .heavy).width(.expanded).monospacedDigit()
+    /// IBM Plex Mono for labels, units and tabular data.
+    static func mono(_ size: CGFloat, _ weight: Font.Weight = .medium) -> Font {
+        let name: String
+        switch weight {
+        case .semibold, .bold, .heavy, .black: name = "IBMPlexMono-SemiBold"
+        case .medium: name = "IBMPlexMono-Medium"
+        default: name = "IBMPlexMono"
+        }
+        return UIFont(name: name, size: size) != nil
+            ? .custom(name, fixedSize: size)
+            : .system(size: size, weight: weight, design: .monospaced)
     }
-    /// Serif for qualitative headlines and captions.
+    /// Wordmark and titles.
+    static func brutal(_ size: CGFloat, weight: Font.Weight = .black) -> Font { .display(size) }
+    /// Hero numbers.
+    static func metric(_ size: CGFloat) -> Font { .display(size).monospacedDigit() }
+    /// Formerly a serif; the design system has no serif, so reading text is plain sans.
     static func serif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+        .system(size: size, weight: weight)
     }
-    static let ncTitle = Font.serif(22)
+    static let ncTitle = Font.system(size: 22, weight: .bold)
 }
 
 extension View {
-    /// Small spaced capitals (sans) — navigation and controls.
-    func spacedCaps(_ size: CGFloat = 12, tracking: CGFloat = 1.8) -> some View {
-        self.font(.system(size: size, weight: .medium)).tracking(tracking).textCase(.uppercase)
+    /// Mono caps for controls: 12 pt semibold, tracked .12em.
+    func spacedCaps(_ size: CGFloat = 12, tracking: CGFloat? = nil) -> some View {
+        self.font(.mono(size, .semibold)).tracking(tracking ?? size * 0.12).textCase(.uppercase)
     }
-    /// Serif spaced capitals — section labels and captions, like "W H E R E  B E A U T Y  G R O W S".
-    func serifCaps(_ size: CGFloat = 12, tracking: CGFloat? = nil) -> some View {
-        self.font(.serif(size)).tracking(tracking ?? size * 0.3).textCase(.uppercase)
+    /// Section label: Plex Mono 500 caps, tracked .16em. Kept under its old name for existing call sites.
+    func serifCaps(_ size: CGFloat = 11, tracking: CGFloat? = nil) -> some View {
+        self.font(.mono(size)).tracking(tracking ?? size * 0.16).textCase(.uppercase)
+    }
+    /// The design's label voice.
+    func monoLabel(_ size: CGFloat = 11) -> some View {
+        self.serifCaps(size).foregroundColor(.ncSecondary)
     }
 }
 
-/// Out-of-focus foliage photograph, darkened so content stays readable, fading to black toward the bottom.
+/// Darkened forest photograph behind every screen, with the design's top/bottom scrim.
 struct AppBackdrop: View {
     var intensity: Double = 1
 
@@ -52,17 +69,19 @@ struct AppBackdrop: View {
         GeometryReader { geo in
             ZStack {
                 Color.ncBg
-                Image("Foliage")
+                Image("ForestDark")
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
+                    // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
+                    .offset(x: -max(0, geo.size.height * 2 / 3 - geo.size.width) * 0.12)
                     .opacity(intensity)
                     .clipped()
                 LinearGradient(stops: [
-                    .init(color: .black.opacity(0.0), location: 0),
-                    .init(color: .black.opacity(0.12), location: 0.3),
-                    .init(color: .black.opacity(0.55), location: 0.62),
-                    .init(color: .black.opacity(0.85), location: 1),
+                    .init(color: .black.opacity(0.55), location: 0),
+                    .init(color: .black.opacity(0.25), location: 0.4),
+                    .init(color: .black.opacity(0.45), location: 0.75),
+                    .init(color: .black.opacity(0.7), location: 1),
                 ], startPoint: .top, endPoint: .bottom)
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -99,18 +118,23 @@ struct SectionLabel: View {
         VStack(spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 if let index {
-                    Text(index).font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                    Text(index).font(.mono(11)).foregroundColor(.ncSecondary)
                 }
-                Text(title).serifCaps(12).foregroundColor(.ncPrimary)
+                Text(title).monoLabel()
                 Spacer(minLength: 8)
                 if let trailing {
-                    Text(trailing).font(.system(size: 12, weight: .medium)).foregroundColor(trailingColor)
+                    Text(trailing).font(.mono(12, .semibold)).tracking(0.96).textCase(.uppercase).foregroundColor(trailingColor)
                         .lineLimit(1)
                 }
             }
-            Hairline()
+            Rule()
         }
     }
+}
+
+/// 2 pt Paper rule that opens a list.
+struct Rule: View {
+    var body: some View { Rectangle().fill(Color.ncPrimary).frame(height: 2) }
 }
 
 struct Hairline: View {
@@ -131,14 +155,14 @@ struct PageHeader<Accessory: View>: View {
     @ViewBuilder var accessory: Accessory
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center) {
-                Text(caption).serifCaps(11).foregroundColor(.ncPrimary.opacity(0.75))
+                Text(caption).monoLabel()
                 Spacer()
                 accessory
             }
             .frame(minHeight: 44)
-            Wordmark(text: title.uppercased(), size: 64)
+            Text(title).font(.system(size: 30, weight: .bold)).foregroundColor(.ncPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -160,7 +184,7 @@ struct HeaderIconButton: View {
             Image(systemName: systemName)
                 .font(.system(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
                 .frame(width: 44, height: 44)
-                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
+                .glass(.clear, in: Rectangle())
         }
         .smoothButton()
         .accessibilityLabel(label)
@@ -180,7 +204,7 @@ struct Metric: View {
                     .contentTransition(.numericText())
                     .lineLimit(1).minimumScaleFactor(0.6)
                 if !unit.isEmpty {
-                    Text(unit).font(.serif(size * 0.32)).foregroundColor(.ncSecondary)
+                    Text(unit.uppercased()).font(.mono(max(11, size * 0.22))).foregroundColor(.ncSecondary)
                 }
             }
             if let caption { Text(caption).font(.system(size: 14)).foregroundColor(.ncSecondary) }
@@ -193,7 +217,7 @@ struct LineGauge: View {
     let value: Double
     var band: ClosedRange<Double>? = nil
     var tint: Color = .ncPrimary
-    var height: CGFloat = 3
+    var height: CGFloat = 4
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
@@ -220,12 +244,12 @@ struct StatStrip: View {
         HStack(alignment: .top, spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(item.label).serifCaps(10).foregroundColor(.ncSecondary).lineLimit(1)
-                    Text(item.value).font(.metric(22)).foregroundColor(.ncPrimary)
+                    Text(item.label).monoLabel().lineLimit(1)
+                    Text(item.value).font(.system(size: 22)).foregroundColor(.ncPrimary)
                         .lineLimit(1).minimumScaleFactor(0.55)
                         .contentTransition(.numericText())
                     if let p = item.progress { LineGauge(value: p, height: 2) }
-                    if let note = item.note { Text(note).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
+                    if let note = item.note { Text(note.uppercased()).font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, i == 0 ? 0 : 14)

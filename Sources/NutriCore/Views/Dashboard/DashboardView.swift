@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - Today
+// MARK: - Home
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -10,30 +10,35 @@ struct DashboardView: View {
     @Query private var hydrations: [DailyHydration]
     @StateObject private var healthManager = HealthKitManager.shared
 
-    var onProfile: () -> Void = {}
+    var onSearch: () -> Void = {}
     var onRaw: () -> Void = {}
-    @State private var showSearch = false
     @State private var showRawLog = false
 
-    init(onProfile: @escaping () -> Void = {}, onRaw: @escaping () -> Void = {}) {
-        self.onProfile = onProfile
+    init(onSearch: @escaping () -> Void = {}, onRaw: @escaping () -> Void = {}) {
+        self.onSearch = onSearch
         self.onRaw = onRaw
-        // Only load recent rows (a week, for the raw snapshot); "today" is filtered in memory so the view survives midnight.
-        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
+        // Rows back to the start of the month (eating cycle) or the week, whichever is earlier; at least 7 days for
+        // the raw snapshot. "Today" is filtered in memory so the view survives midnight.
+        let cal = Calendar.current, today = cal.startOfDay(for: .now)
+        let month = cal.dateInterval(of: .month, for: today)?.start ?? today
+        let week = cal.date(byAdding: .day, value: -6, to: today) ?? today
+        let cutoff = min(month, week, EatingCycle.weekStart(for: today))
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= cutoff }, sort: \.date)
         _hydrations = Query(filter: #Predicate<DailyHydration> { $0.date >= cutoff }, sort: \.date)
     }
 
+    private var baseGoals: NutrientGoals { profiles.first.map(NutrientGoals.from) ?? .default }
     private var goals: NutrientGoals {
-        if let profile = profiles.first {
-            var g = NutrientGoals.from(profile)
-            if healthManager.todayActiveEnergy > 0 { g.calories += healthManager.todayActiveEnergy }
-            return g
-        }
-        return NutrientGoals.default
+        var g = baseGoals
+        if profiles.first != nil, healthManager.todayActiveEnergy > 0 { g.calories += healthManager.todayActiveEnergy }
+        return g
     }
     private var todaysMeals: [MealEntry] {
         let cal = Calendar.current; return meals.filter { cal.isDateInToday($0.date) }
+    }
+    private var weekMeals: [MealEntry] {
+        let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
+        return meals.filter { $0.date >= start }
     }
     private var todaysHydration: DailyHydration? {
         hydrations.first(where: { Calendar.current.isDateInToday($0.date) })
@@ -51,40 +56,56 @@ struct DashboardView: View {
                 AppBackdrop()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: Space.section) {
-                        TodayHeader(onProfile: onProfile)
+                    VStack(alignment: .leading, spacing: 0) {
+                        HomeHeader(onSearch: onSearch)
+                            .padding(.horizontal, Space.margin)
+                            .padding(.top, 12)
 
-                        EnergySection(
-                            total: todaysMeals.totalCalories, goal: goals.calories,
-                            protein: todaysMeals.totalProtein, proteinGoal: goals.protein,
-                            fat: todaysMeals.totalFat, fatGoal: goals.fat,
-                            carbs: todaysMeals.totalCarbs, carbGoal: goals.carbohydrates)
+                        CycleSection(cycle: EatingCycle(meals: meals, calorieGoal: baseGoals.calories,
+                                                        todayProgress: progress))
+                            .padding(.horizontal, Space.margin)
+                            .padding(.top, 20)
 
-                        if let hydration = todaysHydration {
-                            HydrationSection(hydration: hydration,
-                                onAddWater: {
-                                    hydration.waterOunces += 8.45
-                                    try? modelContext.save()
-                                    healthManager.saveDietaryWater(ounces: 8.45)
-                                },
-                                onAddSalt: { hydration.addedSodiumMg += 400; try? modelContext.save() })
-                        }
+                        CalorieRing(total: todaysMeals.totalCalories, goal: goals.calories)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 32)
+                            .padding(.bottom, 28)
 
-                        RawSnapshotSection(meals: todaysMeals, weekMeals: meals, onOpen: onRaw,
-                                           onLogRaw: { showRawLog = true }, onSearch: { showSearch = true })
+                        MacroGrid(items: [
+                            ("Protein", todaysMeals.totalProtein, goals.protein),
+                            ("Carbs", todaysMeals.totalCarbs, goals.carbohydrates),
+                            ("Fat", todaysMeals.totalFat, goals.fat),
+                        ])
 
-                        MealsSection(meals: todaysMeals) { meal in
+                        MealsSection(meals: todaysMeals, onAdd: onSearch) { meal in
                             Haptics.success()
+                            let name = meal.foodName.components(separatedBy: ",").first ?? meal.foodName
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { MealLogger.delete(meal, in: modelContext) }
+                            ToastCenter.shared.show("Removed — \(name)")
                         }
+                        .padding(.top, 32)
+
+                        VStack(alignment: .leading, spacing: Space.section) {
+                            if let hydration = todaysHydration {
+                                HydrationSection(hydration: hydration,
+                                    onAddWater: {
+                                        hydration.waterOunces += 8.45
+                                        try? modelContext.save()
+                                        healthManager.saveDietaryWater(ounces: 8.45)
+                                    },
+                                    onAddSalt: { hydration.addedSodiumMg += 400; try? modelContext.save() })
+                            }
+
+                            RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: onRaw,
+                                               onLogRaw: { showRawLog = true }, onSearch: onSearch)
+                        }
+                        .padding(.horizontal, Space.margin)
+                        .padding(.top, 20)
                     }
-                    .padding(.horizontal, Space.margin)
-                    .padding(.top, 12)
-                    .padding(.bottom, 140)
+                    .padding(.bottom, 120)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showSearch) { SearchView() }
             .sheet(isPresented: $showRawLog) { NavigationStack { RawLogView() } }
             .task {
                 ensureRecords()
@@ -99,59 +120,209 @@ struct DashboardView: View {
             }
         }
     }
+
+    private var progress: Double { goals.calories > 0 ? todaysMeals.totalCalories / goals.calories : 0 }
 }
 
 // MARK: - Header
-private struct TodayHeader: View {
-    let onProfile: () -> Void
+private struct HomeHeader: View {
+    let onSearch: () -> Void
     private var dateText: String {
-        let f = DateFormatter(); f.dateFormat = "EEEE, d MMMM"; return f.string(from: Date())
+        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"; return f.string(from: Date()).uppercased()
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 36) {
-            HStack(alignment: .center) {
-                Text(dateText).serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
+        HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Today").monoLabel()
+                Text(dateText).font(.system(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
+            }
+            Spacer()
+            Button("Search", action: onSearch).buttonStyle(.glass)
+        }
+    }
+}
+
+// MARK: - Eating cycle
+/// The cycle is the calendar month: one tick per day, past days marked by whether intake landed within
+/// 85–110% of the calorie goal. Days with nothing logged stay neutral.
+struct EatingCycle {
+    enum Mark { case onTarget, offTarget, today, upcoming, empty }
+    struct Day: Identifiable { let id: Date; let mark: Mark; let weekday: String; let number: Int }
+
+    let day: Int
+    let length: Int
+    let ticks: [Mark]
+    let week: [Day]
+
+    static func weekStart(for date: Date) -> Date {
+        var cal = Calendar(identifier: .iso8601); cal.timeZone = .current
+        return cal.dateInterval(of: .weekOfYear, for: date)?.start ?? Calendar.current.startOfDay(for: date)
+    }
+
+    init(meals: [MealEntry], calorieGoal: Double, todayProgress: Double, now: Date = .now) {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+        var kcalByDay: [Date: Double] = [:]
+        for meal in meals { kcalByDay[cal.startOfDay(for: meal.date), default: 0] += meal.calories }
+
+        func mark(_ date: Date) -> Mark {
+            if date == today { return .today }
+            if date > today { return .upcoming }
+            guard let kcal = kcalByDay[date], calorieGoal > 0 else { return .empty }
+            let p = kcal / calorieGoal
+            return (0.85...1.1).contains(p) ? .onTarget : .offTarget
+        }
+
+        let month = cal.dateInterval(of: .month, for: today)!
+        length = cal.range(of: .day, in: .month, for: today)?.count ?? 30
+        day = cal.component(.day, from: today)
+        ticks = (0..<length).map { mark(cal.date(byAdding: .day, value: $0, to: month.start)!) }
+
+        let start = Self.weekStart(for: today)
+        let f = DateFormatter(); f.dateFormat = "EEE"
+        week = (0..<7).map { i in
+            let d = cal.date(byAdding: .day, value: i, to: start)!
+            return Day(id: d, mark: mark(d), weekday: f.string(from: d).uppercased(), number: cal.component(.day, from: d))
+        }
+    }
+}
+
+private struct CycleSection: View {
+    let cycle: EatingCycle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Eating cycle").monoLabel()
                 Spacer()
-                Button(action: onProfile) {
-                    Image(systemName: "person")
-                        .font(.system(size: 15, weight: .regular)).foregroundColor(.ncPrimary)
-                        .frame(width: 44, height: 44)
-                        .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
-                }
-                .smoothButton()
-                .accessibilityLabel("Profile")
+                (Text("DAY \(cycle.day) ") + Text("OF \(cycle.length)").foregroundColor(.ncSecondary))
+                    .font(.mono(12, .semibold)).tracking(0.96).foregroundColor(.ncPrimary)
             }
-            Wordmark(size: 86)
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(Array(cycle.ticks.enumerated()), id: \.offset) { _, mark in
+                    Capsule().fill(tickColor(mark))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: mark == .today ? 22 : 14)
+                }
+            }
+            .frame(height: 22)
+            .accessibilityElement()
+            .accessibilityLabel("Day \(cycle.day) of \(cycle.length)")
+
+            HStack(spacing: 6) {
+                ForEach(cycle.week) { day in
+                    let today = day.mark == .today
+                    VStack(spacing: 6) {
+                        Text(day.weekday).font(.mono(10, .semibold)).tracking(0.8).opacity(0.8)
+                        Text("\(day.number)").font(.display(17))
+                        Circle().fill(dotColor(day.mark)).frame(width: 6, height: 6)
+                    }
+                    .foregroundColor(today ? .ncOnPrimary : day.mark == .upcoming ? .ncSecondary : .ncPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 10).padding(.bottom, 9)
+                    .background(Capsule().fill(today ? Color.ncPrimary : Color.white.opacity(0.06)))
+                    .overlay(Capsule().strokeBorder(today ? Color.ncPrimary : Color.white.opacity(0.14), lineWidth: 1))
+                }
+            }
+            .padding(.top, 4)
+
+            HStack(spacing: 14) {
+                legend(.ncMoss, "On target")
+                legend(.ncEmber, "Under / over")
+                legend(.ncPrimary.opacity(0.25), "Upcoming")
+            }
+        }
+    }
+
+    private func tickColor(_ m: EatingCycle.Mark) -> Color {
+        switch m {
+        case .onTarget: .ncMoss
+        case .offTarget: .ncEmber
+        case .today: .ncPrimary
+        case .upcoming, .empty: .ncPrimary.opacity(0.16)
+        }
+    }
+    private func dotColor(_ m: EatingCycle.Mark) -> Color {
+        switch m {
+        case .onTarget: .ncMoss
+        case .offTarget: .ncEmber
+        case .today: .ncOnPrimary
+        case .upcoming, .empty: .ncPrimary.opacity(0.25)
+        }
+    }
+    private func legend(_ color: Color, _ text: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(text.uppercased()).font(.mono(10)).tracking(0.8).foregroundColor(.ncSecondary)
         }
     }
 }
 
-// MARK: - 01 Energy
-private struct EnergySection: View {
-    let total, goal, protein, proteinGoal, fat, fatGoal, carbs, carbGoal: Double
+// MARK: - Calories
+private struct CalorieRing: View {
+    let total: Double
+    let goal: Double
     private var progress: Double { goal > 0 ? total / goal : 0 }
-    private var remaining: Int { Int(goal - total) }
+    private var pct: Int { Int((min(progress, 1) * 100).rounded()) }
 
     var body: some View {
-        RawCard(title: "Energy", trailing: remaining >= 0 ? "\(remaining.formatted()) left" : "\((-remaining).formatted()) over",
-                trailingColor: remaining >= 0 ? .ncSecondary : .ncError, index: "01") {
-            VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Metric(value: Int(total).formatted(), unit: "kcal", caption: "of \(Int(goal).formatted()) kcal today", size: 60)
+        VStack(spacing: 18) {
+            ZStack {
+                Circle().strokeBorder(Color.ncPrimary.opacity(0.12), lineWidth: 14)
+                Circle()
+                    .inset(by: 7)
+                    .trim(from: 0, to: min(progress, 1))
+                    .stroke(Color.ncPrimary, style: StrokeStyle(lineWidth: 14, lineCap: .butt))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.smooth(duration: 0.6), value: progress)
+                VStack(spacing: 6) {
+                    Text(Int(total).formatted()).font(.display(52)).tracking(-2.08).foregroundColor(.ncPrimary)
+                        .contentTransition(.numericText())
                         .animation(.smooth, value: Int(total))
-                    LineGauge(value: progress, tint: progress > 1 ? .ncError : .ncPrimary)
+                    Text("OF \(Int(goal).formatted()) KCAL").font(.mono(12)).tracking(1.92).foregroundColor(.ncSecondary)
                 }
-                StatStrip(items: [
-                    .init(label: "Protein", value: "\(Int(protein))g", note: "of \(Int(proteinGoal)) g", progress: proteinGoal > 0 ? protein / proteinGoal : 0),
-                    .init(label: "Fat", value: "\(Int(fat))g", note: "of \(Int(fatGoal)) g", progress: fatGoal > 0 ? fat / fatGoal : 0),
-                    .init(label: "Carbs", value: "\(Int(carbs))g", note: "of \(Int(carbGoal)) g", progress: carbGoal > 0 ? carbs / carbGoal : 0),
-                ])
+            }
+            .frame(width: 240, height: 240)
+            .accessibilityElement(children: .combine)
+
+            HStack(spacing: 24) {
+                Text("\(pct)% OF GOAL").foregroundColor(.ncPrimary)
+                Text("\(Int(max(0, goal - total)).formatted()) KCAL LEFT").foregroundColor(.ncSecondary)
+            }
+            .font(.mono(13)).tracking(1.04)
+        }
+    }
+}
+
+private struct MacroGrid: View {
+    let items: [(String, Double, Double)]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Macros").monoLabel().padding(.horizontal, Space.margin)
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(items, id: \.0) { label, cur, goal in
+                    let p = goal > 0 ? cur / goal : 0
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(label).font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(Int(cur.rounded()).formatted()).font(.system(size: 26)).foregroundColor(.ncPrimary)
+                                .contentTransition(.numericText())
+                            Text("/\(Int(goal.rounded()).formatted()) G").font(.mono(11)).foregroundColor(.ncSecondary)
+                        }
+                        LineGauge(value: p, height: 4).padding(.top, 4)
+                        Text("\(Int((min(p, 1) * 100).rounded()))%").font(.mono(11)).foregroundColor(.ncSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 20).padding(.trailing, 14)
+                    .padding(.top, 16).padding(.bottom, 18)
+                    .accessibilityElement(children: .combine)
+                }
             }
         }
     }
 }
 
-// MARK: - 02 Water & salt
+// MARK: - Water & salt
 private struct HydrationSection: View {
     let hydration: DailyHydration
     let onAddWater: () -> Void
@@ -160,7 +331,7 @@ private struct HydrationSection: View {
     private var salt: Double { hydration.addedSodiumMg / 1000.0 }
 
     var body: some View {
-        RawCard(title: "Water & salt", trailing: "\(Int(min(liters / 3.5, 1) * 100))% of water", index: "02") {
+        RawCard(title: "Water & salt", trailing: "\(Int(min(liters / 3.5, 1) * 100))% of water", index: nil) {
             HStack(alignment: .top, spacing: 0) {
                 column(label: "Water", value: String(format: "%.1f", liters), unit: "L", target: "of 3.5 L",
                        progress: liters / 3.5, button: "+ 250 ml", action: onAddWater)
@@ -189,7 +360,7 @@ private struct HydrationSection: View {
     }
 }
 
-// MARK: - 03 Raw snapshot
+// MARK: - Raw snapshot
 struct RawSnapshotSection: View {
     let meals: [MealEntry]
     let weekMeals: [MealEntry]
@@ -201,7 +372,7 @@ struct RawSnapshotSection: View {
         let rating = DietRater.rate(meals: weekMeals, days: 7)
         let budget = NutrientAnalyzer.liverBudget(weekMeals)
         let fat = NutrientAnalyzer.fatCaloriePct(meals)
-        RawCard(title: "Raw & carnivore", trailing: "7 days", index: "03") {
+        RawCard(title: "Raw & carnivore", trailing: "7 days", index: nil) {
             VStack(alignment: .leading, spacing: 24) {
                 Button(action: onOpen) {
                     HStack(alignment: .firstTextBaseline) {
@@ -227,85 +398,78 @@ struct RawSnapshotSection: View {
     }
 }
 
-// MARK: - 04 Meals
+// MARK: - Meals
 struct MealsSection: View {
     let meals: [MealEntry]
+    let onAdd: () -> Void
     let onDelete: (MealEntry) -> Void
 
     var body: some View {
-        RawCard(title: "Today's meals", trailing: meals.isEmpty ? nil : "\(meals.count) logged", index: "04") {
-            if meals.isEmpty {
-                Text("Nothing logged yet. Scan, search or log a raw item to start the day.")
-                    .font(.serif(15)).italic().foregroundColor(.ncSecondary)
-                    .padding(.vertical, 8)
-            } else {
-                VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Meals · \(meals.count)").monoLabel()
+                Spacer()
+                Button("+ Add food", action: onAdd).buttonStyle(TextButtonStyle(color: .ncPrimary))
+            }
+            .padding(.horizontal, Space.margin)
+
+            VStack(spacing: 0) {
+                Rule()
+                if meals.isEmpty {
+                    Text("Nothing logged yet today. Search, scan a barcode or photograph a meal to start.")
+                        .font(.system(size: 15)).foregroundColor(.ncSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 28)
+                } else {
                     ForEach(meals.reversed()) { meal in
                         MealRow(meal: meal) { onDelete(meal) }
                             .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
                     }
                 }
             }
+            .padding(.horizontal, Space.margin)
+
+            Button("Log food", action: onAdd)
+                .buttonStyle(.primal)
+                .padding(Space.margin)
         }
     }
 }
 
+/// Time · name + portion · kcal · a visible 44 pt remove target (no hidden swipe).
 struct MealRow: View {
     let meal: MealEntry
     let onDelete: () -> Void
-    @State private var offset: CGFloat = 0
 
     private var timeStr: String { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: meal.date) }
     private var meta: String {
-        var parts: [String] = []
+        var parts = ["\(Int(meal.servingSize)) g"]
         if !meal.source.isEmpty { parts.append(meal.source) }
         if meal.riskScore > 0 { parts.append("risk \(Int(meal.riskScore))") }
-        parts.append("P \(Int(meal.protein)) · F \(Int(meal.totalFat)) · C \(Int(meal.carbohydrates))")
-        return parts.joined(separator: "  ·  ")
+        return parts.joined(separator: " · ")
     }
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            if offset < -20 {
-                Button(action: { onDelete(); offset = 0 }) {
-                    Text("Delete").spacedCaps(12).fontWeight(.bold).foregroundColor(.ncOnPrimary)
-                        .padding(.horizontal, 20).frame(maxHeight: .infinity)
-                        .background(Color.ncError)
-                }
+        HStack(spacing: 10) {
+            Text(timeStr).font(.mono(12)).foregroundColor(.ncSecondary)
+                .frame(width: 44, alignment: .leading)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(meal.foodName.capitalized).font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(1)
+                Text(meta).font(.system(size: 12)).foregroundColor(meal.riskScore >= 65 ? .ncEmber : .ncSecondary).lineLimit(1)
             }
-
-            VStack(spacing: 0) {
-                HStack(alignment: .top, spacing: 16) {
-                    Text(timeStr).font(.system(size: 13, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
-                        .frame(width: 44, alignment: .leading)
-                        .padding(.top, 2)
-                    if let data = meal.photoData, let img = UIImage(data: data) {
-                        Image(uiImage: img).resizable().scaledToFill().frame(width: 48, height: 48).clipped()
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(meal.foodName.capitalized).font(.system(size: 17, weight: .medium)).foregroundColor(.ncPrimary).lineLimit(2)
-                        Text(meta).font(.system(size: 12)).foregroundColor(meal.riskScore >= 65 ? .ncError : .ncSecondary).lineLimit(2)
-                    }
-                    Spacer(minLength: 8)
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(Int(meal.calories))").font(.metric(18)).foregroundColor(.ncPrimary)
-                        Text("kcal").font(.serif(12)).foregroundColor(.ncSecondary)
-                    }
-                }
-                .padding(.vertical, 16)
-                Hairline(opacity: 0.12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            (Text("\(Int(meal.calories).formatted())") + Text(" KCAL").foregroundColor(.ncSecondary))
+                .font(.mono(13)).foregroundColor(.ncPrimary)
+            Button(action: onDelete) {
+                Text("×").font(.system(size: 22)).foregroundColor(.ncSecondary)
+                    .frame(width: 36, height: 44)
+                    .contentShape(Rectangle())
             }
-            .background(offset == 0 ? Color.clear : Color.ncBg)
-            .offset(x: offset)
-            .gesture(
-                DragGesture(minimumDistance: 20)
-                    .onChanged { if $0.translation.width < 0 { offset = $0.translation.width } }
-                    .onEnded { value in
-                        withAnimation(.spring()) { offset = value.translation.width < -50 ? -96 : 0 }
-                    }
-            )
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(meal.foodName)")
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityAction(named: "Delete", onDelete)
+        .frame(minHeight: 64)
+        .overlay(alignment: .bottom) { Hairline(opacity: 0.28) }
+        .accessibilityElement(children: .contain)
     }
 }

@@ -1,15 +1,16 @@
 import SwiftUI
 
-// MARK: - Primal Design System (black theme)
+// MARK: - Primal Design System
 // ─────────────────────────────────────────────────────────────────────────────
-// Near-black canvas, stacked surfaces separated by hairline borders rather than
-// shadows, white as the primary action colour, one soft indigo accent.
+// Monochrome: Ink canvas, Paper type and fills, Mute for labels and units.
+// One status pair — Moss (goal met, location) and Ember (low intake, remove).
+// Anything that floats uses glass (see Glass.swift).
 // ─────────────────────────────────────────────────────────────────────────────
 
 extension Color {
     // Backgrounds (darkest -> lightest)
-    static let ncBg                  = Color(hex: "#050505")
-    static let ncSurface             = Color(hex: "#0B0B0C")
+    static let ncBg                  = Color(hex: "#0A0B0A") // Ink
+    static let ncSurface             = Color(hex: "#141614") // solid fallback for glass
     static let ncSurfaceContLowest   = Color(hex: "#101012") // cards
     static let ncSurfaceContLow      = Color(hex: "#141416")
     static let ncSurfaceCont         = Color(hex: "#17171A")
@@ -18,10 +19,11 @@ extension Color {
     static let ncSurfaceBright       = Color(hex: "#26262B")
 
     // Text
-    static let ncPrimary             = Color(hex: "#F2F0E8")
-    static let ncOnPrimary           = Color(hex: "#09090B") // text/icons on a ncPrimary fill
-    static let ncOnSurface           = Color(hex: "#F2F0E8")
-    static let ncSecondary           = Color(hex: "#9C9A92")
+    static let ncPrimary             = Color(hex: "#F2F1EC") // Paper, 18.4:1 on Ink
+    static let ncOnPrimary           = Color(hex: "#0A0B0A") // text/icons on a ncPrimary fill
+    static let ncOnSurface           = Color(hex: "#F2F1EC")
+    static let ncSecondary           = Color(hex: "#9DA19B") // Mute, 7.6:1 on Ink
+    static let ncSoft                = Color(hex: "#C9CBC5") // secondary copy on glass
 
     // Lines
     static let ncOutline             = Color(hex: "#52525B")
@@ -38,7 +40,11 @@ extension Color {
     static let ncOrangeLight         = Color(hex: "#D2B98A").opacity(0.16)
     static let ncSky                 = Color(hex: "#BDBAB0")
     static let ncSkyLight            = Color(hex: "#BDBAB0").opacity(0.14)
-    static let ncError               = Color(hex: "#C98074")
+    static let ncError               = Color.ncEmber
+
+    // Status pair (oklch .80 .10 135 / oklch .72 .15 35)
+    static let ncMoss                = Color(hex: "#A2CD8B")
+    static let ncEmber               = Color(hex: "#F37E61")
 
     // Legacy alias
     static let ncSurface2            = Color(hex: "#17171A")
@@ -120,19 +126,18 @@ extension View {
     func smoothButton() -> some View { self.buttonStyle(SmoothButtonStyle()) }
 }
 
-/// Filled call-to-action: square bone block with dark spaced-caps text.
+/// Filled call-to-action: square Paper block, bold spaced caps in Ink. 56 pt by default.
 struct PrimaryButtonStyle: ButtonStyle {
-    var height: CGFloat = 54
+    var height: CGFloat = 56
     var radius: CGFloat = 0
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .heavy)).tracking(1.4).textCase(.uppercase)
+            .font(.system(size: 14, weight: .bold)).tracking(2.2).textCase(.uppercase)
             .foregroundColor(.ncOnPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(Color.ncPrimary, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .brightness(configuration.isPressed ? -0.08 : 0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, pressed in
                 if pressed { Haptics.tap() }
@@ -140,20 +145,18 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Quiet secondary action: raised surface with a hairline border.
+/// Quiet secondary action: square clear glass with mono caps.
 struct SecondaryButtonStyle: ButtonStyle {
     var height: CGFloat = 48
     var radius: CGFloat = 0
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .bold)).tracking(1.1).textCase(.uppercase)
+            .font(.mono(12, .semibold)).tracking(1.4).textCase(.uppercase)
             .foregroundColor(.ncPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: height)
-            .background(Color.black.opacity(0.001))
-            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(Color.ncPrimary.opacity(0.4), lineWidth: 1))
+            .glass(.clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .brightness(configuration.isPressed ? 0.05 : 0)
             .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, pressed in
                 if pressed { Haptics.tap() }

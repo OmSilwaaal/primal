@@ -90,12 +90,12 @@ struct Chip: View {
         } label: {
             HStack(spacing: 6) {
                 if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)) }
-                Text(label).font(.system(size: 14, weight: .medium))
+                Text(label).font(.mono(11, .semibold)).tracking(0.9).textCase(.uppercase)
             }
             .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
-            .padding(.horizontal, 14).frame(height: 40)
+            .padding(.horizontal, 14).frame(height: 44)
             .background(selected ? Color.ncPrimary : Color.clear)
-            .overlay(Rectangle().stroke(Color.ncPrimary.opacity(selected ? 0 : 0.28), lineWidth: 1))
+            .overlay(Rectangle().strokeBorder(Color.ncPrimary.opacity(selected ? 0 : 0.3), lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -213,22 +213,22 @@ struct NavRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 16) {
                 if let index {
-                    Text(index).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                    Text(index).font(.mono(12)).foregroundColor(.ncSecondary)
                         .frame(width: 22, alignment: .leading)
                 } else {
                     Image(systemName: icon).font(.system(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
                         .frame(width: 22)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.system(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
-                    if let detail { Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1) }
+                    Text(title).font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                    if let detail { Text(detail).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
                 }
                 Spacer(minLength: 8)
                 if let badge { Tag(text: badge, color: badgeColor) }
                 Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             }
-            .padding(.vertical, 18)
-            Hairline(opacity: 0.12)
+            .frame(minHeight: 64)
+            Hairline(opacity: 0.28)
         }
         .contentShape(Rectangle())
     }

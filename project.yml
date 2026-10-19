@@ -43,7 +43,10 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIAppFonts:
-          - PressStart2P-Regular.ttf
+          - ArchivoBlack-Regular.ttf
+          - IBMPlexMono-Regular.ttf
+          - IBMPlexMono-Medium.ttf
+          - IBMPlexMono-SemiBold.ttf
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
         NSCameraUsageDescription: "We need access to your camera to scan barcodes and detect food items."

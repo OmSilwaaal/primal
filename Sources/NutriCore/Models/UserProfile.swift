@@ -50,14 +50,13 @@ final class UserProfile {
 
     // MARK: - Mifflin-St Jeor TDEE
     var dailyCalorieGoal: Double {
-        let bmr: Double
-        if isMale {
-            bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * Double(age)) + 5
-        } else {
-            bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * Double(age)) - 161
-        }
+        Self.tdee(male: isMale, weightKg: weightKg, heightCm: heightCm, age: age, activity: activityLevel)
+    }
+
+    static func tdee(male: Bool, weightKg: Double, heightCm: Double, age: Int, activity: String) -> Double {
+        let bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * Double(age)) + (male ? 5 : -161)
         let multiplier: Double
-        switch activityLevel {
+        switch activity {
         case "sedentary":  multiplier = 1.2
         case "light":      multiplier = 1.375
         case "moderate":   multiplier = 1.55

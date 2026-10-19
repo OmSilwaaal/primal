@@ -46,7 +46,10 @@
 	<string>We need your location to find local butchers and farms near you.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>PressStart2P-Regular.ttf</string>
+		<string>ArchivoBlack-Regular.ttf</string>
+		<string>IBMPlexMono-Regular.ttf</string>
+		<string>IBMPlexMono-Medium.ttf</string>
+		<string>IBMPlexMono-SemiBold.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>

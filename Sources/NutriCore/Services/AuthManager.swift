@@ -16,6 +16,8 @@ class AuthManager: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isLoading = false
     @Published var authError: String?
+    /// Skipped login: the app runs on local data only, with no account behind it.
+    @Published private(set) var isGuest = UserDefaults.standard.bool(forKey: "isGuest")
     
     private var authStateListener: Task<Void, Never>?
     
@@ -27,6 +29,7 @@ class AuthManager: ObservableObject {
         Task {
             for await (event, session) in await supabase.auth.authStateChanges {
                 self.isAuthenticated = (session != nil)
+                if session != nil { self.setGuest(false) }
             }
         }
     }
@@ -113,6 +116,16 @@ class AuthManager: ObservableObject {
         isLoading = false
     }
 
+    func continueAsGuest() {
+        authError = nil
+        setGuest(true)
+    }
+
+    private func setGuest(_ value: Bool) {
+        isGuest = value
+        UserDefaults.standard.set(value, forKey: "isGuest")
+    }
+
     var currentEmail: String? { supabase.auth.currentUser?.email }
 
     /// Starts an email change; Supabase emails a confirmation link to the new address.
@@ -145,6 +158,11 @@ class AuthManager: ObservableObject {
     }
 
     func signOut() async {
+        // A guest has no session; just return to the login screen and keep their local data.
+        if isGuest {
+            setGuest(false)
+            return
+        }
         do {
             try await supabase.auth.signOut()
             

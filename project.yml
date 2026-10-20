@@ -30,10 +30,12 @@ targets:
       - path: Resources/Assets.xcassets
       - path: Resources/Fonts
         buildPhase: resources
+      - path: Resources/Legal
+        buildPhase: resources
     info:
       path: NutriCore/Info.plist
       properties:
-        CFBundleDisplayName: Primal
+        CFBundleDisplayName: Vitalis
         CFBundleURLTypes:
           - CFBundleURLName: com.omsilwal.NutriCorePrimal
             CFBundleURLSchemes:
@@ -51,8 +53,8 @@ targets:
           NSAllowsArbitraryLoads: false
         NSCameraUsageDescription: "We need access to your camera to scan barcodes and detect food items."
         NSLocationWhenInUseUsageDescription: "We need your location to find local butchers and farms near you."
-        NSHealthShareUsageDescription: "NutriCore needs access to read your steps and active energy to calculate your daily metabolic rate."
-        NSHealthUpdateUsageDescription: "NutriCore needs access to write your logged calories, protein, and water to close your Apple Watch rings."
+        NSHealthShareUsageDescription: "Vitalis needs access to read your steps and active energy to calculate your daily metabolic rate."
+        NSHealthUpdateUsageDescription: "Vitalis needs access to write your logged calories, protein, and water to close your Apple Watch rings."
     entitlements:
       path: NutriCore/NutriCore.entitlements
       properties:

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Primal</string>
+	<string>Vitalis</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -39,9 +39,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera to scan barcodes and detect food items.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>NutriCore needs access to read your steps and active energy to calculate your daily metabolic rate.</string>
+	<string>Vitalis needs access to read your steps and active energy to calculate your daily metabolic rate.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>NutriCore needs access to write your logged calories, protein, and water to close your Apple Watch rings.</string>
+	<string>Vitalis needs access to write your logged calories, protein, and water to close your Apple Watch rings.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to find local butchers and farms near you.</string>
 	<key>UIAppFonts</key>

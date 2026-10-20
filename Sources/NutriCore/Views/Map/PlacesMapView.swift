@@ -1,7 +1,7 @@
 import SwiftUI
 import MapKit
 
-/// Primal food sources within 20 km: distance tags on a dark map, category chips, thick-glass place detail.
+/// Real food sources within 20 km: distance tags on a dark map, category chips, thick-glass place detail.
 struct PlacesMapView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var searchResults: [MKMapItem] = []
@@ -117,7 +117,7 @@ struct PlacesMapView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Primal food sources").font(.mono(10)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
+                Text("Real food sources").font(.mono(10)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
                 Text(isSearching ? "SEARCHING \(selectedQuery.uppercased())…"
                                  : "\(searchResults.count) × \(selectedQuery.uppercased()) WITHIN 20 KM")
                     .font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
@@ -135,7 +135,7 @@ struct PlacesMapView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(label).monoLabel()
             Text(text).font(.system(size: 15)).foregroundColor(.ncPrimary)
-            Button(button, action: action).buttonStyle(.primal).padding(.top, 6)
+            Button(button, action: action).buttonStyle(.vitalis).padding(.top, 6)
         }
         .padding(.horizontal, Space.margin)
     }

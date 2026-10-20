@@ -28,7 +28,7 @@ final class RecallService: ObservableObject {
         guard let url = URL(string: "https://www.fsis.usda.gov/fsis/api/recall/v/1") else { return }
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Primal", forHTTPHeaderField: "User-Agent")
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Vitalis", forHTTPHeaderField: "User-Agent")
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard (resp as? HTTPURLResponse)?.statusCode == 200,

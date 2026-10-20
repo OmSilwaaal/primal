@@ -4,6 +4,7 @@ import SwiftData
 struct SettingsView: View {
     @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var legalDocument: LegalDocument?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
@@ -113,15 +114,15 @@ struct SettingsView: View {
                     // ── Legal ───────────────────────────────────────────────
                     SettingsSection(title: "About") {
                         SettingsRow(icon: "lock.shield", title: "Privacy policy", subtitle: "How your data is handled") {
-                            open("https://primal.app/privacy")
+                            legalDocument = .privacy
                         }
                         SettingsDivider()
                         SettingsRow(icon: "doc.text", title: "Terms of service", subtitle: "Usage agreement") {
-                            open("https://primal.app/terms")
+                            legalDocument = .terms
                         }
                         SettingsDivider()
                         SettingsRow(icon: "questionmark.circle", title: "Support", subtitle: "Report issues and feedback") {
-                            open("mailto:support@primal.app")
+                            open("mailto:support@vitalis.app")
                         }
                     }
 
@@ -145,7 +146,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    Text("Primal · Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                    Text("Vitalis · Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                         .font(.system(size: 13)).foregroundColor(.ncSecondary)
                         .padding(.bottom, 100)
                 }
@@ -165,7 +166,8 @@ struct SettingsView: View {
         } message: {
             Text("We'll email a confirmation link to the new address.")
         }
-        .confirmationDialog("Sign out of Primal?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
+        .sheet(item: $legalDocument) { LegalView(document: $0) }
+        .confirmationDialog("Sign out of Vitalis?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await auth.signOut() } }
         }
         .alert("Delete your account?", isPresented: $showDeleteConfirm) {
@@ -191,7 +193,7 @@ struct SettingsView: View {
         case .friends: return "Your friends can see the calories and meals you log."
         case .everyone: return profile.isPrivate
             ? "Only friends see your meals while your profile is private."
-            : "Anyone on Primal can see the calories and meals you log."
+            : "Anyone on Vitalis can see the calories and meals you log."
         }
     }
 

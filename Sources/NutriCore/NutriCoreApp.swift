@@ -32,7 +32,7 @@ struct RootView: View {
     // ── DEV BYPASS ──────────────────────────────────────────────────────────
     // Set this to `true` to skip login & onboarding during development.
     // Set back to `false` before shipping.
-    private let DEV_BYPASS_AUTH = true
+    private let DEV_BYPASS_AUTH = false
     // ────────────────────────────────────────────────────────────────────────
 
     var body: some View {
@@ -51,9 +51,10 @@ struct RootView: View {
     private var content: some View {
         if DEV_BYPASS_AUTH {
             ContentView()
-        } else if authManager.isAuthenticated {
+        } else if authManager.isAuthenticated || authManager.isGuest {
             if hasCompletedOnboarding {
-                if subManager.isSubscribed {
+                // Guests can't subscribe without an account, so they go straight in.
+                if subManager.isSubscribed || authManager.isGuest {
                     ContentView()
                 } else {
                     PaywallView()

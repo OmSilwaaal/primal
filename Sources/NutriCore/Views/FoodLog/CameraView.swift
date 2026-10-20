@@ -91,7 +91,7 @@ struct CameraView: View {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             }
-            .buttonStyle(.primal)
+            .buttonStyle(.vitalis)
             .padding(.top, 6)
         }
         .padding(.horizontal, Space.margin)
@@ -325,7 +325,7 @@ struct QuickLogCard: View {
                 Haptics.success()
                 onLog()
             }
-            .buttonStyle(.primal)
+            .buttonStyle(.vitalis)
 
             Button("Cancel", action: onCancel)
                 .buttonStyle(TextButtonStyle(height: 40))

@@ -8,7 +8,7 @@ enum ExportService {
     }()
 
     static func csv(readings: [BiomarkerReading], meals: [MealEntry], dietStart: Date?) -> URL? {
-        var lines = ["# Primal export — general information for discussion with a clinician, not medical advice"]
+        var lines = ["# Vitalis export — general information for discussion with a clinician, not medical advice"]
         if let dietStart { lines.append("# Diet start date,\(df.string(from: dietStart))") }
         lines.append("")
         lines.append("LABS AND MEASUREMENTS")
@@ -24,7 +24,7 @@ enum ExportService {
             let name = m.foodName.replacingOccurrences(of: ",", with: " ")
             lines.append("\(df.string(from: m.date)),\(name),\(m.species),\(m.cutCategory),\(m.prep),\(Int(m.servingSize)),\(Int(m.calories)),\(Int(m.protein)),\(Int(m.totalFat)),\(Int(m.carbohydrates)),\(Int(m.vitaminA)),\(String(format: "%.1f", m.copper)),\(Int(m.riskScore))")
         }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("primal-export.csv")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("vitalis-export.csv")
         do { try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8); return url } catch { return nil }
     }
 
@@ -63,7 +63,7 @@ enum ExportService {
                 (s as NSString).draw(in: CGRect(x: 40, y: y, width: 532, height: 60), withAttributes: attrs)
                 y += gap
             }
-            draw("Primal — labs and diet summary", title, gap: 28)
+            draw("Vitalis — labs and diet summary", title, gap: 28)
             draw("Generated \(shortDate(Date())). General information to discuss with a clinician; not medical advice.", body, gap: 24)
             draw("Labs and measurements (latest)", head, gap: 18)
             (labLines.isEmpty ? ["No readings logged."] : labLines).forEach { draw($0, body) }
@@ -71,7 +71,7 @@ enum ExportService {
             draw("Diet summary", head, gap: 18)
             dietLines.forEach { draw($0, body) }
         }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("primal-summary.pdf")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("vitalis-summary.pdf")
         do { try data.write(to: url); return url } catch { return nil }
     }
 

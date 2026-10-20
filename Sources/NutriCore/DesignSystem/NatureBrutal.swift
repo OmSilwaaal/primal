@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Primal design system: type, space, backdrop
+// MARK: - Vitalis design system: type, space, backdrop
 //
 // Three voices, used consistently:
 //   • Display – Archivo Black for the wordmark and every number that matters.
@@ -92,7 +92,7 @@ struct AppBackdrop: View {
 
 /// The name in a heavy wide face, laid out at a fixed size and allowed to run past the right edge.
 struct Wordmark: View {
-    var text = "PRIMAL"
+    var text = "VITALIS"
     var size: CGFloat = 56
     var body: some View {
         Color.clear

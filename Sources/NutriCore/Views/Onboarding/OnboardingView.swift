@@ -1,10 +1,13 @@
 import SwiftUI
 
+/// Sign-in: the wordmark centred over the photo, three stacked capsule buttons, and a "Log in" link.
+/// Email opens an inline form in the same place as the buttons.
 struct OnboardingView: View {
     @StateObject private var authManager = AuthManager.shared
+    @State private var emailMode = false
+    @State private var isSignUp = true
     @State private var email = ""
     @State private var password = ""
-    @State private var isSignUp = false
     @FocusState private var focus: Field?
 
     private enum Field { case email, password }
@@ -13,72 +16,142 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             AppBackdrop(intensity: 1)
+            LinearGradient(colors: [.clear, .black.opacity(0.55)], startPoint: .center, endPoint: .bottom)
+                .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 80)
-                VStack(spacing: 14) {
-                    Text("PRIMAL").font(.display(64)).tracking(20.5)
-                        .padding(.leading, 20.5) // optically recentre the trailing tracking
-                        .foregroundColor(.ncPrimary)
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                    Text("Nutrition, tracked plainly").font(.mono(11)).tracking(2.2).textCase(.uppercase)
-                        .foregroundColor(.ncSecondary)
+            VStack {
+                HStack {
+                    Spacer()
+                    Button("Skip") { authManager.continueAsGuest() }
+                        .font(.system(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
+                        .padding(.horizontal, 20)
+                        .frame(minHeight: 44)
+                        .accessibilityHint("Use Vitalis without an account")
                 }
-                Spacer(minLength: 40)
+                Spacer()
+            }
+            .zIndex(1)
 
-                VStack(spacing: 12) {
-                    authField("Email", text: $email, field: .email)
-                    authField("Password", text: $password, field: .password, secure: true)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    Spacer().frame(height: geo.size.height * 0.27)
+                    wordmark
+                    Spacer(minLength: 32)
 
-                    Button(isSignUp ? "Sign up" : "Log in", action: submit)
-                        .buttonStyle(.primal)
-                        .opacity(canSubmit ? 1 : 0.4)
-                        .disabled(!canSubmit)
-                        .padding(.top, 8)
-
-                    Button(isSignUp ? "Already have an account? Log in" : "Don't have an account? Sign up") {
-                        withAnimation(.easeOut(duration: 0.2)) { isSignUp.toggle() }
-                    }
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    .frame(minHeight: 44)
-
-                    if let error = authManager.authError {
-                        Text(error).font(.system(size: 13)).foregroundColor(.ncEmber).multilineTextAlignment(.center)
-                    }
-
-                    HStack(spacing: 12) {
-                        Hairline(opacity: 0.2)
-                        Text("Or").monoLabel(10)
-                        Hairline(opacity: 0.2)
-                    }
-                    .padding(.vertical, 6)
-
-                    HStack(spacing: 10) {
-                        CompactAuthButton(title: "Apple", icon: .system("applelogo"),
-                                          fg: .ncOnPrimary, bg: .ncPrimary, border: .clear) {
-                            Task { await authManager.signInWithApple() }
-                        }
-                        CompactAuthButton(title: "Google", icon: .google,
-                                          fg: .ncPrimary, bg: .clear,
-                                          border: Color.white.opacity(0.2)) {
-                            Task { await authManager.signInWithGoogle() }
-                        }
+                    VStack(spacing: 14) {
+                        if emailMode { emailForm } else { providerButtons }
                     }
                     .disabled(authManager.isLoading)
                     .opacity(authManager.isLoading ? 0.6 : 1)
 
-                    Text("By continuing you agree to the Terms of Service and Privacy Policy.")
-                        .font(.system(size: 12)).foregroundColor(.ncSecondary)
-                        .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                        .padding(.top, 8)
+                    if let error = authManager.authError {
+                        Text(error).font(.system(size: 13)).foregroundColor(.ncEmber)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 14)
+                    }
+
+                    footer
+                        .padding(.top, 28)
+
+                    VStack(spacing: 2) {
+                        Text("By continuing you agree to our")
+                            .font(.system(size: 12)).foregroundColor(.ncPrimary.opacity(0.55))
+                        LegalLinks()
+                    }
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
                 }
-                .padding(.bottom, 24)
+                .padding(.horizontal, 44)
+                .frame(width: geo.size.width, height: geo.size.height)
             }
-            .padding(.horizontal, 28)
         }
+        .animation(.easeOut(duration: 0.22), value: emailMode)
         .onSubmit {
             if focus == .email { focus = .password } else { submit() }
         }
+    }
+
+    private var wordmark: some View {
+        VStack(spacing: 22) {
+            Text("VITALIS")
+                .font(.system(size: 44, weight: .regular))
+                .tracking(19)
+                .padding(.leading, 19) // optically recentre the trailing tracking
+                .foregroundColor(.ncPrimary)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Text("Nutrition built on real food")
+                .font(.system(size: 11, weight: .medium)).tracking(3.6).textCase(.uppercase)
+                .foregroundColor(.ncPrimary.opacity(0.85))
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var providerButtons: some View {
+        Button { Task { await authManager.signInWithApple() } } label: {
+            AuthButtonLabel(title: "Continue with Apple") {
+                Image(systemName: "applelogo").font(.system(size: 19, weight: .medium))
+            }
+        }
+        .buttonStyle(CapsuleAuthButtonStyle(filled: true))
+
+        Button { Task { await authManager.signInWithGoogle() } } label: {
+            AuthButtonLabel(title: "Continue with Google") {
+                GoogleGMark(color: .ncPrimary).frame(width: 18, height: 18)
+            }
+        }
+        .buttonStyle(CapsuleAuthButtonStyle(filled: false))
+
+        Button { openEmail(signUp: true) } label: {
+            AuthButtonLabel(title: "Continue with Email") {
+                Image(systemName: "envelope").font(.system(size: 16, weight: .regular))
+            }
+        }
+        .buttonStyle(CapsuleAuthButtonStyle(filled: false))
+    }
+
+    @ViewBuilder
+    private var emailForm: some View {
+        authField("Email", text: $email, field: .email)
+        authField("Password", text: $password, field: .password, secure: true)
+
+        Button(action: submit) {
+            Text(isSignUp ? "Create account" : "Log in").frame(maxWidth: .infinity)
+        }
+        .buttonStyle(CapsuleAuthButtonStyle(filled: true))
+        .opacity(canSubmit ? 1 : 0.45)
+        .disabled(!canSubmit)
+
+        Button("Other ways to continue") {
+            focus = nil
+            authManager.authError = nil
+            emailMode = false
+        }
+        .font(.system(size: 14)).foregroundColor(.ncPrimary.opacity(0.7))
+        .frame(minHeight: 44)
+    }
+
+    private var footer: some View {
+        HStack(spacing: 10) {
+            Text(emailMode && !isSignUp ? "New here?" : "Already have an account?")
+                .foregroundColor(.ncPrimary.opacity(0.7))
+            Button(emailMode && !isSignUp ? "Sign up" : "Log in") {
+                openEmail(signUp: emailMode && !isSignUp)
+            }
+            .foregroundColor(.ncPrimary)
+            .underline()
+            .frame(minHeight: 44)
+        }
+        .font(.system(size: 15))
+    }
+
+    private func openEmail(signUp: Bool) {
+        authManager.authError = nil
+        isSignUp = signUp
+        emailMode = true
+        focus = .email
     }
 
     private func authField(_ placeholder: String, text: Binding<String>, field: Field, secure: Bool = false) -> some View {
@@ -95,12 +168,12 @@ struct OnboardingView: View {
         .focused($focus, equals: field)
         .font(.system(size: 16)).foregroundColor(.ncPrimary)
         .placeholder(when: text.wrappedValue.isEmpty) {
-            Text(placeholder).font(.system(size: 16)).foregroundColor(.ncSecondary)
+            Text(placeholder).font(.system(size: 16)).foregroundColor(.ncPrimary.opacity(0.55))
         }
-        .padding(.horizontal, 22)
-        .frame(height: 56)
-        .background(Rectangle().fill(.ultraThinMaterial).overlay(Color.white.opacity(0.08)))
-        .overlay(Rectangle().strokeBorder(Color.white.opacity(0.2), lineWidth: 1))
+        .padding(.horizontal, 24)
+        .frame(height: 50)
+        .background(Capsule().fill(Color.black.opacity(0.25)))
+        .overlay(Capsule().strokeBorder(Color.ncPrimary.opacity(0.85), lineWidth: 1))
     }
 
     private func submit() {
@@ -114,75 +187,65 @@ struct OnboardingView: View {
             }
             if authManager.isAuthenticated {
                 password = ""
-                ToastCenter.shared.show("Welcome back")
+                ToastCenter.shared.show(isSignUp ? "Welcome" : "Welcome back")
             }
         }
     }
 }
 
-// MARK: - Compact provider button
-struct CompactAuthButton: View {
-    enum Icon { case system(String), google }
+// MARK: - Capsule auth buttons
 
+/// Icon in a fixed slot, then the title; the pair is centred in the capsule.
+private struct AuthButtonLabel<Icon: View>: View {
     let title: String
-    let icon: Icon
-    let fg: Color
-    let bg: Color
-    let border: Color
-    let action: () -> Void
-
+    @ViewBuilder var icon: Icon
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                switch icon {
-                case .system(let name):
-                    Image(systemName: name).font(.system(size: 15, weight: .semibold))
-                case .google:
-                    GoogleGMark().frame(width: 16, height: 16)
-                }
-                Text(title).font(.system(size: 13, weight: .heavy)).tracking(1.2).textCase(.uppercase)
-            }
-            .foregroundColor(fg)
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .background(bg)
-            .overlay(Rectangle().stroke(border, lineWidth: 1))
+        HStack(spacing: 18) {
+            icon.frame(width: 22, height: 22)
+            Text(title)
         }
-        .smoothButton()
+        .frame(maxWidth: .infinity)
     }
 }
 
-/// Multicolor Google "G" drawn from four arcs plus the crossbar.
-struct GoogleGMark: View {
-    private let blue = Color(hex: "#4285F4")
-    private let red = Color(hex: "#EA4335")
-    private let yellow = Color(hex: "#FBBC05")
-    private let green = Color(hex: "#34A853")
+/// Full-width 50 pt capsule. Filled: Paper with Ink text. Outline: 1 pt Paper border over the photo.
+struct CapsuleAuthButtonStyle: ButtonStyle {
+    var filled: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .regular))
+            .foregroundColor(filled ? .ncOnPrimary : .ncPrimary)
+            .frame(height: 50)
+            .frame(maxWidth: .infinity)
+            .background(Capsule().fill(filled ? Color.ncPrimary : Color.black.opacity(0.18)))
+            .overlay(Capsule().strokeBorder(filled ? Color.clear : Color.ncPrimary.opacity(0.85), lineWidth: 1))
+            .contentShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
+    }
+}
 
+/// Google "G" drawn as a single-colour ring with a gap at the upper right and the crossbar.
+struct GoogleGMark: View {
+    var color: Color = .ncPrimary
     var body: some View {
         GeometryReader { geo in
             let s = min(geo.size.width, geo.size.height)
-            let lw = s * 0.22
+            let lw = s * 0.2
             ZStack {
-                arc(from: 0.50, to: 0.75, color: yellow, lw: lw)
-                arc(from: 0.25, to: 0.50, color: green, lw: lw)
-                arc(from: 0.75, to: 0.93, color: red, lw: lw)
-                arc(from: 0.00, to: 0.25, color: blue, lw: lw)
+                Circle()
+                    .trim(from: 0.0, to: 0.88)
+                    .stroke(color, style: StrokeStyle(lineWidth: lw, lineCap: .butt))
+                    .padding(lw / 2)
                 Rectangle()
-                    .fill(blue)
-                    .frame(width: s * 0.52, height: lw)
-                    .offset(x: s * 0.24)
+                    .fill(color)
+                    .frame(width: s * 0.48, height: lw)
+                    .offset(x: s * 0.24 - lw / 4)
             }
             .frame(width: s, height: s)
-            .padding(lw / 2)
         }
-    }
-
-    private func arc(from: CGFloat, to: CGFloat, color: Color, lw: CGFloat) -> some View {
-        Circle()
-            .trim(from: from, to: to)
-            .stroke(color, style: StrokeStyle(lineWidth: lw, lineCap: .butt))
-            .rotationEffect(.degrees(0))
+        .accessibilityHidden(true)
     }
 }
 

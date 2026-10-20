@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Primal Design System
+// MARK: - Vitalis Design System
 // ─────────────────────────────────────────────────────────────────────────────
 // Monochrome: Ink canvas, Paper type and fills, Mute for labels and units.
 // One status pair — Moss (goal met, location) and Ember (low intake, remove).
@@ -165,10 +165,10 @@ struct SecondaryButtonStyle: ButtonStyle {
 }
 
 extension ButtonStyle where Self == PrimaryButtonStyle {
-    static var primal: PrimaryButtonStyle { PrimaryButtonStyle() }
+    static var vitalis: PrimaryButtonStyle { PrimaryButtonStyle() }
 }
 extension ButtonStyle where Self == SecondaryButtonStyle {
-    static var primalSecondary: SecondaryButtonStyle { SecondaryButtonStyle() }
+    static var vitalisSecondary: SecondaryButtonStyle { SecondaryButtonStyle() }
 }
 
 // MARK: - Typography helpers

@@ -59,7 +59,7 @@ final class BarcodeLookupService: ObservableObject {
         else { return nil }
 
         var request = URLRequest(url: url)
-        request.setValue("Primal-iOS/1.0 (nutrition tracker)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Vitalis-iOS/1.0 (nutrition tracker)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 15
         let (data, _) = try await URLSession.shared.data(for: request)
 

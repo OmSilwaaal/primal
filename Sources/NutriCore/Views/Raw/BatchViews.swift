@@ -125,13 +125,13 @@ struct BatchEditView: View {
 
             RawField(title: "Notes", text: $notes)
 
-            Button("Save batch") { save() }.buttonStyle(.primal)
+            Button("Save batch") { save() }.buttonStyle(.vitalis)
                 .disabled(label.trimmingCharacters(in: .whitespaces).isEmpty)
                 .opacity(label.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
 
             if let batch {
                 Button("Delete batch") { context.delete(batch); try? context.save(); dismiss() }
-                    .buttonStyle(.primalSecondary).foregroundColor(.ncError)
+                    .buttonStyle(.vitalisSecondary).foregroundColor(.ncError)
             }
             Disclaimer()
         }
@@ -223,7 +223,7 @@ struct SafetyView: View {
                     } label: {
                         HStack { if recalls.isChecking { ProgressView().tint(.ncPrimary) }; Text(recalls.isChecking ? "Checking…" : "Check my lots") }
                     }
-                    .buttonStyle(.primalSecondary)
+                    .buttonStyle(.vitalisSecondary)
                     if !recalls.fsisAvailable && recalls.lastChecked != nil {
                         Text("USDA FSIS feed unreachable right now; only openFDA was checked.").font(.system(size: 12)).foregroundColor(.ncOrange)
                     }
@@ -254,7 +254,7 @@ struct SafetyView: View {
                         NavigationLink { BatchEditView(batch: b) } label: { BatchRow(batch: b, meals: meals) }.buttonStyle(.plain)
                     }
                     Button { showNew = true } label: { Label("Add batch", systemImage: "plus") }
-                        .buttonStyle(.primalSecondary).padding(.top, 20)
+                        .buttonStyle(.vitalisSecondary).padding(.top, 20)
                 }
             }
 

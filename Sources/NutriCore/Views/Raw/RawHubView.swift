@@ -26,7 +26,7 @@ struct RawHubView: View {
                             PageHeader(title: "Raw", caption: mode.label)
                             if !accepted { disclaimerGate }
                             Button { showLog = true } label: { Label("Log raw food", systemImage: "plus") }
-                                .buttonStyle(.primal)
+                                .buttonStyle(.vitalis)
                         }
 
                         positionSection
@@ -50,7 +50,7 @@ struct RawHubView: View {
                             }
                         }
 
-                        Disclaimer(text: "Primal provides risk information, not medical advice, and never a clearance that food is safe. Raw and undercooked animal foods can cause serious illness — especially for children, older adults, pregnant people and anyone immunocompromised.")
+                        Disclaimer(text: "Vitalis provides risk information, not medical advice, and never a clearance that food is safe. Raw and undercooked animal foods can cause serious illness — especially for children, older adults, pregnant people and anyone immunocompromised.")
                     }
                     .padding(.horizontal, Space.margin)
                     .padding(.top, 12)
@@ -72,7 +72,7 @@ struct RawHubView: View {
     private var disclaimerGate: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Before you start").serifCaps(11).foregroundColor(.ncOrange)
-            Text("Raw and undercooked animal foods can carry bacteria, parasites and prions. Primal scores risk from what you log, but a low score is never a promise that food is safe. Raw poultry, wild game and ground meat carry the highest risk. This is not medical advice.")
+            Text("Raw and undercooked animal foods can carry bacteria, parasites and prions. Vitalis scores risk from what you log, but a low score is never a promise that food is safe. Raw poultry, wild game and ground meat carry the highest risk. This is not medical advice.")
                 .font(.system(size: 15)).foregroundColor(.ncPrimary).lineSpacing(3)
             Button("I understand") { withAnimation(.snappy) { accepted = true } }
                 .buttonStyle(SecondaryButtonStyle(height: 44))

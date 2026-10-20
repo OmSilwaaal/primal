@@ -24,10 +24,10 @@ struct BiomarkersView: View {
     var body: some View {
         RawScreen(title: "Biomarkers") {
             HStack(spacing: 10) {
-                Button { showAdd = true } label: { Label("Add reading", systemImage: "plus") }.buttonStyle(.primal)
+                Button { showAdd = true } label: { Label("Add reading", systemImage: "plus") }.buttonStyle(.vitalis)
                 Button { Task { await importHealth() } } label: {
                     HStack { if importing { ProgressView().tint(.ncPrimary) }; Label("Health", systemImage: "heart.text.square") }
-                }.buttonStyle(.primalSecondary).frame(maxWidth: 130)
+                }.buttonStyle(.vitalisSecondary).frame(maxWidth: 130)
             }
             if let importMsg { Text(importMsg).font(.system(size: 13)).foregroundColor(.ncSecondary) }
 
@@ -47,9 +47,9 @@ struct BiomarkersView: View {
                     Text("Labs and diet history in one file to share with your clinician.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                     HStack(spacing: 10) {
                         Button("CSV") { shareURL = ExportService.csv(readings: readings, meals: meals, dietStart: dietStart) }
-                            .buttonStyle(.primalSecondary)
+                            .buttonStyle(.vitalisSecondary)
                         Button("PDF summary") { shareURL = ExportService.pdf(readings: readings, meals: meals, dietStart: dietStart) }
-                            .buttonStyle(.primalSecondary)
+                            .buttonStyle(.vitalisSecondary)
                     }
                 }
             }
@@ -132,7 +132,7 @@ struct AddReadingView: View {
                 let r = BiomarkerReading(); r.kind = kind.rawValue; r.value = v; r.date = date
                 context.insert(r); try? context.save(); Haptics.success(); dismiss()
             }
-            .buttonStyle(.primal)
+            .buttonStyle(.vitalis)
             .disabled(kind == nil || Double(value.replacingOccurrences(of: ",", with: ".")) == nil)
         }
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } } }
@@ -197,7 +197,7 @@ struct BiomarkerDetailView: View {
                     if rows.isEmpty { Text("Nothing logged.").font(.system(size: 13)).foregroundColor(.ncSecondary) }
                 }
             }
-            Button { showAdd = true } label: { Label("Add reading", systemImage: "plus") }.buttonStyle(.primal)
+            Button { showAdd = true } label: { Label("Add reading", systemImage: "plus") }.buttonStyle(.vitalis)
         }
         .sheet(isPresented: $showAdd) { NavigationStack { AddReadingView(kind: kind) } }
     }

@@ -105,7 +105,7 @@ final class SubscriptionManager: ObservableObject {
 
             STPAPIClient.shared.publishableKey = checkout.publishableKey
             var config = PaymentSheet.Configuration()
-            config.merchantDisplayName = "Primal"
+            config.merchantDisplayName = "Vitalis"
             config.customer = .init(id: checkout.customerId, ephemeralKeySecret: checkout.ephemeralKey)
             config.returnURL = "com.omsilwal.NutriCorePrimal://stripe-redirect"
             config.allowsDelayedPaymentMethods = false

@@ -88,7 +88,7 @@ struct SunView: View {
                     Button {
                         Task { try? await health.requestAuthorization(); await loadAll() }
                     } label: { Label("Connect Apple Health", systemImage: "applewatch") }
-                        .buttonStyle(.primalSecondary)
+                        .buttonStyle(.vitalisSecondary)
                     Text("Adds Apple Watch “time in daylight” automatically.").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     Text(daylight.isEmpty ? "Daylight from Apple Watch appears here once Health has data." : "Includes Apple Watch time in daylight.")
@@ -107,7 +107,7 @@ struct SunView: View {
                         Text(String(format: "%02d:%02d", Int(secs) / 60, Int(secs) % 60))
                             .font(.metric(56)).foregroundColor(.ncPrimary)
                     }
-                    Button { stopTimer() } label: { Label("Stop & save", systemImage: "stop.fill") }.buttonStyle(.primal)
+                    Button { stopTimer() } label: { Label("Stop & save", systemImage: "stop.fill") }.buttonStyle(.vitalis)
                 } else {
                     FlowLayout(spacing: 8) {
                         ForEach([("minimal", "Face & hands"), ("partial", "Arms & legs"), ("most", "Most skin")], id: \.0) { e in
@@ -115,7 +115,7 @@ struct SunView: View {
                         }
                     }
                     Button { timerStart = Date().timeIntervalSince1970; Haptics.success() } label: { Label("Start session", systemImage: "play.fill") }
-                        .buttonStyle(.primal)
+                        .buttonStyle(.vitalis)
                 }
                 Button("Add time manually") { showManual = true }
                     .font(.system(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
@@ -129,7 +129,7 @@ struct SunView: View {
                 if location.authorizationStatus == .notDetermined {
                     Text("Allow location to see UV index, sunrise/sunset and when the sun is high enough for vitamin D.")
                         .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    Button("Enable location") { location.requestPermission() }.buttonStyle(.primalSecondary)
+                    Button("Enable location") { location.requestPermission() }.buttonStyle(.vitalisSecondary)
                 } else if location.location == nil {
                     Text("Finding your location…").font(.system(size: 13)).foregroundColor(.ncSecondary)
                 } else {
@@ -259,7 +259,7 @@ struct SunView: View {
                 Button("Save") {
                     save(minutes: Double(manualMinutes), start: Date().addingTimeInterval(-Double(manualMinutes) * 60), exposure: exposure, source: "manual")
                     showManual = false
-                }.buttonStyle(.primal)
+                }.buttonStyle(.vitalis)
             }
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { showManual = false } } }
         }

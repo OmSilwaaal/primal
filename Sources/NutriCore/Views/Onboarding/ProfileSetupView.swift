@@ -244,7 +244,7 @@ struct DietStep: View {
             OptionList(options: options, selected: $selected)
             
             Button(action: onFinish) { Text("Finish setup") }
-                .buttonStyle(.primal)
+                .buttonStyle(.vitalis)
                 .padding(.top, 20)
         }
     }
@@ -320,7 +320,7 @@ struct NextButton: View {
 
     var body: some View {
         Button(action: action) { Text("Continue") }
-            .buttonStyle(.primal)
+            .buttonStyle(.vitalis)
             .disabled(isDisabled)
             .opacity(isDisabled ? 0.45 : 1.0)
             .padding(.top, 20)

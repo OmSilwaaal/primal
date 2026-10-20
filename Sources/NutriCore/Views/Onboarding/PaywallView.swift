@@ -13,8 +13,8 @@ struct PaywallView: View {
                 VStack(alignment: .leading, spacing: Space.section) {
                     VStack(alignment: .leading, spacing: 18) {
                         Text("Membership").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
-                        Wordmark(text: "PRIMAL PRO", size: 64)
-                        Text("Everything Primal measures, with nothing held back.")
+                        Wordmark(text: "VITALIS PRO", size: 64)
+                        Text("Everything Vitalis measures, with nothing held back.")
                             .font(.serif(19)).foregroundColor(.ncPrimary).lineSpacing(3)
                     }
                     .padding(.top, 24)
@@ -49,7 +49,7 @@ struct PaywallView: View {
                                 else { Text("Continue · \(selectedPlan.priceLabel)") }
                             }
                         }
-                        .buttonStyle(.primal)
+                        .buttonStyle(.vitalis)
                         .disabled(subManager.isWorking)
 
                         if let error = subManager.errorMessage {
@@ -67,6 +67,8 @@ struct PaywallView: View {
                         Text("Payments are processed securely by Stripe. Your subscription renews automatically until you cancel in Settings.")
                             .font(.serif(12)).italic().foregroundColor(.ncSecondary)
                             .multilineTextAlignment(.center)
+
+                        LegalLinks()
 
                         #if DEBUG
                         Button("DEBUG: skip paywall") { subManager.debugUnlock() }

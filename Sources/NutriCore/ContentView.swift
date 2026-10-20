@@ -39,7 +39,7 @@ struct ContentView: View {
             }
 
             if !showSearch && !childHidesTabBar {
-                PrimalTabBar(selected: tab) { select($0) }
+                VitalisTabBar(selected: tab) { select($0) }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(35)
             }
@@ -86,7 +86,7 @@ struct ContentView: View {
 // MARK: - Tab bar
 /// Floating tinted-glass capsule, 14 pt from the edges. Text-only tabs; the active one is a solid Paper pill.
 /// Scan sits in the middle as a raised Paper disc.
-struct PrimalTabBar: View {
+struct VitalisTabBar: View {
     let selected: AppTab
     let onSelect: (AppTab) -> Void
     @Namespace private var indicator

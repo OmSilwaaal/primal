@@ -57,7 +57,7 @@ struct ProfileView: View {
                                 Text("Profile").monoLabel()
                                 Text("Set up your profile so goals can be calculated for you.")
                                     .font(.system(size: 15)).foregroundColor(.ncPrimary)
-                                NavigationLink(destination: ProfileSetupView()) { Text("Set up profile") }.buttonStyle(.primal)
+                                NavigationLink(destination: ProfileSetupView()) { Text("Set up profile") }.buttonStyle(.vitalis)
                                 more
                             }
                             .padding(.horizontal, Space.margin)
@@ -86,7 +86,7 @@ struct ProfileView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("PRIMAL").font(.display(18)).tracking(0.36).foregroundColor(.ncPrimary)
+                    Text("VITALIS").font(.display(18)).tracking(0.36).foregroundColor(.ncPrimary)
                     Text(social.myProfile.map { "@\($0.username)" } ?? profile.dietType)
                         .font(.mono(11)).tracking(1.54).textCase(.uppercase).foregroundColor(.ncSecondary).lineLimit(1)
                 }
@@ -112,7 +112,7 @@ struct ProfileView: View {
         }
         .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 22)
         .background(alignment: .bottomTrailing) {
-            Text("PRIMAL").font(.display(120)).tracking(-7.2).foregroundColor(.ncPrimary.opacity(0.05))
+            Text("VITALIS").font(.display(120)).tracking(-7.2).foregroundColor(.ncPrimary.opacity(0.05))
                 .fixedSize().offset(x: 28, y: 34)
                 .accessibilityHidden(true)
         }
@@ -163,9 +163,9 @@ struct ProfileView: View {
             .padding(.top, 24)
 
             VStack(alignment: .leading, spacing: 12) {
-                Button("Edit profile") { startEditing(profile) }.buttonStyle(.primal)
+                Button("Edit profile") { startEditing(profile) }.buttonStyle(.vitalis)
                 more.padding(.top, 16)
-                Button("Sign out") { Task { await authManager.signOut() } }
+                Button(authManager.isGuest ? "Log in or sign up" : "Sign out") { Task { await authManager.signOut() } }
                     .buttonStyle(TextButtonStyle(height: 48))
                     .frame(maxWidth: .infinity)
             }
@@ -239,7 +239,7 @@ struct ProfileView: View {
             (Text("NEW TDEE → ") + Text(draft.tdee.map { "\(Int($0).formatted()) KCAL" } ?? "—").foregroundColor(.ncPrimary))
                 .font(.mono(12)).foregroundColor(.ncSecondary)
 
-            Button("Save") { saveProfile(profile) }.buttonStyle(.primal)
+            Button("Save") { saveProfile(profile) }.buttonStyle(.vitalis)
             Button("Cancel") { isEditing = false }
                 .buttonStyle(TextButtonStyle())
                 .frame(maxWidth: .infinity)

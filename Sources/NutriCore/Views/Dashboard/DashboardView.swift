@@ -390,7 +390,7 @@ struct RawSnapshotSection: View {
                     .init(label: "Raw", value: "\(Int(rating.rawPct))%"),
                 ])
                 HStack(spacing: 10) {
-                    Button(action: onLogRaw) { Label("Log raw", systemImage: "plus") }.buttonStyle(.primal)
+                    Button(action: onLogRaw) { Label("Log raw", systemImage: "plus") }.buttonStyle(.vitalis)
                     Button(action: onSearch) { Label("Search", systemImage: "magnifyingglass") }.buttonStyle(SecondaryButtonStyle(height: 54))
                 }
             }
@@ -430,7 +430,7 @@ struct MealsSection: View {
             .padding(.horizontal, Space.margin)
 
             Button("Log food", action: onAdd)
-                .buttonStyle(.primal)
+                .buttonStyle(.vitalis)
                 .padding(Space.margin)
         }
     }

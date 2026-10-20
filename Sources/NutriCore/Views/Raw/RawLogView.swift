@@ -145,7 +145,7 @@ struct RawLogView: View {
                         Label(photoData == nil ? "Add photo" : "Change photo", systemImage: "photo")
                             .font(.system(size: 14, weight: .semibold))
                     }
-                    .buttonStyle(.primalSecondary)
+                    .buttonStyle(.vitalisSecondary)
                     .frame(maxWidth: 180)
                 }
             }
@@ -160,7 +160,7 @@ struct RawLogView: View {
                     Text(saving ? "Looking up nutrition…" : "Log it")
                 }
             }
-            .buttonStyle(.primal)
+            .buttonStyle(.vitalis)
             .disabled(saving || gramsValue <= 0)
             .opacity(gramsValue <= 0 ? 0.5 : 1)
 

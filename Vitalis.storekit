@@ -1,0 +1,70 @@
+{
+  "identifier" : "6A1C2E4F",
+  "nonRenewingSubscriptions" : [ ],
+  "products" : [ ],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [ ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "9D3B7A21",
+      "localizations" : [ ],
+      "name" : "Vitalis Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "5E8F1C03",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Every Vitalis feature, billed monthly.",
+              "displayName" : "Vitalis Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.omsilwal.NutriCorePrimal.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Vitalis Pro Monthly",
+          "subscriptionGroupID" : "9D3B7A21",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [ ]
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "71.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "7B2D4F15",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Every Vitalis feature, billed yearly.",
+              "displayName" : "Vitalis Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.omsilwal.NutriCorePrimal.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Vitalis Pro Annual",
+          "subscriptionGroupID" : "9D3B7A21",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [ ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

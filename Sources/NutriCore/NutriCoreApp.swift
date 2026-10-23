@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import Supabase
-import StripePaymentSheet
 
 @main
 struct NutriCoreApp: App {
@@ -10,8 +9,6 @@ struct NutriCoreApp: App {
             RootView()
                 .preferredColorScheme(.dark)
                 .onOpenURL { url in
-                    // Stripe redirects (3-D Secure, bank auth) come back through our URL scheme too.
-                    if StripeAPI.handleURLCallback(with: url) { return }
                     Task { try? await supabase.auth.session(from: url) }
                 }
         }
@@ -38,8 +35,9 @@ struct RootView: View {
     var body: some View {
         content
             .task(id: authManager.isAuthenticated) {
+                // The subscription belongs to the Apple ID, so check it whether or not anyone is signed in.
+                await subManager.refreshEntitlement()
                 if authManager.isAuthenticated {
-                    await subManager.refreshEntitlement()
                     await SocialService.shared.bootstrap()
                 } else {
                     SocialService.shared.reset()

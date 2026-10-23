@@ -33,7 +33,7 @@ Meal logs, water and salt intake, raw-food batches and suppliers, biomarker read
 
 ### Payment information
 
-Subscriptions are processed by our payment provider. We receive your subscription status, plan and renewal date, and a customer identifier. We never receive or store your full card number.
+Subscriptions are sold and billed by Apple through the App Store. Apple handles your payment details; we never receive your card number or billing address. The App receives the subscription's product, purchase and expiry dates, and a transaction identifier from Apple to check that your subscription is active. If you are signed in when you subscribe, your account's user ID is attached to the purchase so the subscription can be linked to your account.
 
 ## Meal sharing
 
@@ -54,15 +54,14 @@ We share information only with providers that help us run the App, and only as n
 
 - **Supabase** – account authentication, database and file storage.
 - **Google (Gemini API)** – food photo analysis. Google Sign-In, if you choose it.
-- **Stripe** – subscription payments.
-- **Apple** – Sign in with Apple, Apple Maps and Apple Health.
+- **Apple** – App Store subscriptions and payments, Sign in with Apple, Apple Maps and Apple Health.
 - **Open Food Facts, USDA FoodData Central, Open-Meteo, USDA FSIS and FDA** – public food, weather and recall data. We send search text, barcodes or coordinates, not your account information.
 
 We may also disclose information if required by law, to protect the rights and safety of users or others, or as part of a merger, sale or reorganization, in which case this policy will continue to apply to your information.
 
 ## Retention and deletion
 
-We keep account and profile data while your account is active. You can delete your account in Settings → Delete account. This permanently deletes your profile, social data, shared meals and profile photo from our servers and cancels your subscription. Data stored only on your device is removed when you delete the App. Payment records may be retained by our payment provider as required by law.
+We keep account and profile data while your account is active. You can delete your account in Settings → Delete account. This permanently deletes your profile, social data, shared meals and profile photo from our servers. Deleting your account does not cancel an App Store subscription; cancel it in your Apple ID settings. Data stored only on your device is removed when you delete the App. Apple keeps its own purchase records under its privacy policy.
 
 ## Your rights
 

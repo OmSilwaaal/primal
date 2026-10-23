@@ -141,7 +141,7 @@ class AuthManager: ObservableObject {
         }
     }
 
-    /// Permanently deletes the account on the server (and cancels billing), then clears local state.
+    /// Permanently deletes the account on the server, then clears local state. App Store subscriptions are cancelled by the user in Apple ID settings.
     /// Returns an error message, or nil on success.
     func deleteAccount() async -> String? {
         do {

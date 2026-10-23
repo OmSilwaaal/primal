@@ -18,13 +18,14 @@ The App includes features for tracking raw and minimally processed foods, such a
 
 ## Subscriptions and payments
 
-Some features require a paid subscription. Prices are shown in the App before purchase.
+Some features require a paid subscription ("Vitalis Pro"), sold through Apple's App Store. Prices are shown in the App before purchase.
 
-- **Automatic renewal:** subscriptions renew automatically at the end of each period at the then-current price until you cancel.
-- **Cancelling:** you can cancel at any time in Settings → Manage subscription. Cancellation takes effect at the end of the current billing period, and you keep access until then.
-- **Refunds:** except where required by law, payments are non-refundable and we do not provide refunds or credits for partial periods.
-- **Price changes:** we will notify you before a price change takes effect, and you can cancel before it applies.
-- **Taxes:** prices may not include applicable taxes, which will be added where required.
+- **Billing:** payment is charged to your Apple ID when you confirm the purchase. Purchases are also subject to Apple's Media Services Terms and Conditions.
+- **Automatic renewal:** your subscription renews automatically at the end of each period at the then-current price unless you cancel at least 24 hours before the period ends. Your Apple ID is charged for renewal within 24 hours before the end of the current period.
+- **Cancelling:** you can cancel at any time in your Apple ID settings (Settings → your name → Subscriptions), or from Settings → Manage subscription in the App. Cancellation takes effect at the end of the current billing period, and you keep access until then. Deleting your Vitalis account does not cancel the subscription.
+- **Refunds:** refunds are handled by Apple under its policies. You can request one at reportaproblem.apple.com. We cannot issue refunds for App Store purchases ourselves.
+- **Price changes:** Apple will notify you before a price increase takes effect and, where required, ask for your consent.
+- **Taxes:** Apple collects and remits applicable sales taxes and VAT.
 
 ## Your content
 
@@ -45,7 +46,7 @@ We may remove content or suspend or close accounts that violate these Terms. You
 
 ## Third-party services and data
 
-The App uses services and data from third parties, including Apple, Google, Stripe, Supabase, USDA, FDA, Open Food Facts and Open-Meteo. We are not responsible for third-party services or the accuracy of their data, and your use of them may be subject to their own terms.
+The App uses services and data from third parties, including Apple, Google, Supabase, USDA, FDA, Open Food Facts and Open-Meteo. We are not responsible for third-party services or the accuracy of their data, and your use of them may be subject to their own terms.
 
 ## Our intellectual property
 

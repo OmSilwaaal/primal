@@ -35,7 +35,11 @@ struct PaywallView: View {
                     RawCard(title: "Plan", index: "02") {
                         VStack(spacing: 0) {
                             ForEach(SubscriptionManager.Plan.allCases.reversed()) { plan in
-                                PlanRow(plan: plan, isSelected: selectedPlan == plan) { selectedPlan = plan }
+                                PlanRow(plan: plan,
+                                        price: subManager.priceLabel(for: plan),
+                                        detail: subManager.detail(for: plan),
+                                        savings: plan == .annual ? subManager.annualSavingsPercent : nil,
+                                        isSelected: selectedPlan == plan) { selectedPlan = plan }
                             }
                         }
                     }
@@ -45,12 +49,13 @@ struct PaywallView: View {
                             Task { await subManager.subscribe(to: selectedPlan) }
                         } label: {
                             ZStack {
+                                let price = subManager.priceLabel(for: selectedPlan)
                                 if subManager.isWorking { ProgressView().tint(.ncOnPrimary) }
-                                else { Text("Continue · \(selectedPlan.priceLabel)") }
+                                else { Text(price.isEmpty ? "Continue" : "Continue · \(price)") }
                             }
                         }
                         .buttonStyle(.vitalis)
-                        .disabled(subManager.isWorking)
+                        .disabled(subManager.isWorking || subManager.products.isEmpty)
 
                         if let error = subManager.errorMessage {
                             Text(error).font(.system(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
@@ -64,7 +69,8 @@ struct PaywallView: View {
                         .foregroundColor(.ncPrimary.opacity(0.8))
                         .disabled(subManager.isWorking)
 
-                        Text("Payments are processed securely by Stripe. Your subscription renews automatically until you cancel in Settings.")
+                        // Apple requires this disclosure next to an auto-renewing subscription.
+                        Text("Payment is charged to your Apple ID when you confirm. The subscription renews automatically at the same price unless you cancel at least 24 hours before the end of the current period. Manage or cancel in your Apple ID settings.")
                             .font(.serif(12)).italic().foregroundColor(.ncSecondary)
                             .multilineTextAlignment(.center)
 
@@ -81,11 +87,15 @@ struct PaywallView: View {
                 .padding(.bottom, 32)
             }
         }
+        .task { if subManager.products.isEmpty { await subManager.loadProducts() } }
     }
 }
 
 private struct PlanRow: View {
     let plan: SubscriptionManager.Plan
+    let price: String
+    let detail: String
+    let savings: Int?
     let isSelected: Bool
     let onTap: () -> Void
 
@@ -100,12 +110,16 @@ private struct PlanRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
                             Text(plan.title).font(.serif(21)).foregroundColor(.ncPrimary)
-                            if plan == .annual { Tag(text: "Save 40%", color: .ncPrimary) }
+                            if let savings { Tag(text: "Save \(savings)%", color: .ncPrimary) }
                         }
-                        Text(plan.detail).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary)
                     }
                     Spacer()
-                    Text(plan.priceLabel).font(.metric(15)).foregroundColor(.ncPrimary)
+                    if price.isEmpty {
+                        ProgressView().tint(.ncPrimary)
+                    } else {
+                        Text(price).font(.metric(15)).foregroundColor(.ncPrimary)
+                    }
                 }
                 .padding(.vertical, 18)
                 Hairline(opacity: 0.12)

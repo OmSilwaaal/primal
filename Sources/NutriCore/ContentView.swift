@@ -126,7 +126,7 @@ struct VitalisTabBar: View {
                     .background {
                         if on {
                             Capsule().fill(Color.white.opacity(0.16))
-                                .overlay(ChromaticEdge(shape: Capsule(), strength: 0.7))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5))
                                 .matchedGeometryEffect(id: "tab", in: indicator)
                         }
                     }
@@ -166,51 +166,13 @@ private struct GlassIsland: ViewModifier {
         } else if #available(iOS 26.0, *) {
             // Not .interactive(): interactive glass catches drags ~24 pt beyond its edge and scrubs between tabs,
             // which stole horizontal drags from content just above the bar (the map's filter wheel).
-            content
-                .glassEffect(.regular, in: Capsule())
-                .overlay(ChromaticEdge(shape: Capsule()))
+            content.glassEffect(.regular, in: Capsule())
         } else {
             content
                 .background(.ultraThinMaterial, in: Capsule())
                 .environment(\.colorScheme, .dark)
                 .overlay(Capsule().strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
-                .overlay(ChromaticEdge(shape: Capsule()))
                 .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
-        }
-    }
-}
-
-/// Chromatic aberration at a glass edge: light splits into a warm fringe on the upper-left rim and a cool one on
-/// the lower-right, each nudged a fraction of a point apart, plus a thin specular highlight. Screen-blended so it
-/// only ever brightens what's behind it. Off when Reduce Transparency or Increase Contrast is on.
-struct ChromaticEdge<S: InsettableShape>: View {
-    let shape: S
-    var strength: Double = 1
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-
-    var body: some View {
-        if !reduceTransparency && contrast != .increased {
-            ZStack {
-                shape.strokeBorder(
-                    LinearGradient(colors: [Color(red: 1, green: 0.28, blue: 0.42).opacity(0.65 * strength), .clear],
-                                   startPoint: .topLeading, endPoint: .init(x: 0.6, y: 0.9)),
-                    lineWidth: 1.5)
-                    .offset(x: -0.9, y: -0.6)
-                shape.strokeBorder(
-                    LinearGradient(colors: [.clear, Color(red: 0.25, green: 0.7, blue: 1).opacity(0.65 * strength)],
-                                   startPoint: .init(x: 0.4, y: 0.1), endPoint: .bottomTrailing),
-                    lineWidth: 1.5)
-                    .offset(x: 0.9, y: 0.6)
-                shape.strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.38 * strength), .white.opacity(0.04), .white.opacity(0.16 * strength)],
-                                   startPoint: .top, endPoint: .bottom),
-                    lineWidth: 0.75)
-            }
-            .blur(radius: 0.5)
-            .blendMode(.screen)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
         }
     }
 }

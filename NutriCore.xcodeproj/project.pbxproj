@@ -453,6 +453,7 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					C1A0ACA8519741A9A487E668 = {
+						DevelopmentTeam = H5KUB3S9FY;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -643,6 +644,7 @@
 				CODE_SIGN_ENTITLEMENTS = NutriCore/NutriCore.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = H5KUB3S9FY;
 				INFOPLIST_FILE = NutriCore/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -719,6 +721,7 @@
 				CODE_SIGN_ENTITLEMENTS = NutriCore/NutriCore.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = H5KUB3S9FY;
 				INFOPLIST_FILE = NutriCore/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

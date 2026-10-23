@@ -84,82 +84,78 @@ struct ContentView: View {
 }
 
 // MARK: - Tab bar
-/// Floating tinted-glass capsule, 14 pt from the edges. Text-only tabs; the active one is a solid Paper pill.
-/// Scan sits in the middle as a raised Paper disc.
+/// Floating glass island 14 pt from the edges: Liquid Glass on iOS 26, blurred material before that.
+/// Five equal tabs, each an SF Symbol over its label; the selected one fills its symbol and sits on a soft
+/// translucent highlight that slides between tabs.
 struct VitalisTabBar: View {
     let selected: AppTab
     let onSelect: (AppTab) -> Void
     @Namespace private var indicator
 
-    private let tabs: [(AppTab, String)] = [(.home, "HOME"), (.map, "MAP"), (.scan, "SCAN"), (.data, "DATA"), (.profile, "PROFILE")]
+    private let tabs: [(tab: AppTab, label: String, icon: String, selectedIcon: String)] = [
+        (.home, "Home", "house", "house.fill"),
+        (.map, "Map", "map", "map.fill"),
+        (.scan, "Scan", "viewfinder", "viewfinder"),
+        (.data, "Data", "chart.bar", "chart.bar.fill"),
+        (.profile, "Profile", "person", "person.fill"),
+    ]
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(tabs, id: \.0) { tab, label in
-                if tab == .scan {
-                    scanButton
-                } else {
-                    let on = selected == tab
-                    Button { onSelect(tab) } label: {
-                        Text(label)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
+            ForEach(tabs, id: \.tab) { item in
+                let on = selected == item.tab
+                Button { onSelect(item.tab) } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: on ? item.selectedIcon : item.icon)
+                            .font(.system(size: 19, weight: on ? .semibold : .regular))
+                            .symbolEffect(.bounce, value: on)
+                            .frame(height: 24)
+                        Text(item.label.uppercased())
+                            .font(.system(size: 10, weight: on ? .bold : .semibold)).tracking(0.6)
                             .lineLimit(1).minimumScaleFactor(0.8)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background {
-                                if on {
-                                    Capsule().fill(Color.ncPrimary)
-                                        .matchedGeometryEffect(id: "tab", in: indicator)
-                                }
-                            }
-                            .contentShape(Capsule())
                     }
-                    .buttonStyle(TabButtonStyle())
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                    .animation(.spring(response: 0.32, dampingFraction: 0.82), value: selected)
+                    .foregroundColor(on ? .ncPrimary : .ncPrimary.opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background {
+                        if on {
+                            Capsule().fill(Color.white.opacity(0.16))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5))
+                                .matchedGeometryEffect(id: "tab", in: indicator)
+                        }
+                    }
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(TabButtonStyle())
+                .accessibilityLabel(item.label)
+                .accessibilityAddTraits(on ? .isSelected : [])
+                // Labels stay at standard size (like the system tab bar); long-press shows them enlarged.
+                .accessibilityShowsLargeContentViewer {
+                    Image(systemName: item.selectedIcon)
+                    Text(item.label)
                 }
             }
         }
-        .padding(6)
-        .frame(height: 62)
-        .glass(.tinted, in: Capsule())
+        .animation(.spring(response: 0.34, dampingFraction: 0.82), value: selected)
+        .padding(5)
+        .dynamicTypeSize(...DynamicTypeSize.large)
+        .modifier(GlassIsland())
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
     }
-
-    private var scanButton: some View {
-        Button { onSelect(.scan) } label: {
-            VStack(spacing: 5) {
-                ScanGlyph().frame(width: 26, height: 22)
-                Text("SCAN").font(.system(size: 10, weight: .heavy)).tracking(1.2)
-            }
-            .foregroundColor(.ncOnPrimary)
-            .frame(width: 64, height: 64)
-            .background(Circle().fill(Color.ncPrimary))
-            .overlay(Circle().strokeBorder(Color.ncOnPrimary, lineWidth: 3))
-            .shadow(color: .black.opacity(0.5), radius: 12, y: 8)
-        }
-        .buttonStyle(TabButtonStyle())
-        .padding(.horizontal, 4)
-        .offset(y: -8)
-        .accessibilityLabel("Scan")
-        .accessibilityAddTraits(selected == .scan ? .isSelected : [])
-    }
 }
 
-/// Four viewfinder corners and a scan line.
-struct ScanGlyph: View {
-    var body: some View {
-        Canvas { ctx, size in
-            let w = size.width, h = size.height, l: CGFloat = 8, t: CGFloat = 3
-            var p = Path()
-            p.move(to: .init(x: t / 2, y: l)); p.addLine(to: .init(x: t / 2, y: t / 2)); p.addLine(to: .init(x: l, y: t / 2))
-            p.move(to: .init(x: w - l, y: t / 2)); p.addLine(to: .init(x: w - t / 2, y: t / 2)); p.addLine(to: .init(x: w - t / 2, y: l))
-            p.move(to: .init(x: t / 2, y: h - l)); p.addLine(to: .init(x: t / 2, y: h - t / 2)); p.addLine(to: .init(x: l, y: h - t / 2))
-            p.move(to: .init(x: w - l, y: h - t / 2)); p.addLine(to: .init(x: w - t / 2, y: h - t / 2)); p.addLine(to: .init(x: w - t / 2, y: h - l))
-            ctx.stroke(p, with: .foreground, style: StrokeStyle(lineWidth: t, lineCap: .butt, lineJoin: .miter))
-            ctx.fill(Path(CGRect(x: 5, y: h / 2 - 1, width: w - 10, height: 2)), with: .foreground)
+/// Liquid Glass where available; otherwise a thin blurred material with a hairline edge and soft shadow.
+private struct GlassIsland: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Capsule())
+                .environment(\.colorScheme, .dark)
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
+                .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
         }
     }
 }
@@ -168,7 +164,7 @@ struct ScanGlyph: View {
 private struct TabButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

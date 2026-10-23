@@ -20,7 +20,7 @@ struct ContentView: View {
                     secondaryView(secondary)
                 } else {
                     switch tab {
-                    case .home: DashboardView(onSearch: { open(search: true) }, onRaw: { secondary = .raw })
+                    case .home: DashboardView(onSearch: { open(search: true) }, onRaw: { secondary = .raw }, onSun: { secondary = .sun })
                     case .map: PlacesMapView()
                     case .scan: CameraView()
                     case .data: MicronutrientsView()

@@ -43,6 +43,7 @@
 		6521971AF2F5022BF63A0E8B /* SunService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A1A1EEE304EF9FF344B5FE /* SunService.swift */; };
 		6AA6BAFAB72F1F3AB70A3D46 /* DailyHydration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1082D74B25302B2EC64C638 /* DailyHydration.swift */; };
 		7172BD5119E72912B6906701 /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73FD0E9574B0DCE39E45EB /* InsightsEngine.swift */; };
+		7217318470105783FD5BAFA2 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D399FAF59DB0AC5783943253 /* WeatherService.swift */; };
 		731AB24A35D0BC8DB7B9C0A7 /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */; };
 		7357FD61549764B2B09A73D5 /* SocialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1AD6AC640EBE79C71B38BA /* SocialService.swift */; };
 		750F6508177D60A155055D46 /* MealLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E907E2F0A8AA847C698087 /* MealLogger.swift */; };
@@ -90,7 +91,7 @@
 		11684C00CECA16B864847336 /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
 		11F14C826925E51C37844523 /* AppleSignInManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInManager.swift; sourceTree = "<group>"; };
 		123F064BE32FA91341C2A063 /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
-		1571293BD926D8C15F4A1D30 /* NutriCore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NutriCore.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1571293BD926D8C15F4A1D30 /* NutriCore.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NutriCore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CB7B90EC7E178C37D61339A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1E1EF83A53A31EA88A5B4107 /* NutriCoreApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutriCoreApp.swift; sourceTree = "<group>"; };
 		251F0BEBCB947BC76AB847EC /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
@@ -141,6 +142,7 @@
 		CC73FD0E9574B0DCE39E45EB /* InsightsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsEngine.swift; sourceTree = "<group>"; };
 		CE1AD6AC640EBE79C71B38BA /* SocialService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialService.swift; sourceTree = "<group>"; };
 		D380AF063C89978A24EDF04F /* RiskEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RiskEngine.swift; sourceTree = "<group>"; };
+		D399FAF59DB0AC5783943253 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
 		D7C1E509D1AC6621CA603E0A /* BatchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchViews.swift; sourceTree = "<group>"; };
 		D91C5E310CB05D3319FE282A /* RawTaxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawTaxonomy.swift; sourceTree = "<group>"; };
 		D9A77EBAD8D87738E365240C /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
@@ -352,6 +354,7 @@
 				F2E907E2F0A8AA847C698087 /* MealLogger.swift */,
 				CE1AD6AC640EBE79C71B38BA /* SocialService.swift */,
 				0DF698CFC82E7D0B43E582D3 /* USDAService.swift */,
+				D399FAF59DB0AC5783943253 /* WeatherService.swift */,
 				690AFBB77643A07ECB4C790C /* Raw */,
 			);
 			path = Services;
@@ -559,6 +562,7 @@
 				466ADD84F0F08A774914349C /* SunView.swift in Sources */,
 				917D2FCC77102B58DBEE0C39 /* USDAService.swift in Sources */,
 				25260171DFF845CA05C8ACE7 /* UserProfile.swift in Sources */,
+				7217318470105783FD5BAFA2 /* WeatherService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -635,7 +639,6 @@
 				CODE_SIGN_ENTITLEMENTS = NutriCore/NutriCore.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = H5KUB3S9FY;
 				INFOPLIST_FILE = NutriCore/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -712,7 +715,6 @@
 				CODE_SIGN_ENTITLEMENTS = NutriCore/NutriCore.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = H5KUB3S9FY;
 				INFOPLIST_FILE = NutriCore/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

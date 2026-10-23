@@ -12,11 +12,13 @@ struct DashboardView: View {
 
     var onSearch: () -> Void = {}
     var onRaw: () -> Void = {}
+    var onSun: () -> Void = {}
     @State private var showRawLog = false
 
-    init(onSearch: @escaping () -> Void = {}, onRaw: @escaping () -> Void = {}) {
+    init(onSearch: @escaping () -> Void = {}, onRaw: @escaping () -> Void = {}, onSun: @escaping () -> Void = {}) {
         self.onSearch = onSearch
         self.onRaw = onRaw
+        self.onSun = onSun
         // Rows back to the start of the month (eating cycle) or the week, whichever is earlier; at least 7 days for
         // the raw snapshot. "Today" is filtered in memory so the view survives midnight.
         let cal = Calendar.current, today = cal.startOfDay(for: .now)
@@ -57,7 +59,7 @@ struct DashboardView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        HomeHeader(onSearch: onSearch)
+                        HomeHeader(onSearch: onSearch, onWeather: onSun)
                             .padding(.horizontal, Space.margin)
                             .padding(.top, 12)
 
@@ -127,18 +129,93 @@ struct DashboardView: View {
 // MARK: - Header
 private struct HomeHeader: View {
     let onSearch: () -> Void
+    let onWeather: () -> Void
     private var dateText: String {
         let f = DateFormatter(); f.dateFormat = "EEE, MMM d"; return f.string(from: Date()).uppercased()
     }
     var body: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Today").monoLabel()
-                Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
+        // Date and buttons on one row when they fit; buttons drop below the date at large text sizes.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .bottom) {
+                date
+                Spacer()
+                actions
             }
-            Spacer()
-            Button("Search", action: onSearch).buttonStyle(.glass)
+            VStack(alignment: .leading, spacing: 12) {
+                date
+                actions
+            }
         }
+    }
+    private var date: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Today").monoLabel()
+            Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
+                .lineLimit(1).fixedSize()
+        }
+    }
+    private var actions: some View {
+        HStack(spacing: 8) {
+            WeatherChip(onOpen: onWeather)
+            Button("Search", action: onSearch).buttonStyle(.glass).fixedSize()
+        }
+    }
+}
+
+/// Current conditions as an SF Symbol and temperature, in the same clear glass as Search. Tapping opens the
+/// Sun screen. Location is only requested when the user taps the chip, never on launch.
+private struct WeatherChip: View {
+    let onOpen: () -> Void
+    @StateObject private var location = LocationManager(continuous: false)
+    @ObservedObject private var weather = WeatherService.shared
+
+    private var authorized: Bool {
+        location.authorizationStatus == .authorizedWhenInUse || location.authorizationStatus == .authorizedAlways
+    }
+
+    var body: some View {
+        Group {
+            if authorized, let now = weather.current {
+                Button(action: onOpen) {
+                    HStack(spacing: 7) {
+                        Image(systemName: now.symbol)
+                            .font(.system(size: 16, weight: .regular))
+                            .symbolRenderingMode(.hierarchical)
+                            .contentTransition(.symbolEffect(.replace))
+                        Text(now.temperature)
+                    }
+                }
+                .accessibilityLabel("Weather: \(now.summary), \(now.temperature)")
+                .accessibilityHint("Opens Sun")
+            } else if authorized {
+                // Loading. Always draw something: the fetch below is attached to this view, and SwiftUI
+                // doesn't run tasks on an empty one.
+                Button(action: onOpen) {
+                    HStack(spacing: 7) {
+                        Image(systemName: "cloud").font(.system(size: 16, weight: .regular))
+                        Text("--°")
+                    }
+                    .opacity(0.5)
+                }
+                .accessibilityLabel("Weather loading")
+            } else if location.authorizationStatus == .notDetermined {
+                Button { location.requestPermission() } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "cloud.sun").font(.system(size: 16, weight: .regular))
+                        Text("Weather")
+                    }
+                }
+                .accessibilityHint("Asks for your location to show local weather")
+            }
+            // Denied or restricted: no chip.
+        }
+        .buttonStyle(.glass)
+        .fixedSize()
+        .task(id: location.location?.coordinate.latitude) {
+            if let loc = location.location { await weather.refresh(location: loc) }
+        }
+        // A fresh coarse fix each time Home appears; WeatherService skips the network if nothing changed.
+        .onAppear { if authorized { location.requestOnce() } }
     }
 }
 

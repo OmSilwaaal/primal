@@ -59,6 +59,7 @@ struct ProfileView: View {
                                     .font(.system(size: 15)).foregroundColor(.ncPrimary)
                                 NavigationLink(destination: ProfileSetupView()) { Text("Set up profile") }.buttonStyle(.vitalis)
                                 more
+                                accountButton
                             }
                             .padding(.horizontal, Space.margin)
                             .padding(.top, 12)
@@ -165,13 +166,18 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Button("Edit profile") { startEditing(profile) }.buttonStyle(.vitalis)
                 more.padding(.top, 16)
-                Button(authManager.isGuest ? "Log in or sign up" : "Sign out") { Task { await authManager.signOut() } }
-                    .buttonStyle(TextButtonStyle(height: 48))
-                    .frame(maxWidth: .infinity)
+                accountButton
             }
             .padding(.horizontal, Space.margin)
             .padding(.top, 24)
         }
+    }
+
+    /// Signs out, or for a guest, returns to the login screen.
+    private var accountButton: some View {
+        Button(authManager.isGuest ? "Log in or sign up" : "Sign out") { Task { await authManager.signOut() } }
+            .buttonStyle(TextButtonStyle(height: 48))
+            .frame(maxWidth: .infinity)
     }
 
     /// Screens that moved out of the tab bar.

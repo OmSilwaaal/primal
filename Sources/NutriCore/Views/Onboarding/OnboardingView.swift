@@ -22,11 +22,15 @@ struct OnboardingView: View {
             VStack {
                 HStack {
                     Spacer()
-                    Button("Skip") { authManager.continueAsGuest() }
-                        .font(.system(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
-                        .padding(.horizontal, 20)
-                        .frame(minHeight: 44)
-                        .accessibilityHint("Use Vitalis without an account")
+                    // Padding goes inside the label so the whole 44 pt area is tappable, not just the word.
+                    Button { authManager.continueAsGuest() } label: {
+                        Text("Skip")
+                            .font(.system(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
+                            .padding(.horizontal, 20)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityHint("Use Vitalis without an account")
                 }
                 Spacer()
             }

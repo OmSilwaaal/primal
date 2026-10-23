@@ -97,7 +97,7 @@ struct DashboardView: View {
                             }
 
                             RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: { pushed = .raw },
-                                               onLogRaw: { showRawLog = true }, onSearch: onSearch)
+                                               onLogRaw: { showRawLog = true })
                         }
                         .padding(.horizontal, Space.margin)
                         .padding(.top, 20)
@@ -155,7 +155,6 @@ private struct HomeHeader: View {
     }
     private var date: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Today").monoLabel()
             Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
                 .lineLimit(1).fixedSize()
         }
@@ -282,12 +281,8 @@ private struct CycleSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Eating cycle").monoLabel()
-                Spacer()
-                (Text("DAY \(cycle.day) ") + Text("OF \(cycle.length)").foregroundColor(.ncSecondary))
-                    .font(.mono(12, .semibold)).tracking(0.96).foregroundColor(.ncPrimary)
-            }
+            (Text("DAY \(cycle.day) ") + Text("OF \(cycle.length)").foregroundColor(.ncSecondary))
+                .font(.mono(12, .semibold)).tracking(0.96).foregroundColor(.ncPrimary)
             HStack(alignment: .bottom, spacing: 3) {
                 ForEach(Array(cycle.ticks.enumerated()), id: \.offset) { _, mark in
                     Capsule().fill(tickColor(mark))
@@ -322,11 +317,6 @@ private struct CycleSection: View {
             // Seven fixed columns can't grow with the text, so the row stops at the largest standard size.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
-            // One line when it fits; stacked at large text sizes.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 14) { legendItems }
-                VStack(alignment: .leading, spacing: 6) { legendItems }
-            }
         }
     }
 
@@ -346,18 +336,6 @@ private struct CycleSection: View {
         case .upcoming, .empty: .ncPrimary.opacity(0.25)
         }
     }
-    @ViewBuilder private var legendItems: some View {
-        legend(.ncMoss, "On target")
-        legend(.ncEmber, "Under / over")
-        legend(.ncPrimary.opacity(0.25), "Upcoming")
-    }
-    private func legend(_ color: Color, _ text: String) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(text.uppercased()).font(.mono(11)).tracking(0.8).foregroundColor(.ncSecondary)
-                .lineLimit(1).fixedSize()
-        }
-    }
     private func markDescription(_ m: EatingCycle.Mark) -> String {
         switch m {
         case .onTarget: "on target"
@@ -374,7 +352,6 @@ private struct CalorieRing: View {
     let total: Double
     let goal: Double
     private var progress: Double { goal > 0 ? total / goal : 0 }
-    private var pct: Int { Int((min(progress, 1) * 100).rounded()) }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -396,11 +373,8 @@ private struct CalorieRing: View {
             .frame(width: 240, height: 240)
             .accessibilityElement(children: .combine)
 
-            HStack(spacing: 24) {
-                Text("\(pct)% OF GOAL").foregroundColor(.ncPrimary)
-                Text("\(Int(max(0, goal - total)).formatted()) KCAL LEFT").foregroundColor(.ncSecondary)
-            }
-            .font(.mono(13)).tracking(1.04)
+            Text("\(Int(max(0, goal - total)).formatted()) KCAL LEFT")
+                .font(.mono(13)).tracking(1.04).foregroundColor(.ncSecondary)
         }
     }
 }
@@ -409,7 +383,6 @@ private struct MacroGrid: View {
     let items: [(String, Double, Double)]
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Macros").monoLabel().padding(.horizontal, Space.margin)
             HStack(alignment: .top, spacing: 0) {
                 ForEach(items, id: \.0) { label, cur, goal in
                     let p = goal > 0 ? cur / goal : 0
@@ -421,7 +394,6 @@ private struct MacroGrid: View {
                             Text("/\(Int(goal.rounded()).formatted()) G").font(.mono(11)).foregroundColor(.ncSecondary)
                         }
                         LineGauge(value: p, height: 4).padding(.top, 4)
-                        Text("\(Int((min(p, 1) * 100).rounded()))%").font(.mono(11)).foregroundColor(.ncSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 20).padding(.trailing, 14)
@@ -442,7 +414,7 @@ private struct HydrationSection: View {
     private var salt: Double { hydration.addedSodiumMg / 1000.0 }
 
     var body: some View {
-        RawCard(title: "Water & salt", trailing: "\(Int(min(liters / 3.5, 1) * 100))% of water", index: nil) {
+        RawCard {
             HStack(alignment: .top, spacing: 0) {
                 column(label: "Water", value: String(format: "%.1f", liters), unit: "L", target: "of 3.5 L",
                        progress: liters / 3.5, button: "+ 250 ml", action: onAddWater)
@@ -477,13 +449,12 @@ struct RawSnapshotSection: View {
     let weekMeals: [MealEntry]
     let onOpen: () -> Void
     let onLogRaw: () -> Void
-    let onSearch: () -> Void
 
     var body: some View {
         let rating = DietRater.rate(meals: weekMeals, days: 7)
         let budget = NutrientAnalyzer.liverBudget(weekMeals)
         let fat = NutrientAnalyzer.fatCaloriePct(meals)
-        RawCard(title: "Raw & carnivore", trailing: "7 days", index: nil) {
+        RawCard(title: "Raw & carnivore") {
             VStack(alignment: .leading, spacing: 24) {
                 Button(action: onOpen) {
                     HStack(alignment: .firstTextBaseline) {
@@ -500,10 +471,7 @@ struct RawSnapshotSection: View {
                     .init(label: "Vitamin A", value: "\(Int(budget.vitaminAPct * 100))%"),
                     .init(label: "Raw", value: "\(Int(rating.rawPct))%"),
                 ])
-                HStack(spacing: 10) {
-                    Button(action: onLogRaw) { Label("Log raw", systemImage: "plus") }.buttonStyle(.vitalis)
-                    Button(action: onSearch) { Label("Search", systemImage: "magnifyingglass") }.buttonStyle(SecondaryButtonStyle(height: 54))
-                }
+                Button(action: onLogRaw) { Label("Log raw", systemImage: "plus") }.buttonStyle(.vitalis)
             }
         }
     }
@@ -519,21 +487,16 @@ struct MealsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
+            // With nothing logged there's no list to title; the Log food button below says what to do.
+            if !meals.isEmpty {
                 Text("Meals · \(meals.count)").monoLabel()
-                Spacer()
-                Button("+ Add food", action: onAdd).buttonStyle(TextButtonStyle(color: .ncPrimary))
+                    .padding(.horizontal, Space.margin)
+                    .frame(minHeight: 44, alignment: .bottom)
             }
-            .padding(.horizontal, Space.margin)
 
             VStack(spacing: 0) {
-                Rule()
-                if meals.isEmpty {
-                    Text("Nothing logged yet today. Search, scan a barcode or photograph a meal to start.")
-                        .font(.ui(size: 15)).foregroundColor(.ncSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 28)
-                } else {
+                if !meals.isEmpty {
+                    Rule()
                     ForEach(meals.reversed()) { meal in
                         MealRow(meal: meal) { pendingDelete = meal }
                             .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))

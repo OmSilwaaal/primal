@@ -68,7 +68,6 @@ struct DietRaterView: View {
                 Text("Foods tagged with a species count as meat, fish, organs or fat; untagged foods are matched by name. Raw, thawed and aged count fully raw, seared 75%, rare 50%, cooked 0%. Calories are weighted by what you log, so unlogged meals aren't counted.")
                     .font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
-            Disclaimer()
         }
     }
 

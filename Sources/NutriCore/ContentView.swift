@@ -43,7 +43,7 @@ struct ContentView: View {
         ZStack(alignment: .bottom) {
             Group {
                 switch tab {
-                case .home: DashboardView(onSearch: { showSearch = true })
+                case .home: DashboardView(onSearch: { showSearch = true }, onOpenData: { select(.data) })
                 case .map: PlacesMapView()
                 case .scan: CameraView()
                 case .data: MicronutrientsView()

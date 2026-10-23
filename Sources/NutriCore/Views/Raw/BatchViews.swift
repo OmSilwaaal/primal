@@ -56,19 +56,33 @@ struct BatchEditView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     RawField(title: "Name", text: $label)
                     FlowLayout(spacing: 8) {
-                        ForEach(RawSpecies.allCases) { s in Chip(label: s.label, selected: s == species) { species = s } }
+                        ForEach(RawSpecies.allCases) { s in Chip(label: s.label, selected: s == species) { selectSpecies(s) } }
                     }
-                    FlowLayout(spacing: 8) {
-                        ForEach(CutCategory.allCases) { c in Chip(label: c.label, selected: c == category) { category = c } }
+                    if species.categories.count > 1 {
+                        FlowLayout(spacing: 8) {
+                            ForEach(species.categories) { c in
+                                Chip(label: c.label, selected: c == category) { withAnimation(.smooth(duration: 0.3)) { category = c } }
+                                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
+                        }
                     }
                     if category == .organ {
                         FlowLayout(spacing: 8) {
-                            ForEach(Organ.allCases) { o in Chip(label: o.label, selected: o == organ) { organ = o } }
+                            ForEach(species.organs) { o in
+                                Chip(label: o.label, selected: o == organ) { organ = o }
+                                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
                         }
                     }
-                    Toggle(isOn: $ground) { Text("Ground / minced").font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary) }.tint(.ncIndigo)
+                    if species.canBeGround {
+                        Toggle(isOn: $ground) { Text("Ground / minced").font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary) }.tint(.ncIndigo)
+                            .transition(.opacity)
+                    }
                     FlowLayout(spacing: 8) {
-                        ForEach(Rearing.allCases) { r in Chip(label: r.label, selected: r == rearing) { rearing = r } }
+                        ForEach(species.rearings) { r in
+                            Chip(label: r.label, selected: r == rearing) { rearing = r }
+                                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
                     }
                 }
             }
@@ -133,10 +147,20 @@ struct BatchEditView: View {
                 Button("Delete batch") { context.delete(batch); try? context.save(); dismiss() }
                     .buttonStyle(.vitalisSecondary).foregroundColor(.ncError)
             }
-            Disclaimer()
         }
         .toolbar { ToolbarItem(placement: .topBarLeading) { if batch == nil { Button("Cancel") { dismiss() } } } }
         .onAppear(perform: load)
+    }
+
+    /// Switches species and drops any choice that doesn't exist for it (see RawSpecies rules).
+    private func selectSpecies(_ s: RawSpecies) {
+        withAnimation(.smooth(duration: 0.3)) {
+            species = s
+            if !s.categories.contains(category) { category = .muscle }
+            if !s.organs.contains(organ), let first = s.organs.first { organ = first }
+            if !s.rearings.contains(rearing) { rearing = .unknown }
+            if !s.canBeGround { ground = false }
+        }
     }
 
     private func load() {
@@ -258,7 +282,6 @@ struct SafetyView: View {
                 }
             }
 
-            Disclaimer()
         }
         .sheet(isPresented: $showNew) { NavigationStack { BatchEditView(batch: nil) } }
         .task { await recalls.refreshFSIS() }

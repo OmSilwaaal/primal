@@ -53,7 +53,6 @@ struct BiomarkersView: View {
                     }
                 }
             }
-            Disclaimer(text: "Reference ranges are typical lab-report intervals shown for context, not a diagnosis. Discuss results with a clinician.")
         }
         .sheet(isPresented: $showAdd) { NavigationStack { AddReadingView(kind: nil) } }
         .sheet(item: $shareURL) { ShareSheet(items: [$0]) }

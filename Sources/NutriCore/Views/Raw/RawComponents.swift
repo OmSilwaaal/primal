@@ -58,18 +58,6 @@ struct Tag: View {
     }
 }
 
-struct Disclaimer: View {
-    var text = "Risk information only — nothing here clears food as safe or replaces medical advice. Reference values are general RDA/UL figures, not personalised."
-    var body: some View {
-        Text(text)
-            .font(.serif(13)).italic()
-            .foregroundColor(.ncSecondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .lineSpacing(3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 /// Progress bar (thin). `band` and `value` are 0…1 fractions of the track.
 struct BandGauge: View {
     let value: Double
@@ -252,5 +240,4 @@ enum RawSettings {
     static let fatMaxKey = "fatPctMax"
     static let startKey = "dietStartDate"
     static let sunGoalKey = "sunGoalMinutes"
-    static let disclaimerKey = "rawDisclaimerAccepted"
 }

@@ -26,6 +26,7 @@ struct RootView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage(AuthManager.guestDismissedPaywallKey) private var guestDismissedPaywall = false
     @StateObject private var subManager = SubscriptionManager.shared
+    @State private var legalAccepted = LegalAcceptance.isCurrent
 
     // ── DEV BYPASS ──────────────────────────────────────────────────────────
     // Set this to `true` to skip login & onboarding during development.
@@ -50,6 +51,9 @@ struct RootView: View {
     private var content: some View {
         if DEV_BYPASS_AUTH {
             ContentView()
+        } else if (authManager.isAuthenticated || authManager.isGuest) && !legalAccepted {
+            // Nothing past the login screen is usable until the current policies are accepted.
+            LegalConsentView { withAnimation(.smooth) { legalAccepted = true } }
         } else if authManager.isGuest {
             // Guests skip profile setup (it stays available from the Profile tab). They see the paywall once,
             // since an App Store subscription doesn't need an account, and can dismiss it with "Not now".

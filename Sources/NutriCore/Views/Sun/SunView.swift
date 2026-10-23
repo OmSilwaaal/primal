@@ -55,7 +55,6 @@ struct SunView: View {
                         weekCard
                         effectCard
                         learnCard
-                        Disclaimer(text: "General information, not medical advice. UV exposure raises skin-cancer risk; avoid burning and follow your clinician's guidance on sun exposure.")
                         Spacer().frame(height: 100)
                     }
                     .padding(.horizontal, 20)

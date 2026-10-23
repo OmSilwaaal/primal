@@ -2,7 +2,7 @@
 
 Effective date: October 20, 2026
 
-This policy explains what information Vitalis (the "App") collects, how it is used, who it is shared with, and the choices you have. The App is operated by [LLC LEGAL NAME], a [STATE] limited liability company ("we", "us"). Contact us at [CONTACT EMAIL].
+This policy explains what information Vitalis (the "App") collects, how it is used, who it is shared with, and the choices you have. The App is operated by Vitalis LLC, a [STATE] limited liability company ("we", "us"). Contact us at [CONTACT EMAIL].
 
 ## Summary
 
@@ -89,6 +89,6 @@ We may update this policy. If we make material changes, we will notify you in th
 
 ## Contact
 
-[LLC LEGAL NAME]
+Vitalis LLC
 [BUSINESS ADDRESS]
 [CONTACT EMAIL]

@@ -21,6 +21,8 @@ final class MealEntry {
     var saturatedFat: Double = 0
     var cholesterol: Double = 0
     var sodium: Double = 0
+    /// Water in the portion, in grams (≈ ml). From USDA when known; otherwise estimated (see FoodWater).
+    var water: Double = 0
 
     // ── Vitamins ─────────────────────────────────────────────────────────────
     var vitaminA: Double = 0      // mcg RAE
@@ -102,6 +104,7 @@ final class MealEntry {
         saturatedFat = result.nutrient(1258) * f
         cholesterol = result.nutrient(1253) * f
         sodium = result.nutrient(1093) * f
+        water = result.nutrient(1051) * f
 
         vitaminA = result.nutrient(1106) * f
         vitaminC = result.nutrient(1162) * f

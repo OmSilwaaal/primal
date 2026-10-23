@@ -2,13 +2,15 @@
 
 Effective date: October 20, 2026
 
-These Terms of Service ("Terms") are an agreement between you and [LLC LEGAL NAME], a [STATE] limited liability company ("we", "us"), for your use of the Vitalis app (the "App"). By creating an account, continuing as a guest, or otherwise using the App, you agree to these Terms and to our Privacy Policy. If you do not agree, do not use the App.
+These Terms of Service ("Terms") are an agreement between you and Vitalis LLC, a [STATE] limited liability company ("we", "us"), for your use of the Vitalis app (the "App"). Before you can use the App you must tap "I agree", which confirms that you accept these Terms, our Privacy Policy and our Health & Safety Policy (together, the "Policies"); the Health & Safety Policy and Privacy Policy are incorporated into these Terms by reference. Continuing to use the App also means you accept them. If you do not agree, do not use the App.
 
 ## Eligibility
 
 You must be at least 13 years old (or 16 where a higher age applies) to use the App, and if you are under the age of majority where you live, a parent or guardian must agree to these Terms. You are responsible for keeping your login credentials secure and for activity under your account.
 
 ## Not medical advice
+
+Vitalis LLC and its staff are not doctors, dietitians or other licensed health professionals, and the App does not create any professional relationship. Our Health & Safety Policy explains this in full and forms part of these Terms.
 
 The App provides general nutrition information and estimates for educational purposes only. It is not medical, dietary or health advice, and it does not diagnose, treat, cure or prevent any condition. Calorie and nutrient targets, food recognition results, nutrient data and other information may be incomplete or inaccurate. Always consult a qualified healthcare professional before changing your diet, especially if you are pregnant or breastfeeding, have a medical condition, or take medication. Never ignore professional advice or delay seeking it because of something in the App. If you think you have a medical emergency, call your local emergency number.
 
@@ -91,6 +93,6 @@ We may update these Terms. If we make material changes, we will notify you in th
 
 ## Contact
 
-[LLC LEGAL NAME]
+Vitalis LLC
 [BUSINESS ADDRESS]
 [CONTACT EMAIL]

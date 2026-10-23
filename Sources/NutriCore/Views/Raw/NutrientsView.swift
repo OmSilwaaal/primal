@@ -90,7 +90,6 @@ struct NutrientsView: View {
                 NavRow(icon: "calendar", title: "Organ rotation", detail: "Gaps, weekly caps and what's due")
             }.buttonStyle(.plain)
 
-            Disclaimer(text: "Targets are general RDA/UL reference values, not personalised medical advice. Purine and heme iron are estimates. Talk to a clinician about your own limits.")
         }
     }
 
@@ -200,7 +199,6 @@ struct OrganRotationView: View {
                     }
                 }
             }
-            Disclaimer(text: "Caps and gaps are general starting points (liver is also limited by the vitamin A and copper budget), not medical advice.")
         }
     }
 }

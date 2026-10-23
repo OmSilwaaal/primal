@@ -24,6 +24,7 @@ struct NutriCoreApp: App {
 struct RootView: View {
     @StateObject private var authManager = AuthManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage(AuthManager.guestDismissedPaywallKey) private var guestDismissedPaywall = false
     @StateObject private var subManager = SubscriptionManager.shared
 
     // ── DEV BYPASS ──────────────────────────────────────────────────────────
@@ -50,9 +51,13 @@ struct RootView: View {
         if DEV_BYPASS_AUTH {
             ContentView()
         } else if authManager.isGuest {
-            // Skip goes straight in: no setup, and no paywall since guests can't subscribe without an account.
-            // Profile setup stays available from the Profile tab.
-            ContentView()
+            // Guests skip profile setup (it stays available from the Profile tab). They see the paywall once,
+            // since an App Store subscription doesn't need an account, and can dismiss it with "Not now".
+            if subManager.isSubscribed || guestDismissedPaywall {
+                ContentView()
+            } else {
+                PaywallView(onNotNow: { guestDismissedPaywall = true })
+            }
         } else if authManager.isAuthenticated {
             if hasCompletedOnboarding {
                 if subManager.isSubscribed {

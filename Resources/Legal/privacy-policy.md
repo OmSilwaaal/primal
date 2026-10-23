@@ -28,7 +28,7 @@ Meal logs, water and salt intake, raw-food batches and suppliers, biomarker read
 ### Information from your device
 
 - **Camera and photos:** when you scan food, the photo is sent to Google's Gemini service to estimate what the food is and its nutrition. We do not store the photo. Barcodes are looked up with Open Food Facts.
-- **Location:** with your permission, your precise location is used on your device to show nearby butchers and farms (map searches are handled by Apple Maps) and to calculate sun position (your coordinates are sent to Open-Meteo). We do not store your precise location on our servers.
+- **Location:** with your permission, your precise location is used on your device to show nearby butchers and farms (map searches are handled by Apple Maps) and to show local weather and calculate sun position (your coordinates are sent to Open-Meteo). We do not store your precise location on our servers.
 - **Apple Health:** with your permission, the App reads steps, active energy, time in daylight, body mass, body fat, waist circumference, blood pressure, resting heart rate, heart rate variability and blood glucose, and writes dietary energy, protein and water. Health data is used only to provide features in the App. It is not uploaded to our servers, not used for advertising or marketing, not sold, and not shared with third parties.
 
 ### Payment information

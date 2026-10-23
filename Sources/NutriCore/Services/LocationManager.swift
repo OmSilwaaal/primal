@@ -8,11 +8,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var location: CLLocation?
     @Published var authorizationStatus: CLAuthorizationStatus
     
-    override init() {
+    /// Continuous: keeps updating while authorized (map, sun). One-shot: a single coarse fix, enough for
+    /// weather, so the GPS isn't kept running while Home is on screen.
+    private let continuous: Bool
+
+    init(continuous: Bool = true) {
+        self.continuous = continuous
         self.authorizationStatus = manager.authorizationStatus
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.desiredAccuracy = continuous ? kCLLocationAccuracyBest : kCLLocationAccuracyKilometer
+    }
+
+    /// One coarse location fix (one-shot mode).
+    func requestOnce() {
+        manager.requestLocation()
     }
     
     func requestPermission() {
@@ -30,7 +40,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         self.authorizationStatus = manager.authorizationStatus
         if self.authorizationStatus == .authorizedWhenInUse || self.authorizationStatus == .authorizedAlways {
-            self.startUpdating()
+            if continuous { self.startUpdating() } else { manager.requestLocation() }
         }
     }
     

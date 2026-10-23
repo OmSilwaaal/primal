@@ -3,6 +3,7 @@ import SwiftData
 
 struct ProfileSetupView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     
     @State private var currentStep = 1
@@ -111,6 +112,8 @@ struct ProfileSetupView: View {
         withAnimation {
             hasCompletedOnboarding = true
         }
+        // Opened from the Profile tab (guests): go back to it. At the root this does nothing.
+        dismiss()
         
         Task {
             // Push to Supabase

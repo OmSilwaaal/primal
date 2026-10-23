@@ -51,10 +51,13 @@ struct RootView: View {
     private var content: some View {
         if DEV_BYPASS_AUTH {
             ContentView()
-        } else if authManager.isAuthenticated || authManager.isGuest {
+        } else if authManager.isGuest {
+            // Skip goes straight in: no setup, and no paywall since guests can't subscribe without an account.
+            // Profile setup stays available from the Profile tab.
+            ContentView()
+        } else if authManager.isAuthenticated {
             if hasCompletedOnboarding {
-                // Guests can't subscribe without an account, so they go straight in.
-                if subManager.isSubscribed || authManager.isGuest {
+                if subManager.isSubscribed {
                     ContentView()
                 } else {
                     PaywallView()

@@ -22,7 +22,7 @@ struct DietRaterView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text(r.tier.title).font(.serif(32)).foregroundColor(.ncPrimary)
                         .contentTransition(.opacity)
-                    Text(r.tier.blurb).font(.system(size: 15)).foregroundColor(.ncSecondary)
+                    Text(r.tier.blurb).font(.ui(size: 15)).foregroundColor(.ncSecondary)
                     SpectrumBar(position: r.position, active: r.tier != .insufficient).padding(.top, 8)
                 }
             }
@@ -41,16 +41,16 @@ struct DietRaterView: View {
                             .init(label: "Animal", value: "\(Int(r.animalPct))%"),
                             .init(label: "Plant", value: "\(Int(r.plantPct))%"),
                         ])
-                        Text("Avg \(Int(r.avgCarbsG)) g carbs on logged days").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        Text("Avg \(Int(r.avgCarbsG)) g carbs on logged days").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     }
                 }
 
                 RawCard(title: "Against your goal", trailing: mode.label, index: "03") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(comparison(r)).font(.system(size: 13)).foregroundColor(.ncPrimary)
+                        Text(comparison(r)).font(.ui(size: 13)).foregroundColor(.ncPrimary)
                         if r.avgCarbsG > mode.carbCap {
                             Text("Average carbs (\(Int(r.avgCarbsG)) g) are above the usual \(Int(mode.carbCap)) g/day for this mode.")
-                                .font(.system(size: 13)).foregroundColor(.ncOrange)
+                                .font(.ui(size: 13)).foregroundColor(.ncOrange)
                         }
                     }
                 }
@@ -58,7 +58,7 @@ struct DietRaterView: View {
                 if !r.steps.isEmpty {
                     RawCard(title: "What moves the needle", index: "04") {
                         VStack(alignment: .leading, spacing: 8) {
-                            ForEach(r.steps, id: \.self) { Text($0).font(.system(size: 15)).foregroundColor(.ncPrimary).lineSpacing(3) }
+                            ForEach(r.steps, id: \.self) { Text($0).font(.ui(size: 15)).foregroundColor(.ncPrimary).lineSpacing(3) }
                         }
                     }
                 }
@@ -66,7 +66,7 @@ struct DietRaterView: View {
 
             RawCard(title: "How it's worked out", index: "05") {
                 Text("Foods tagged with a species count as meat, fish, organs or fat; untagged foods are matched by name. Raw, thawed and aged count fully raw, seared 75%, rare 50%, cooked 0%. Calories are weighted by what you log, so unlogged meals aren't counted.")
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    .font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             Disclaimer()
         }
@@ -156,7 +156,7 @@ struct CompositionBar: View {
                 ForEach(segments.indices, id: \.self) { i in
                     HStack(spacing: 10) {
                         Rectangle().fill(segments[i].2).frame(width: 10, height: 10)
-                        Text(segments[i].0).font(.system(size: 14)).foregroundColor(.ncPrimary)
+                        Text(segments[i].0).font(.ui(size: 14)).foregroundColor(.ncPrimary)
                         Spacer()
                         Text("\(Int(segments[i].1))%").font(.metric(14)).foregroundColor(.ncSecondary)
                     }

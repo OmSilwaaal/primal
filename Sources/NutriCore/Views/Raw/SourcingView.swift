@@ -34,7 +34,7 @@ struct SourcingView: View {
             }
             RawCard(title: "Daily spend", trailing: "30 days", index: "01") {
                 if costed.isEmpty {
-                    Text("Costs appear when you log food from a batch that has a price per lb.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Costs appear when you log food from a batch that has a price per lb.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     Chart(spend30) { BarMark(x: .value("Day", $0.day, unit: .day), y: .value("Spend", $0.amount)).foregroundStyle(Color.ncPrimary) }
                         .frame(height: 140)
@@ -51,7 +51,7 @@ struct SourcingView: View {
                                 Spacer()
                                 HStack(spacing: 2) {
                                     ForEach(1...5, id: \.self) { n in
-                                        Image(systemName: n <= s.rating ? "star.fill" : "star").font(.system(size: 14))
+                                        Image(systemName: n <= s.rating ? "star.fill" : "star").font(.ui(size: 14))
                                             .foregroundColor(n <= s.rating ? .ncOrange : .ncOutline)
                                             .onTapGesture { Haptics.selection(); s.rating = (s.rating == n ? 0 : n); try? context.save() }
                                     }
@@ -59,7 +59,7 @@ struct SourcingView: View {
                             }
                             TextField("", text: Binding(get: { s.notes }, set: { s.notes = $0; try? context.save() }),
                                       prompt: Text("Add a note").italic().foregroundColor(.ncSecondary))
-                                .font(.system(size: 14)).foregroundColor(.ncPrimary)
+                                .font(.ui(size: 14)).foregroundColor(.ncPrimary)
                             let sb = batches.filter { $0.supplierName == s.name }
                             if !sb.isEmpty { Text("\(sb.count) purchase\(sb.count == 1 ? "" : "s")").serifCaps(10).foregroundColor(.ncSecondary) }
                         }
@@ -75,14 +75,14 @@ struct SourcingView: View {
                     ForEach(batches.prefix(15)) { b in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(b.label.isEmpty ? b.speciesEnum.label : b.label).font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
-                                Text(b.purchaseDate.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                Text(b.label.isEmpty ? b.speciesEnum.label : b.label).font(.ui(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
+                                Text(b.purchaseDate.formatted(date: .abbreviated, time: .omitted)).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
                                 if b.pricePerLb > 0 { Text(String(format: "$%.2f/lb", b.pricePerLb)).font(.metric(15)).foregroundColor(.ncPrimary) }
                                 if b.pricePerLb > 0 && b.totalWeightG > 0 {
-                                    Text(money(b.totalWeightG / 453.592 * b.pricePerLb)).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                                    Text(money(b.totalWeightG / 453.592 * b.pricePerLb)).font(.ui(size: 12)).foregroundColor(.ncSecondary)
                                 }
                             }
                         }
@@ -117,7 +117,7 @@ struct DietModeView: View {
                                 HStack(alignment: .top, spacing: 16) {
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(m.label).font(.serif(22)).foregroundColor(.ncPrimary)
-                                        Text(m.blurb).font(.system(size: 14)).foregroundColor(.ncSecondary)
+                                        Text(m.blurb).font(.ui(size: 14)).foregroundColor(.ncSecondary)
                                         Text("Fat \(Int(m.fatRange.lowerBound))–\(Int(m.fatRange.upperBound))% · carbs under ~\(Int(m.carbCap)) g")
                                             .serifCaps(10).foregroundColor(.ncSecondary)
                                     }
@@ -146,7 +146,7 @@ struct DietModeView: View {
                         DatePicker("Started", selection: Binding(get: { Date(timeIntervalSince1970: startInterval) }, set: { startInterval = $0.timeIntervalSince1970 }),
                                    in: ...Date(), displayedComponents: .date).foregroundColor(.ncPrimary)
                     }
-                    Text("Used for the adaptation tracker and the before/after line on lab charts.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Used for the adaptation tracker and the before/after line on lab charts.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
             Disclaimer(text: "Targets shift with your mode as general references. They are not personalised medical advice.")

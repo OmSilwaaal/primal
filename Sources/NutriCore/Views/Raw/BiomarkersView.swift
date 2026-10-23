@@ -29,7 +29,7 @@ struct BiomarkersView: View {
                     HStack { if importing { ProgressView().tint(.ncPrimary) }; Label("Health", systemImage: "heart.text.square") }
                 }.buttonStyle(.vitalisSecondary).frame(maxWidth: 130)
             }
-            if let importMsg { Text(importMsg).font(.system(size: 13)).foregroundColor(.ncSecondary) }
+            if let importMsg { Text(importMsg).font(.ui(size: 13)).foregroundColor(.ncSecondary) }
 
             ForEach(BiomarkerGroup.allCases) { g in
                 RawCard(title: g.label) {
@@ -44,7 +44,7 @@ struct BiomarkersView: View {
 
             RawCard(title: "Doctor export") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Labs and diet history in one file to share with your clinician.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Labs and diet history in one file to share with your clinician.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     HStack(spacing: 10) {
                         Button("CSV") { shareURL = ExportService.csv(readings: readings, meals: meals, dietStart: dietStart) }
                             .buttonStyle(.vitalisSecondary)
@@ -82,16 +82,16 @@ private struct BiomarkerRow: View {
     let latest: BiomarkerReading?
     var body: some View {
         HStack {
-            Text(kind.label).font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
+            Text(kind.label).font(.ui(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
             Spacer()
             if let latest {
                 let inRange = kind.reference?.contains(latest.value)
-                Text("\(fmt(latest.value)) \(kind.unit)").font(.system(size: 13, weight: .semibold).monospacedDigit())
+                Text("\(fmt(latest.value)) \(kind.unit)").font(.ui(size: 13, weight: .semibold).monospacedDigit())
                     .foregroundColor(inRange == false ? .ncOrange : .ncPrimary)
             } else {
                 Text("—").foregroundColor(.ncSecondary)
             }
-            Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
+            Image(systemName: "arrow.up.right").font(.ui(size: 11, weight: .medium)).foregroundColor(.ncSecondary)
         }
         .padding(.vertical, 15)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.1) }
@@ -120,7 +120,7 @@ struct AddReadingView: View {
                         }
                     } label: {
                         HStack { Text(kind?.label ?? "Choose…").foregroundColor(.ncPrimary); Spacer(); Image(systemName: "chevron.up.chevron.down").foregroundColor(.ncSecondary) }
-                            .padding(.horizontal, 12).frame(height: 44)
+                            .padding(.horizontal, 12).frame(minHeight: 44)
                             .background(Color.ncSurfaceContHigh, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                     }
                     RawField(title: "Value\(kind.map { " (\($0.unit))" } ?? "")", text: $value, keyboard: .decimalPad)
@@ -145,6 +145,7 @@ struct BiomarkerDetailView: View {
     @Query(sort: \BiomarkerReading.date) private var all: [BiomarkerReading]
     @AppStorage(RawSettings.startKey) private var startInterval = 0.0
     @State private var showAdd = false
+    @State private var pendingDelete: BiomarkerReading?
 
     private var rows: [BiomarkerReading] { all.filter { $0.kind == kind.rawValue } }
     private var start: Date? { startInterval > 0 ? Date(timeIntervalSince1970: startInterval) : nil }
@@ -153,7 +154,7 @@ struct BiomarkerDetailView: View {
         RawScreen(title: kind.label) {
             RawCard(title: "Trend", trailing: kind.unit) {
                 if rows.count < 2 {
-                    Text(rows.isEmpty ? "No readings yet." : "Add another reading to see a trend.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text(rows.isEmpty ? "No readings yet." : "Add another reading to see a trend.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                         .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
                 } else {
                     Chart {
@@ -166,7 +167,7 @@ struct BiomarkerDetailView: View {
                                 .foregroundStyle(Color.ncIndigo)
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                                 .annotation(position: .top, alignment: .leading) {
-                                    Text("Diet start").font(.system(size: 11, weight: .semibold)).foregroundColor(.ncIndigo)
+                                    Text("Diet start").font(.ui(size: 11, weight: .semibold)).foregroundColor(.ncIndigo)
                                 }
                         }
                         ForEach(rows) { r in
@@ -177,28 +178,49 @@ struct BiomarkerDetailView: View {
                     }
                     .chartYScale(domain: .automatic(includesZero: false))
                     .frame(height: 200)
-                    if start != nil { Text("Dashed line marks when you started this diet.").font(.system(size: 12)).foregroundColor(.ncSecondary) }
+                    if start != nil { Text("Dashed line marks when you started this diet.").font(.ui(size: 12)).foregroundColor(.ncSecondary) }
                 }
             }
             if let ref = kind.reference {
-                Text("Typical lab reference: \(fmt(ref.lowerBound))–\(fmt(ref.upperBound)) \(kind.unit)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                Text("Typical lab reference: \(fmt(ref.lowerBound))–\(fmt(ref.upperBound)) \(kind.unit)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             RawCard(title: "Readings") {
                 VStack(spacing: 8) {
                     ForEach(rows.reversed()) { r in
                         HStack {
-                            Text(r.date.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                            Text(r.date.formatted(date: .abbreviated, time: .omitted)).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                             if r.source == "health" { Tag(text: "Health") }
                             Spacer()
-                            Text("\(fmt(r.value)) \(kind.unit)").font(.system(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncPrimary)
-                            Button { context.delete(r); try? context.save() } label: { Image(systemName: "trash").font(.system(size: 13)).foregroundColor(.ncSecondary) }
+                            Text("\(fmt(r.value)) \(kind.unit)").font(.ui(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncPrimary)
+                            Button { pendingDelete = r } label: {
+                                Image(systemName: "trash").font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete \(kind.label) reading from \(r.date.formatted(date: .abbreviated, time: .omitted))")
                         }
                     }
-                    if rows.isEmpty { Text("Nothing logged.").font(.system(size: 13)).foregroundColor(.ncSecondary) }
+                    if rows.isEmpty { Text("Nothing logged.").font(.ui(size: 13)).foregroundColor(.ncSecondary) }
                 }
             }
             Button { showAdd = true } label: { Label("Add reading", systemImage: "plus") }.buttonStyle(.vitalis)
         }
         .sheet(isPresented: $showAdd) { NavigationStack { AddReadingView(kind: kind) } }
+        .confirmationDialog(
+            "Delete this reading?",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingDelete
+        ) { reading in
+            Button("Delete", role: .destructive) {
+                context.delete(reading)
+                try? context.save()
+                Haptics.success()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { reading in
+            Text("\(fmt(reading.value)) \(kind.unit) on \(reading.date.formatted(date: .abbreviated, time: .omitted)). This can't be undone.")
+        }
     }
 }

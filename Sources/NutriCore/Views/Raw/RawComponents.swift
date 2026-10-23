@@ -49,7 +49,7 @@ struct Tag: View {
     var color: Color = .ncSecondary
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold)).tracking(0.8).textCase(.uppercase)
+            .font(.ui(size: 11, weight: .semibold)).tracking(0.8).textCase(.uppercase)
             .foregroundColor(color)
             .padding(.horizontal, 8).padding(.vertical, 4)
             .overlay(Rectangle().stroke(color.opacity(0.45), lineWidth: 1))
@@ -89,11 +89,11 @@ struct Chip: View {
             withAnimation(.snappy(duration: 0.2)) { action() }
         } label: {
             HStack(spacing: 6) {
-                if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)) }
+                if let icon { Image(systemName: icon).font(.ui(size: 12, weight: .medium)) }
                 Text(label).font(.mono(11, .semibold)).tracking(0.9).textCase(.uppercase)
             }
             .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
-            .padding(.horizontal, 14).frame(height: 44)
+            .padding(.horizontal, 14).frame(minHeight: 44)
             .background(selected ? Color.ncPrimary : Color.clear)
             .overlay(Rectangle().strokeBorder(Color.ncPrimary.opacity(selected ? 0 : 0.3), lineWidth: 1))
             .contentShape(Rectangle())
@@ -157,8 +157,8 @@ struct RawField: View {
             TextField("", text: $text)
                 .keyboardType(keyboard)
                 .focused($focused)
-                .font(.system(size: 17)).foregroundColor(.ncPrimary)
-                .frame(height: 36)
+                .font(.ui(size: 17)).foregroundColor(.ncPrimary)
+                .frame(minHeight: 44)
             Rectangle().fill(Color.ncPrimary.opacity(focused ? 0.8 : 0.22)).frame(height: 1)
                 .animation(.easeOut(duration: 0.2), value: focused)
         }
@@ -174,7 +174,7 @@ struct ScalePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.system(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
+                Text(title).font(.ui(size: 16, weight: .medium)).foregroundColor(.ncPrimary)
                 Spacer()
                 Text(value == 0 ? "—" : "\(value)").font(.metric(18)).foregroundColor(.ncPrimary)
             }
@@ -186,9 +186,9 @@ struct ScalePicker: View {
                     } label: {
                         Rectangle()
                             .fill(n <= value ? Color.ncPrimary : Color.clear)
-                            .frame(height: 36)
+                            .frame(minHeight: 44)
                             .overlay(Rectangle().stroke(Color.ncPrimary.opacity(n <= value ? 0 : 0.24), lineWidth: 1))
-                            .overlay(Text("\(n)").font(.system(size: 13, weight: .semibold))
+                            .overlay(Text("\(n)").font(.ui(size: 13, weight: .semibold))
                                 .foregroundColor(n <= value ? .ncOnPrimary : .ncSecondary))
                     }
                     .buttonStyle(.plain)
@@ -196,7 +196,7 @@ struct ScalePicker: View {
                 }
             }
             HStack { Text(lowLabel); Spacer(); Text(highLabel) }
-                .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                .font(.ui(size: 12)).foregroundColor(.ncSecondary)
         }
     }
 }
@@ -216,16 +216,16 @@ struct NavRow: View {
                     Text(index).font(.mono(12)).foregroundColor(.ncSecondary)
                         .frame(width: 22, alignment: .leading)
                 } else {
-                    Image(systemName: icon).font(.system(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
+                    Image(systemName: icon).font(.ui(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
                         .frame(width: 22)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
-                    if let detail { Text(detail).font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
+                    Text(title).font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                    if let detail { Text(detail).font(.ui(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
                 }
                 Spacer(minLength: 8)
                 if let badge { Tag(text: badge, color: badgeColor) }
-                Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                Image(systemName: "arrow.up.right").font(.ui(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             }
             .frame(minHeight: 64)
             Hairline(opacity: 0.28)

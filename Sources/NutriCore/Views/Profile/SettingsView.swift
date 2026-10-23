@@ -36,10 +36,10 @@ struct SettingsView: View {
                                     AvatarView(url: profile.avatarUrl, name: profile.name, size: 52)
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(profile.name).font(.serif(20)).foregroundColor(.ncPrimary)
-                                        Text("@\(profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                        Text("@\(profile.username)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                                     }
                                     Spacer()
-                                    Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                                    Image(systemName: "arrow.up.right").font(.ui(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
                                 }
                                 .padding(.vertical, 16)
                             }
@@ -51,7 +51,7 @@ struct SettingsView: View {
                             showEmailAlert = true
                         }
                         if let emailMessage {
-                            Text(emailMessage).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                            Text(emailMessage).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                                 .padding(.bottom, 12)
                         }
                         SettingsDivider()
@@ -72,8 +72,8 @@ struct SettingsView: View {
                             HStack(spacing: 12) {
                                 SettingsIcon(name: "fork.knife")
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Who can see my meals").font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                                    Text("Calories and what you ate").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                    Text("Who can see my meals").font(.ui(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
+                                    Text("Calories and what you ate").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                                 }
                                 Spacer()
                                 Menu {
@@ -84,9 +84,9 @@ struct SettingsView: View {
                                 } label: {
                                     HStack(spacing: 4) {
                                         Text(profile.mealVisibility.title)
-                                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 11))
+                                        Image(systemName: "chevron.up.chevron.down").font(.ui(size: 11))
                                     }
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.ui(size: 14, weight: .medium))
                                     .foregroundColor(.ncSecondary)
                                 }
                             }
@@ -108,7 +108,7 @@ struct SettingsView: View {
                             showManageSubscriptions = true
                         }
                         if let error = subManager.errorMessage {
-                            Text(error).font(.system(size: 13)).foregroundColor(.ncError)
+                            Text(error).font(.ui(size: 13)).foregroundColor(.ncError)
                                 .padding(.bottom, 12)
                         }
                     }
@@ -143,13 +143,13 @@ struct SettingsView: View {
                             showDeleteConfirm = true
                         }
                         if let deleteError {
-                            Text(deleteError).font(.system(size: 13)).foregroundColor(.ncError)
+                            Text(deleteError).font(.ui(size: 13)).foregroundColor(.ncError)
                                 .padding(.bottom, 12)
                         }
                     }
 
                     Text("Vitalis · Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                         .padding(.bottom, 100)
                 }
                 .padding(.horizontal, 20)
@@ -245,7 +245,7 @@ struct SettingsSection<Content: View>: View {
             SectionLabel(title: title)
             VStack(spacing: 0) { content }
             if let footer {
-                Text(footer).font(.system(size: 13)).foregroundColor(.ncSecondary).lineSpacing(2).padding(.top, 8)
+                Text(footer).font(.ui(size: 13)).foregroundColor(.ncSecondary).lineSpacing(2).padding(.top, 8)
             }
         }
     }
@@ -260,7 +260,7 @@ private struct SettingsIcon: View {
     var destructive = false
     var body: some View {
         Image(systemName: name)
-            .font(.system(size: 16, weight: .regular))
+            .font(.ui(size: 16, weight: .regular))
             .foregroundColor(destructive ? .ncError : .ncPrimary)
             .frame(width: 24)
     }
@@ -277,12 +277,12 @@ private struct SettingsRowLabel: View {
         HStack(spacing: 16) {
             SettingsIcon(name: icon, destructive: destructive)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 17, weight: .medium)).foregroundColor(destructive ? .ncError : .ncPrimary)
-                if let subtitle { Text(subtitle).font(.system(size: 13)).foregroundColor(.ncSecondary) }
+                Text(title).font(.ui(size: 17, weight: .medium)).foregroundColor(destructive ? .ncError : .ncPrimary)
+                if let subtitle { Text(subtitle).font(.ui(size: 13)).foregroundColor(.ncSecondary) }
             }
             Spacer()
             if showsChevron {
-                Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                Image(systemName: "arrow.up.right").font(.ui(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
             }
         }
         .padding(.vertical, 16)
@@ -318,8 +318,8 @@ private struct SettingsToggleRow: View {
         HStack(spacing: 16) {
             SettingsIcon(name: icon)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
-                Text(subtitle).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                Text(title).font(.ui(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
+                Text(subtitle).font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             Toggle("", isOn: $isOn).labelsHidden().tint(.ncPrimary.opacity(0.85))

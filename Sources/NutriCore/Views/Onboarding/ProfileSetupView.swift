@@ -30,7 +30,7 @@ struct ProfileSetupView: View {
                         Text("Setup").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
                         Spacer()
                         Text(String(format: "%02d / %02d", currentStep, totalSteps))
-                            .font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                            .font(.ui(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
                     }
                     LineGauge(value: Double(currentStep) / Double(totalSteps), height: 2)
                 }
@@ -295,7 +295,7 @@ struct OptionList: View {
                 } label: {
                     VStack(spacing: 0) {
                         HStack(spacing: 16) {
-                            Text(String(format: "%02d", i + 1)).font(.system(size: 12, weight: .medium).monospacedDigit())
+                            Text(String(format: "%02d", i + 1)).font(.ui(size: 12, weight: .medium).monospacedDigit())
                                 .foregroundColor(.ncSecondary).frame(width: 22, alignment: .leading)
                             Text(option).font(.serif(22)).foregroundColor(.ncPrimary)
                             Spacer()

@@ -60,7 +60,7 @@ struct PaywallView: View {
                         .disabled(subManager.isWorking || subManager.products.isEmpty)
 
                         if let error = subManager.errorMessage {
-                            Text(error).font(.system(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
+                            Text(error).font(.ui(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
                         }
 
                         HStack(spacing: 28) {
@@ -81,7 +81,7 @@ struct PaywallView: View {
 
                         #if DEBUG
                         Button("DEBUG: skip paywall") { subManager.debugUnlock() }
-                            .font(.system(size: 12)).foregroundColor(.ncSecondary.opacity(0.6))
+                            .font(.ui(size: 12)).foregroundColor(.ncSecondary.opacity(0.6))
                         #endif
                     }
                     .frame(maxWidth: .infinity)
@@ -90,17 +90,21 @@ struct PaywallView: View {
                 .padding(.bottom, 32)
             }
         }
-        .overlay(alignment: .topTrailing) {
-            // Same place and style as Skip on the login screen, so guests can always see the way past it.
+        // Same place and style as Skip on the login screen, so guests can always see the way past it.
+        // A top inset rather than an overlay, so the paywall never slides underneath it at large text sizes.
+        .safeAreaInset(edge: .top, spacing: 0) {
             if let onNotNow {
-                Button(action: onNotNow) {
-                    Text("Not now")
-                        .font(.system(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
-                        .padding(.horizontal, 20)
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
+                HStack {
+                    Spacer()
+                    Button(action: onNotNow) {
+                        Text("Not now")
+                            .font(.ui(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
+                            .padding(.horizontal, 20)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(subManager.isWorking)
                 }
-                .disabled(subManager.isWorking)
             }
         }
         .task { if subManager.products.isEmpty { await subManager.loadProducts() } }
@@ -128,7 +132,7 @@ private struct PlanRow: View {
                             Text(plan.title).font(.serif(21)).foregroundColor(.ncPrimary)
                             if let savings { Tag(text: "Save \(savings)%", color: .ncPrimary) }
                         }
-                        Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        Text(detail).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     }
                     Spacer()
                     if price.isEmpty {

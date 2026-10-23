@@ -40,7 +40,7 @@ struct EditProfileView: View {
                     }
 
                     if let message {
-                        Text(message).font(.system(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
+                        Text(message).font(.ui(size: 13)).foregroundColor(.ncError).multilineTextAlignment(.center)
                     }
 
                     Button {
@@ -72,7 +72,7 @@ struct EditProfileView: View {
                 }
                 if social.myProfile?.avatarUrl != nil {
                     Button("Remove") { Task { await social.removeAvatar() } }
-                        .font(.system(size: 14, weight: .medium)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 14, weight: .medium)).foregroundColor(.ncSecondary)
                 }
             }
             Spacer()
@@ -125,13 +125,13 @@ private struct FieldRow<Content: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             FieldLabel(text: label)
             content
-                .font(.system(size: 17))
+                .font(.ui(size: 17))
                 .foregroundColor(.ncPrimary)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .bottom) { Hairline(opacity: 0.22) }
             if let footer {
-                Text(footer).font(.system(size: 12)).foregroundColor(.ncSecondary).frame(maxWidth: .infinity, alignment: .trailing)
+                Text(footer).font(.ui(size: 12)).foregroundColor(.ncSecondary).frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }

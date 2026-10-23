@@ -56,7 +56,7 @@ struct FriendsView: View {
                             }
 
                             if let error = social.errorMessage {
-                                Text(error).font(.system(size: 13)).foregroundColor(.ncError)
+                                Text(error).font(.ui(size: 13)).foregroundColor(.ncError)
                             }
                         }
                         .padding(.horizontal, 20)
@@ -99,17 +99,17 @@ private struct FriendRow: View {
         HStack(spacing: 12) {
             AvatarView(url: friend.avatarUrl, name: friend.name, size: 46)
             VStack(alignment: .leading, spacing: 2) {
-                Text(friend.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text("@\(friend.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                Text(friend.name).font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                Text("@\(friend.username)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(calories.map { "\(Int($0))" } ?? "—")
-                    .font(.system(size: 15, weight: .bold).monospacedDigit())
+                    .font(.ui(size: 15, weight: .bold).monospacedDigit())
                     .foregroundColor(.ncPrimary)
-                Text("kcal today").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                Text("kcal today").font(.ui(size: 12)).foregroundColor(.ncSecondary)
             }
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
+            Image(systemName: "chevron.right").font(.ui(size: 12, weight: .semibold)).foregroundColor(.ncOutline)
         }
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }
@@ -124,19 +124,19 @@ private struct RequestRow: View {
         HStack(spacing: 12) {
             AvatarView(url: request.profile.avatarUrl, name: request.profile.name, size: 46)
             VStack(alignment: .leading, spacing: 2) {
-                Text(request.profile.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
-                Text("@\(request.profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                Text(request.profile.name).font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                Text("@\(request.profile.username)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             Button { Task { await social.removeFriendship(request.friendship) } } label: {
-                Image(systemName: "xmark").font(.system(size: 13, weight: .bold))
+                Image(systemName: "xmark").font(.ui(size: 13, weight: .bold))
                     .foregroundColor(.ncSecondary)
                     .frame(width: 44, height: 44)
                     .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.3), lineWidth: 1))
             }
             .smoothButton()
             Button { Task { await social.accept(request.friendship) } } label: {
-                Image(systemName: "checkmark").font(.system(size: 13, weight: .bold))
+                Image(systemName: "checkmark").font(.ui(size: 13, weight: .bold))
                     .foregroundColor(.ncOnPrimary)
                     .frame(width: 44, height: 44)
                     .background(Color.ncPrimary)
@@ -155,10 +155,10 @@ private struct SentRow: View {
     var body: some View {
         HStack(spacing: 12) {
             AvatarView(url: request.profile.avatarUrl, name: request.profile.name, size: 36)
-            Text(request.profile.name).font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
+            Text(request.profile.name).font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
             Spacer()
             Button("Cancel") { Task { await social.removeFriendship(request.friendship) } }
-                .font(.system(size: 13, weight: .medium))
+                .font(.ui(size: 13, weight: .medium))
                 .foregroundColor(.ncSecondary)
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -173,9 +173,9 @@ struct EmptyState: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: compact ? 22 : 34, weight: .ultraLight)).foregroundColor(.ncSecondary)
+            Image(systemName: icon).font(.ui(size: compact ? 22 : 34, weight: .ultraLight)).foregroundColor(.ncSecondary)
             Text(title).font(.serif(compact ? 20 : 26)).foregroundColor(.ncPrimary).multilineTextAlignment(.center)
-            Text(message).font(.system(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.center).lineSpacing(2)
+            Text(message).font(.ui(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.center).lineSpacing(2)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, compact ? 24 : 0)

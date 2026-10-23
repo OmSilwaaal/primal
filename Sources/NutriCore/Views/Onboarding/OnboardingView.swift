@@ -25,7 +25,7 @@ struct OnboardingView: View {
                     // Padding goes inside the label so the whole 44 pt area is tappable, not just the word.
                     Button { authManager.continueAsGuest() } label: {
                         Text("Skip")
-                            .font(.system(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
+                            .font(.ui(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
                             .padding(.horizontal, 20)
                             .frame(minWidth: 44, minHeight: 44)
                             .contentShape(Rectangle())
@@ -37,36 +37,42 @@ struct OnboardingView: View {
             .zIndex(1)
 
             GeometryReader { geo in
-                VStack(spacing: 0) {
-                    Spacer().frame(height: geo.size.height * 0.27)
-                    wordmark
-                    Spacer(minLength: 32)
+                // Scrolls only when the content is taller than the screen (large text sizes); otherwise it
+                // fills the screen exactly, with the wordmark at 27% and the buttons pushed to the bottom.
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        Spacer().frame(height: geo.size.height * 0.27)
+                        wordmark
+                        Spacer(minLength: 32)
 
-                    VStack(spacing: 14) {
-                        if emailMode { emailForm } else { providerButtons }
+                        VStack(spacing: 14) {
+                            if emailMode { emailForm } else { providerButtons }
+                        }
+                        .disabled(authManager.isLoading)
+                        .opacity(authManager.isLoading ? 0.6 : 1)
+
+                        if let error = authManager.authError {
+                            Text(error).font(.ui(size: 13)).foregroundColor(.ncEmber)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 14)
+                        }
+
+                        footer
+                            .padding(.top, 28)
+
+                        VStack(spacing: 2) {
+                            Text("By continuing you agree to our")
+                                .font(.ui(size: 12)).foregroundColor(.ncPrimary.opacity(0.55))
+                            LegalLinks()
+                        }
+                        .padding(.top, 4)
+                        .padding(.bottom, 12)
                     }
-                    .disabled(authManager.isLoading)
-                    .opacity(authManager.isLoading ? 0.6 : 1)
-
-                    if let error = authManager.authError {
-                        Text(error).font(.system(size: 13)).foregroundColor(.ncEmber)
-                            .multilineTextAlignment(.center)
-                            .padding(.top, 14)
-                    }
-
-                    footer
-                        .padding(.top, 28)
-
-                    VStack(spacing: 2) {
-                        Text("By continuing you agree to our")
-                            .font(.system(size: 12)).foregroundColor(.ncPrimary.opacity(0.55))
-                        LegalLinks()
-                    }
-                    .padding(.top, 4)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 44)
+                    .frame(width: geo.size.width)
+                    .frame(minHeight: geo.size.height)
                 }
-                .padding(.horizontal, 44)
-                .frame(width: geo.size.width, height: geo.size.height)
+                .scrollBounceBehavior(.basedOnSize)
             }
         }
         .animation(.easeOut(duration: 0.22), value: emailMode)
@@ -78,15 +84,16 @@ struct OnboardingView: View {
     private var wordmark: some View {
         VStack(spacing: 22) {
             Text("VITALIS")
-                .font(.system(size: 44, weight: .regular))
+                .font(.ui(size: 44, weight: .regular))
                 .tracking(19)
                 .padding(.leading, 19) // optically recentre the trailing tracking
                 .foregroundColor(.ncPrimary)
                 .lineLimit(1).minimumScaleFactor(0.6)
             Text("Nutrition built on real food")
-                .font(.system(size: 11, weight: .medium)).tracking(3.6).textCase(.uppercase)
+                .font(.ui(size: 11, weight: .medium)).tracking(3.6).textCase(.uppercase)
                 .foregroundColor(.ncPrimary.opacity(0.85))
-                .lineLimit(1).minimumScaleFactor(0.7)
+                .multilineTextAlignment(.center)
+                .lineLimit(3).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
@@ -96,7 +103,7 @@ struct OnboardingView: View {
     private var providerButtons: some View {
         Button { Task { await authManager.signInWithApple() } } label: {
             AuthButtonLabel(title: "Continue with Apple") {
-                Image(systemName: "applelogo").font(.system(size: 19, weight: .medium))
+                Image(systemName: "applelogo").font(.ui(size: 19, weight: .medium))
             }
         }
         .buttonStyle(CapsuleAuthButtonStyle(filled: true))
@@ -110,7 +117,7 @@ struct OnboardingView: View {
 
         Button { openEmail(signUp: true) } label: {
             AuthButtonLabel(title: "Continue with Email") {
-                Image(systemName: "envelope").font(.system(size: 16, weight: .regular))
+                Image(systemName: "envelope").font(.ui(size: 16, weight: .regular))
             }
         }
         .buttonStyle(CapsuleAuthButtonStyle(filled: false))
@@ -133,22 +140,30 @@ struct OnboardingView: View {
             authManager.authError = nil
             emailMode = false
         }
-        .font(.system(size: 14)).foregroundColor(.ncPrimary.opacity(0.7))
+        .font(.ui(size: 14)).foregroundColor(.ncPrimary.opacity(0.7))
         .frame(minHeight: 44)
     }
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            Text(emailMode && !isSignUp ? "New here?" : "Already have an account?")
-                .foregroundColor(.ncPrimary.opacity(0.7))
-            Button(emailMode && !isSignUp ? "Sign up" : "Log in") {
-                openEmail(signUp: emailMode && !isSignUp)
-            }
-            .foregroundColor(.ncPrimary)
-            .underline()
-            .frame(minHeight: 44)
+        // One line when it fits, stacked at large text sizes.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) { footerItems }
+            VStack(spacing: 0) { footerItems }
         }
-        .font(.system(size: 15))
+        .font(.ui(size: 15))
+        .multilineTextAlignment(.center)
+    }
+
+    @ViewBuilder private var footerItems: some View {
+        Text(emailMode && !isSignUp ? "New here?" : "Already have an account?")
+            .foregroundColor(.ncPrimary.opacity(0.7))
+            .fixedSize(horizontal: false, vertical: true)
+        Button(emailMode && !isSignUp ? "Sign up" : "Log in") {
+            openEmail(signUp: emailMode && !isSignUp)
+        }
+        .foregroundColor(.ncPrimary)
+        .underline()
+        .frame(minHeight: 44)
     }
 
     private func openEmail(signUp: Bool) {
@@ -170,12 +185,12 @@ struct OnboardingView: View {
             }
         }
         .focused($focus, equals: field)
-        .font(.system(size: 16)).foregroundColor(.ncPrimary)
+        .font(.ui(size: 16)).foregroundColor(.ncPrimary)
         .placeholder(when: text.wrappedValue.isEmpty) {
-            Text(placeholder).font(.system(size: 16)).foregroundColor(.ncPrimary.opacity(0.55))
+            Text(placeholder).font(.ui(size: 16)).foregroundColor(.ncPrimary.opacity(0.55))
         }
         .padding(.horizontal, 24)
-        .frame(height: 50)
+        .frame(minHeight: 50)
         .background(Capsule().fill(Color.black.opacity(0.25)))
         .overlay(Capsule().strokeBorder(Color.ncPrimary.opacity(0.85), lineWidth: 1))
     }
@@ -206,8 +221,10 @@ private struct AuthButtonLabel<Icon: View>: View {
     var body: some View {
         HStack(spacing: 18) {
             icon.frame(width: 22, height: 22)
-            Text(title)
+            // Wraps at large text sizes rather than truncating; the capsule grows with it.
+            Text(title).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
     }
 }
@@ -217,9 +234,9 @@ struct CapsuleAuthButtonStyle: ButtonStyle {
     var filled: Bool
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .regular))
+            .font(.ui(size: 16, weight: .regular))
             .foregroundColor(filled ? .ncOnPrimary : .ncPrimary)
-            .frame(height: 50)
+            .frame(minHeight: 50)
             .frame(maxWidth: .infinity)
             .background(Capsule().fill(filled ? Color.ncPrimary : Color.black.opacity(0.18)))
             .overlay(Capsule().strokeBorder(filled ? Color.clear : Color.ncPrimary.opacity(0.85), lineWidth: 1))
@@ -263,11 +280,11 @@ struct OnboardingFeatureRow: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 16) {
-                Text(icon).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
+                Text(icon).font(.ui(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
                     .frame(width: 22, alignment: .leading)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label).font(.serif(19)).foregroundColor(.ncPrimary)
-                    Text(sub).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text(sub).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
                 Spacer()
             }

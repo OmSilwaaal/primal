@@ -23,25 +23,25 @@ struct SearchView: View {
 
                     HStack(spacing: 6) {
                         TextField("", text: $query)
-                            .font(.system(size: 16)).foregroundColor(.ncPrimary)
+                            .font(.ui(size: 16)).foregroundColor(.ncPrimary)
                             .focused($isSearchFocused)
                             .submitLabel(.search)
                             .autocorrectionDisabled()
                             .placeholder(when: query.isEmpty) {
-                                Text("Search USDA foods").font(.system(size: 16)).foregroundColor(.ncSecondary)
+                                Text("Search USDA foods").font(.ui(size: 16)).foregroundColor(.ncSecondary)
                             }
                             .onChange(of: query) { _, newValue in usdaService.search(newValue) }
                         if !query.isEmpty {
                             Button { query = ""; usdaService.clearResults() } label: {
                                 Text("CLEAR").font(.mono(11, .semibold)).foregroundColor(.ncPrimary)
-                                    .padding(.horizontal, 12).frame(height: 36)
+                                    .padding(.horizontal, 12).frame(minHeight: 44)
                                     .background(Color.white.opacity(0.12))
                             }
                             .buttonStyle(.plain)
                         }
                     }
                     .padding(.leading, 18).padding(.trailing, 6)
-                    .frame(height: 48)
+                    .frame(minHeight: 48)
                     .glass(.clear)
                 }
                 .padding(.horizontal, 16)
@@ -57,11 +57,11 @@ struct SearchView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         Rule()
                         if let error = usdaService.errorMessage {
-                            Text(error).font(.system(size: 15)).foregroundColor(.ncEmber)
+                            Text(error).font(.ui(size: 15)).foregroundColor(.ncEmber)
                                 .padding(.vertical, 28)
                         } else if query.isEmpty {
                             Text("Search the USDA FoodData Central database, including organ cuts.")
-                                .font(.system(size: 15)).foregroundColor(.ncSecondary)
+                                .font(.ui(size: 15)).foregroundColor(.ncSecondary)
                                 .padding(.vertical, 28)
                         } else if usdaService.results.isEmpty && !usdaService.isLoading {
                             Text("No results found").monoLabel(12)
@@ -118,10 +118,10 @@ private struct SearchResultRow: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(food.description.capitalized)
-                        .font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                        .font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     Text("\(food.brandOwner ?? food.dataType ?? "USDA") · per 100 g")
-                        .font(.system(size: 12)).foregroundColor(.ncSecondary).lineLimit(1)
+                        .font(.ui(size: 12)).foregroundColor(.ncSecondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 Text("\(Int(food.caloriesPer100g)) kcal").font(.mono(13)).foregroundColor(.ncPrimary)

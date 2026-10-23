@@ -28,10 +28,10 @@ struct NutrientsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     FieldLabel(text: "Your fat target (% of calories)")
                     HStack {
-                        Text("\(Int(range.lowerBound))% – \(Int(range.upperBound))%").font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                        Text("\(Int(range.lowerBound))% – \(Int(range.upperBound))%").font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                         Spacer()
                         Button("Reset to \(mode.label)") { fatMin = 0; fatMax = 0 }
-                            .font(.system(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
+                            .font(.ui(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
                     }
                     Slider(value: Binding(get: { range.lowerBound }, set: { fatMin = min($0, range.upperBound - 5); if fatMax == 0 { fatMax = range.upperBound } }),
                            in: 30...85, step: 1).tint(.ncIndigo)
@@ -46,7 +46,7 @@ struct NutrientsView: View {
                 RawCard(title: "Running low") {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(low, id: \.self) { n in
-                            HStack { Tag(text: n, color: .ncOrange); Text("under half the reference on most logged days").font(.system(size: 13)).foregroundColor(.ncSecondary) }
+                            HStack { Tag(text: n, color: .ncOrange); Text("under half the reference on most logged days").font(.ui(size: 13)).foregroundColor(.ncSecondary) }
                         }
                     }
                 }
@@ -54,15 +54,15 @@ struct NutrientsView: View {
 
             RawCard(title: "Weekly nutrient gaps", trailing: gaps.loggedDays > 0 ? "avg of \(gaps.loggedDays) logged day(s)" : nil) {
                 if gaps.loggedDays == 0 {
-                    Text("Log a few meals to see how your week compares.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Log a few meals to see how your week compares.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     VStack(spacing: 12) {
                         ForEach(gaps.gaps.sorted { $0.pct < $1.pct }) { g in
                             VStack(spacing: 5) {
                                 HStack {
-                                    Text(g.name).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
+                                    Text(g.name).font(.ui(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                                     Spacer()
-                                    Text("\(fmt(g.avg)) / \(fmt(g.target)) \(g.unit)").font(.system(size: 12).monospacedDigit()).foregroundColor(.ncSecondary)
+                                    Text("\(fmt(g.avg)) / \(fmt(g.target)) \(g.unit)").font(.ui(size: 12).monospacedDigit()).foregroundColor(.ncSecondary)
                                 }
                                 BandGauge(value: g.pct, color: g.pct < 0.5 ? .ncOrange : g.pct < 0.8 ? .ncSky : .ncGreen, height: 6)
                             }
@@ -95,8 +95,8 @@ struct NutrientsView: View {
     }
 
     private func row(_ title: String, _ value: String) -> some View {
-        HStack { Text(title).font(.system(size: 13)).foregroundColor(.ncSecondary); Spacer()
-            Text(value).font(.system(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncPrimary) }
+        HStack { Text(title).font(.ui(size: 13)).foregroundColor(.ncSecondary); Spacer()
+            Text(value).font(.ui(size: 13, weight: .semibold).monospacedDigit()).foregroundColor(.ncPrimary) }
     }
     private func fmt(_ v: Double) -> String { v >= 100 ? String(Int(v)) : String(format: "%.1f", v) }
 }
@@ -116,7 +116,7 @@ struct FatProteinGauge: View {
                     column("7-day average", weekPct)
                 }
                 Text("Share of calories from fat. The shaded band is your target range.")
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    .font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
         }
     }
@@ -131,7 +131,7 @@ struct FatProteinGauge: View {
             LineGauge(value: (pct ?? 0) / 100, band: (range.lowerBound / 100)...(range.upperBound / 100),
                       tint: pct.map { range.contains($0) ? Color.ncPrimary : Color.ncOrange } ?? .ncSecondary)
             Text(pct.map { range.contains($0) ? "In range" : ($0 < range.lowerBound ? "Below range" : "Above range") } ?? "No data")
-                .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                .font(.ui(size: 13)).foregroundColor(.ncSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -153,9 +153,9 @@ struct LiverBudgetCard: View {
                 Text(budget.remainingVitaminAWeek > 0
                      ? "Room for about \(Int(budget.beefLiverGramsLeft)) g of beef liver this week before the 7-day vitamin A average reaches the upper limit."
                      : "This week's vitamin A average has reached the reference upper limit.")
-                    .font(.system(size: 14)).foregroundColor(.ncPrimary).lineSpacing(2)
+                    .font(.ui(size: 14)).foregroundColor(.ncPrimary).lineSpacing(2)
                 Text("Daily averages over 7 days against general adult upper limits.")
-                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    .font(.ui(size: 12)).foregroundColor(.ncSecondary)
             }
         }
     }
@@ -168,7 +168,7 @@ struct LiverBudgetCard: View {
                 Text("%").font(.serif(13)).foregroundColor(.ncSecondary)
             }
             LineGauge(value: pct, tint: pct >= 1 ? .ncError : pct >= 0.8 ? .ncOrange : .ncPrimary)
-            Text(detail).font(.system(size: 13)).foregroundColor(.ncSecondary).lineLimit(1).minimumScaleFactor(0.8)
+            Text(detail).font(.ui(size: 13)).foregroundColor(.ncSecondary).lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -194,9 +194,9 @@ struct OrganRotationView: View {
                             Spacer()
                             Text("Every ~\(s.targetGapDays) days")
                         }
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                         BandGauge(value: s.weekGrams / s.capGrams, color: s.overCap ? .ncError : .ncPrimary, height: 6)
-                        Text("\(Int(s.weekGrams)) g this week of \(Int(s.capGrams)) g cap").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        Text("\(Int(s.weekGrams)) g this week of \(Int(s.capGrams)) g cap").font(.ui(size: 12)).foregroundColor(.ncSecondary)
                     }
                 }
             }

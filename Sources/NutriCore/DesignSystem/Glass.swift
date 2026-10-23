@@ -75,7 +75,7 @@ struct GlassButtonStyle: ButtonStyle {
             .font(.mono(12, .semibold)).tracking(1.44).textCase(.uppercase)
             .foregroundColor(.ncPrimary)
             .padding(.horizontal, 16)
-            .frame(height: height)
+            .frame(minHeight: height)
             .glass(.clear)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
@@ -110,7 +110,7 @@ struct GlassSegmented<T: Hashable>: View {
     let options: [(value: T, label: String)]
     @Binding var selection: T
     var capsule = false
-    var height: CGFloat = 40
+    var height: CGFloat = 44
 
     var body: some View {
         HStack(spacing: 0) {
@@ -126,7 +126,7 @@ struct GlassSegmented<T: Hashable>: View {
                         .font(.mono(12, .semibold)).tracking(1.2).textCase(.uppercase)
                         .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
                         .frame(maxWidth: .infinity)
-                        .frame(height: height)
+                        .frame(minHeight: height)
                         .background {
                             if on {
                                 if capsule { Capsule().fill(Color.ncPrimary) } else { Rectangle().fill(Color.ncPrimary) }
@@ -172,7 +172,7 @@ struct OptionChip: View {
                 .font(.mono(glassy ? 12 : 11, .semibold)).tracking(glassy ? 1.2 : 0.9).textCase(.uppercase)
                 .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
                 .padding(.horizontal, glassy ? 16 : 14)
-                .frame(height: 44)
+                .frame(minHeight: 44)
                 .background {
                     if selected {
                         Rectangle().fill(Color.ncPrimary)
@@ -232,7 +232,7 @@ struct NutrientRow: View {
         let status = IntakeStatus(progress: progress)
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(name).font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                Text(name).font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
                 Spacer()
                 Text("\(status.tag) · \(pct)%").font(.mono(11, .semibold)).tracking(1.1).foregroundColor(status.tagColor)
             }

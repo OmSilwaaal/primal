@@ -120,8 +120,8 @@ struct PlacesMapView: View {
                 Text("Real food sources").font(.mono(10)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
                 Text(isSearching ? "SEARCHING \(selectedQuery.uppercased())…"
                                  : "\(searchResults.count) × \(selectedQuery.uppercased()) WITHIN 20 KM")
-                    .font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
-                    .lineLimit(1).minimumScaleFactor(0.8)
+                    .font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                    .lineLimit(3).minimumScaleFactor(0.8)
             }
             Spacer()
         }
@@ -134,7 +134,7 @@ struct PlacesMapView: View {
     private func permissionPrompt(label: String, text: String, button: String, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(label).monoLabel()
-            Text(text).font(.system(size: 15)).foregroundColor(.ncPrimary)
+            Text(text).font(.ui(size: 15)).foregroundColor(.ncPrimary)
             Button(button, action: action).buttonStyle(.vitalis).padding(.top, 6)
         }
         .padding(.horizontal, Space.margin)
@@ -184,7 +184,7 @@ struct PlaceDetailCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name ?? "Unknown place").font(.system(size: 18, weight: .bold)).foregroundColor(.ncPrimary)
+                    Text(item.name ?? "Unknown place").font(.ui(size: 18, weight: .bold)).foregroundColor(.ncPrimary)
                     if let distance {
                         Text("\(distance) away".uppercased()).font(.mono(12)).foregroundColor(.ncSecondary)
                     }
@@ -192,7 +192,7 @@ struct PlaceDetailCard: View {
                 Spacer()
                 Button(action: onClose) {
                     Text("CLOSE").font(.mono(11, .semibold)).foregroundColor(.ncPrimary)
-                        .padding(.horizontal, 12).frame(height: 36)
+                        .padding(.horizontal, 12).frame(minHeight: 44)
                         .background(Color.white.opacity(0.12))
                 }
                 .buttonStyle(.plain)
@@ -202,13 +202,13 @@ struct PlaceDetailCard: View {
                 if let address = item.placemark.title {
                     GridRow {
                         Text("ADDRESS").font(.mono(11)).foregroundColor(.ncSecondary).frame(width: 72, alignment: .leading)
-                        Text(address).font(.system(size: 14)).foregroundColor(.ncPrimary)
+                        Text(address).font(.ui(size: 14)).foregroundColor(.ncPrimary)
                     }
                 }
                 if let phone = item.phoneNumber {
                     GridRow {
                         Text("PHONE").font(.mono(11)).foregroundColor(.ncSecondary).frame(width: 72, alignment: .leading)
-                        Text(phone).font(.system(size: 14)).foregroundColor(.ncPrimary)
+                        Text(phone).font(.ui(size: 14)).foregroundColor(.ncPrimary)
                     }
                 }
             }

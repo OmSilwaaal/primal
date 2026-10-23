@@ -36,7 +36,7 @@ struct CheckInView: View {
                                 Chip(label: "\(n)", selected: log.bristol == n) { log.bristol = log.bristol == n ? 0 : n; save() }
                             }
                         }
-                        Text(bristolText(log.bristol)).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        Text(bristolText(log.bristol)).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     }
                 }
                 RawCard(title: "Training") {
@@ -67,10 +67,10 @@ struct CheckInView: View {
                 if let d = dayCount {
                     Text(d <= 14 ? "Early days. Headaches, cramps and fatigue are commonly reported in the first weeks and are often linked to fluid and electrolyte intake."
                                  : "You're past the first two weeks.")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    if let msg = electrolyteLink { Text(msg).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary) }
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                    if let msg = electrolyteLink { Text(msg).font(.ui(size: 13, weight: .medium)).foregroundColor(.ncPrimary) }
                 } else {
-                    Text("Set your diet start date in Diet mode to count adaptation days.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Set your diet start date in Diet mode to count adaptation days.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
         }
@@ -130,8 +130,8 @@ struct InsightsView: View {
             if insights.isEmpty {
                 RawCard(title: "Still learning") {
                     Text("Log food and a daily check-in for a couple of weeks. Patterns appear once there are at least 3 days on each side of a comparison.")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
-                    Text("\(outcomes.filter { $0.energy > 0 }.count) check-ins so far").font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                    Text("\(outcomes.filter { $0.energy > 0 }.count) check-ins so far").font(.ui(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
                 }
             }
             ForEach(insights.prefix(12)) { i in
@@ -142,7 +142,7 @@ struct InsightsView: View {
                                 .foregroundColor(i.diff > 0 ? .ncGreen : .ncOrange)
                             Text(i.text).font(.serif(18)).foregroundColor(.ncPrimary)
                         }
-                        Text("\(i.withDays) vs \(i.withoutDays) days").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                        Text("\(i.withDays) vs \(i.withoutDays) days").font(.ui(size: 12)).foregroundColor(.ncSecondary)
                     }
                 }
             }

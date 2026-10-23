@@ -49,15 +49,15 @@ struct MicronutrientsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Today · \(all.count) tracked").monoLabel()
-                        Text("Micronutrients").font(.system(size: 30, weight: .bold)).tracking(0.3).foregroundColor(.ncPrimary)
+                        Text("Micronutrients").font(.ui(size: 30, weight: .bold)).tracking(0.3).foregroundColor(.ncPrimary)
                     }
                     .padding(.horizontal, Space.margin)
                     .padding(.top, 12)
 
-                    HStack(spacing: 0) {
-                        count(all.filter(\.isMet).count, "Met ≥90%", .ncMoss)
-                        count(all.filter { !$0.isMet && !$0.isDeficient }.count, "On track", .ncPrimary)
-                        count(all.filter(\.isDeficient).count, "Low <50%", .ncEmber)
+                    // Side by side when the labels fit on one line; stacked at large text sizes.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 0) { counts(all) }
+                        VStack(alignment: .leading, spacing: 0) { counts(all) }
                     }
                     .padding(.top, 20)
 
@@ -69,12 +69,12 @@ struct MicronutrientsView: View {
                     if !minerals.isEmpty { group("Minerals", minerals).padding(.top, 28) }
                     if vitamins.isEmpty && minerals.isEmpty {
                         Text(filter == .met ? "Nothing at goal yet today." : "Nothing below half of goal.")
-                            .font(.system(size: 15)).foregroundColor(.ncSecondary)
+                            .font(.ui(size: 15)).foregroundColor(.ncSecondary)
                             .padding(.horizontal, Space.margin).padding(.top, 28)
                     }
 
                     Text("Daily goals follow NIH dietary reference intakes for your age and sex.")
-                        .font(.system(size: 12)).lineSpacing(3).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 12)).lineSpacing(3).foregroundColor(.ncSecondary)
                         .padding(Space.margin)
                 }
                 .padding(.bottom, 120)
@@ -83,11 +83,19 @@ struct MicronutrientsView: View {
         }
     }
 
+    @ViewBuilder private func counts(_ all: [NutrientInfo]) -> some View {
+        count(all.filter(\.isMet).count, "Met ≥90%", .ncMoss)
+        count(all.filter { !$0.isMet && !$0.isDeficient }.count, "On track", .ncPrimary)
+        count(all.filter(\.isDeficient).count, "Low <50%", .ncEmber)
+    }
+
     private func count(_ n: Int, _ label: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(n)").font(.display(48)).tracking(-1.92).foregroundColor(color)
                 .contentTransition(.numericText())
+            // fixedSize: never break inside a word; ViewThatFits stacks the counts instead.
             Text(label.uppercased()).font(.mono(11)).tracking(1.32).foregroundColor(.ncSecondary)
+                .lineLimit(1).fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Space.margin).padding(.vertical, 14)

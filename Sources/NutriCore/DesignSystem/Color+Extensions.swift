@@ -132,10 +132,10 @@ struct PrimaryButtonStyle: ButtonStyle {
     var radius: CGFloat = 0
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14, weight: .bold)).tracking(2.2).textCase(.uppercase)
+            .font(.ui(size: 14, weight: .bold)).tracking(2.2).textCase(.uppercase)
             .foregroundColor(.ncOnPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: height)
+            .frame(minHeight: height)
             .background(Color.ncPrimary, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
@@ -154,7 +154,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .font(.mono(12, .semibold)).tracking(1.4).textCase(.uppercase)
             .foregroundColor(.ncPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: height)
+            .frame(minHeight: height)
             .glass(.clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
@@ -174,10 +174,10 @@ extension ButtonStyle where Self == SecondaryButtonStyle {
 // MARK: - Typography helpers
 extension Font {
     // Plus Jakarta Sans for headlines, Inter for body/labels (simulated with system fonts)
-    static let ncLabelMonoBold    = Font.system(size: 11, weight: .bold, design: .default)
-    static let ncLabelMonoReg     = Font.system(size: 11, weight: .medium, design: .default)
-    static let ncMetricMobile     = Font.system(size: 32, weight: .bold, design: .default)
-    static let ncHeadlineMd       = Font.system(size: 18, weight: .bold)
-    static let ncBodySm           = Font.system(size: 13, weight: .regular)
-    static let ncLabelTag         = Font.system(size: 11, weight: .semibold)
+    static let ncLabelMonoBold    = Font.ui(size: 11, weight: .bold, design: .default)
+    static let ncLabelMonoReg     = Font.ui(size: 11, weight: .medium, design: .default)
+    static let ncMetricMobile     = Font.ui(size: 32, weight: .bold, design: .default)
+    static let ncHeadlineMd       = Font.ui(size: 18, weight: .bold)
+    static let ncBodySm           = Font.ui(size: 13, weight: .regular)
+    static let ncLabelTag         = Font.ui(size: 11, weight: .semibold)
 }

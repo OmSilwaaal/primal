@@ -5,7 +5,7 @@ struct FriendsView: View {
     @State private var showAdd = false
 
     var body: some View {
-        NavigationStack {
+        Group {
             ZStack {
                 AppBackdrop()
 
@@ -66,7 +66,6 @@ struct FriendsView: View {
                     .refreshable { await social.refreshFriends() }
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: BasicProfile.self) { FriendProfileView(profile: $0) }
             .sheet(isPresented: $showAdd) { AddFriendView() }
             .task { if social.myId != nil { await social.refreshFriends() } }
@@ -135,6 +134,7 @@ private struct RequestRow: View {
                     .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.3), lineWidth: 1))
             }
             .smoothButton()
+            .accessibilityLabel("Decline request from \(request.profile.name)")
             Button { Task { await social.accept(request.friendship) } } label: {
                 Image(systemName: "checkmark").font(.ui(size: 13, weight: .bold))
                     .foregroundColor(.ncOnPrimary)
@@ -142,6 +142,7 @@ private struct RequestRow: View {
                     .background(Color.ncPrimary)
             }
             .smoothButton()
+            .accessibilityLabel("Accept request from \(request.profile.name)")
         }
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }

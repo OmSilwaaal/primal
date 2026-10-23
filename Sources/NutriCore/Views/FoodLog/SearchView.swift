@@ -1,7 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Full-screen search over Home: BACK, a glass search field, USDA results per 100 g, then the quick-log sheet.
+/// Search sheet over Home (swipe down or Cancel to close): a glass search field, USDA results per 100 g,
+/// then the quick-log card.
 struct SearchView: View {
     var onClose: () -> Void = {}
 
@@ -19,7 +20,7 @@ struct SearchView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 10) {
-                    Button("Back", action: close).buttonStyle(GlassButtonStyle(height: 48))
+                    Button("Cancel", action: close).buttonStyle(GlassButtonStyle(height: 48))
 
                     HStack(spacing: 6) {
                         TextField("", text: $query)

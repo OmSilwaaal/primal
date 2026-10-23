@@ -15,6 +15,7 @@ struct RawScreen<Content: View>: View {
                         if let subtitle { Text(subtitle).serifCaps(11).foregroundColor(.ncSecondary) }
                         Text(title).font(.brutal(34)).foregroundColor(.ncPrimary)
                             .lineLimit(2).minimumScaleFactor(0.7)
+                            .accessibilityAddTraits(.isHeader)
                     }
                     content
                 }
@@ -221,7 +222,7 @@ struct NavRow: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
-                    if let detail { Text(detail).font(.ui(size: 12)).foregroundColor(.ncSecondary).lineLimit(1) }
+                    if let detail { Text(detail).font(.ui(size: 12)).foregroundColor(.ncSecondary).fixedSize(horizontal: false, vertical: true) }
                 }
                 Spacer(minLength: 8)
                 if let badge { Tag(text: badge, color: badgeColor) }

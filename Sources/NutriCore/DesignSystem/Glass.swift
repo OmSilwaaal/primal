@@ -37,16 +37,26 @@ enum GlassStyle {
 private struct GlassModifier<S: InsettableShape>: ViewModifier {
     let style: GlassStyle
     let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
+        let increased = contrast == .increased
         content
             .background {
-                shape.fill(.ultraThinMaterial)
-                    .overlay(shape.fill(style.tint))
-                    .environment(\.colorScheme, .dark)
+                if reduceTransparency {
+                    // Reduce Transparency: an opaque surface instead of blur.
+                    shape.fill(Color.ncSurface)
+                } else {
+                    shape.fill(.ultraThinMaterial)
+                        .overlay(shape.fill(style.tint))
+                        // Increase Contrast: a darker tint so text over busy photos stays legible.
+                        .overlay(shape.fill(Color.black.opacity(increased ? 0.35 : 0)))
+                        .environment(\.colorScheme, .dark)
+                }
             }
             .overlay {
-                shape.strokeBorder(Color.white.opacity(style.border), lineWidth: 1)
+                shape.strokeBorder(Color.white.opacity(increased ? 0.5 : style.border), lineWidth: 1)
                 // Inner top highlight.
                 shape.strokeBorder(
                     LinearGradient(colors: [.white.opacity(style.highlight), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.08)),
@@ -94,6 +104,26 @@ struct TextButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.6 : 1)
     }
+}
+
+/// A 44 pt clear-glass circle for small header actions (Search, weather). Its contents keep a fixed size so
+/// they always fit the dot; long-press shows them enlarged for people using large text.
+struct GlassDotButtonStyle: ButtonStyle {
+    var size: CGFloat = 44
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(.ncPrimary)
+            .frame(width: size, height: size)
+            .glass(.clear, in: Circle())
+            .contentShape(Circle())
+            .dynamicTypeSize(...DynamicTypeSize.large)
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == GlassDotButtonStyle {
+    static var glassDot: GlassDotButtonStyle { GlassDotButtonStyle() }
 }
 
 extension ButtonStyle where Self == GlassButtonStyle {

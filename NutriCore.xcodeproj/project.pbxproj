@@ -70,6 +70,7 @@
 		CAD248835D9D8F49F262B14C /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BBE5253355C28064890C87 /* Glass.swift */; };
 		CEA9172FA5A3B0E5CFD89727 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C6BF77B8657F9B7ABC7D04 /* CameraPreviewView.swift */; };
 		CEBAA1D47C4B7DC8DB08EBA1 /* privacy-policy.md in Resources */ = {isa = PBXBuildFile; fileRef = BE8C556C1C77BCD72C692483 /* privacy-policy.md */; };
+		CF23A47B102473377F1995EA /* HealthPrimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4EEA6ACCF1E0F35E5A031E /* HealthPrimingView.swift */; };
 		D0CCA8172B9F7CE11D248C2E /* MicronutrientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8553A6D92E1D4E7879A71878 /* MicronutrientsView.swift */; };
 		D3D2ACB1B1ADC9CF11B120F4 /* RiskEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D380AF063C89978A24EDF04F /* RiskEngine.swift */; };
 		D4998CED088EB72135EC4FC6 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11083E0FCF5E27A542FD494F /* CameraView.swift */; };
@@ -101,6 +102,7 @@
 		3619314069F75ECB5F473603 /* CheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInView.swift; sourceTree = "<group>"; };
 		3C7736E564069E5E8A1822BA /* FoodSearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchResult.swift; sourceTree = "<group>"; };
 		3D29E9A7EF6D5F44C6A9702A /* OFL-ArchivoBlack.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-ArchivoBlack.txt"; sourceTree = "<group>"; };
+		3F4EEA6ACCF1E0F35E5A031E /* HealthPrimingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthPrimingView.swift; sourceTree = "<group>"; };
 		3FBA9BC66A5E8719FDFECF6C /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		4261E2CB654B13E6C7E9555D /* DietRater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DietRater.swift; sourceTree = "<group>"; };
 		46A1A1EEE304EF9FF344B5FE /* SunService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunService.swift; sourceTree = "<group>"; };
@@ -363,6 +365,7 @@
 		C72A6A47A6AD9B9054C85C88 /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
+				3F4EEA6ACCF1E0F35E5A031E /* HealthPrimingView.swift */,
 				5C9CB56696939BD9DC16FF9F /* OnboardingView.swift */,
 				F496E7479856A5090E10B5C1 /* PaywallView.swift */,
 				5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */,
@@ -527,6 +530,7 @@
 				AFE323A571CF61E302779765 /* FriendsView.swift in Sources */,
 				CAD248835D9D8F49F262B14C /* Glass.swift in Sources */,
 				98511612CDB6663E002612FD /* HealthKitManager.swift in Sources */,
+				CF23A47B102473377F1995EA /* HealthPrimingView.swift in Sources */,
 				7172BD5119E72912B6906701 /* InsightsEngine.swift in Sources */,
 				348285252845E60D65AF4711 /* LegalView.swift in Sources */,
 				AF61CA4D3AE070996A739D69 /* LocationManager.swift in Sources */,

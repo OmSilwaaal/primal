@@ -1,13 +1,39 @@
 import SwiftUI
 
-enum AppTab: Hashable { case home, map, scan, data, profile }
+enum AppTab: Int, Hashable, Comparable {
+    case home, map, scan, data, profile
+    static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+}
 
-/// Screens that used to be tabs. They open over the current tab with a BACK bar.
+/// Screens that used to be tabs. They're pushed onto the Home or Profile navigation stack, so they get the
+/// system back button (named after the screen they came from) and swipe-from-the-edge to go back.
 enum SecondaryScreen: Hashable { case raw, sun, friends }
+
+extension SecondaryScreen {
+    @ViewBuilder var destination: some View {
+        switch self {
+        case .raw: RawHubView().pushedScreen()
+        case .sun: SunView().pushedScreen()
+        case .friends: FriendsView().pushedScreen()
+        }
+    }
+}
+
+extension View {
+    /// A screen pushed onto a stack: the system navigation bar with only its back button, no background,
+    /// so the screen's own header and the backdrop show through.
+    func pushedScreen() -> some View {
+        self
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+}
 
 struct ContentView: View {
     @State private var tab: AppTab
-    @State private var secondary: SecondaryScreen?
+    /// Which way the last tab change went, so screens glide in from the side of the tab that was tapped.
+    @State private var forward = true
     @State private var showSearch = false
     @State private var childHidesTabBar = false
 
@@ -16,29 +42,22 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Group {
-                if let secondary {
-                    secondaryView(secondary)
-                } else {
-                    switch tab {
-                    case .home: DashboardView(onSearch: { open(search: true) }, onRaw: { secondary = .raw }, onSun: { secondary = .sun })
-                    case .map: PlacesMapView()
-                    case .scan: CameraView()
-                    case .data: MicronutrientsView()
-                    case .profile: ProfileView(onOpen: { secondary = $0 })
-                    }
+                switch tab {
+                case .home: DashboardView(onSearch: { showSearch = true })
+                case .map: PlacesMapView()
+                case .scan: CameraView()
+                case .data: MicronutrientsView()
+                case .profile: ProfileView()
                 }
             }
-            .id(secondary.map { "\($0)" } ?? "\(tab)")
-            .transaction { $0.animation = nil }
+            .id(tab)
+            .transition(.asymmetric(
+                insertion: .opacity.combined(with: .offset(x: forward ? 36 : -36)).combined(with: .scale(scale: 0.985)),
+                removal: .opacity.combined(with: .offset(x: forward ? -36 : 36))
+            ))
             .ignoresSafeArea(edges: .bottom)
 
-            if showSearch {
-                SearchView(onClose: { open(search: false) })
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(20)
-            }
-
-            if !showSearch && !childHidesTabBar {
+            if !childHidesTabBar {
                 VitalisTabBar(selected: tab) { select($0) }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(35)
@@ -49,36 +68,23 @@ struct ContentView: View {
         .onPreferenceChange(HidesTabBarKey.self) { hidden in
             withAnimation(.easeOut(duration: 0.2)) { childHidesTabBar = hidden }
         }
+        // A standard sheet: swipe down to dismiss, like any iOS search or compose screen.
+        .sheet(isPresented: $showSearch) {
+            SearchView(onClose: { showSearch = false })
+                .presentationBackground(Color.ncBg)
+        }
+        .tint(.ncPrimary)
         .background(Color.ncBg.ignoresSafeArea())
     }
 
     private func select(_ new: AppTab) {
-        guard new != tab || secondary != nil else { return }
+        guard new != tab else { return }
         Haptics.selection()
-        secondary = nil
-        tab = new
-    }
-
-    private func open(search: Bool) {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { showSearch = search }
-    }
-
-    @ViewBuilder
-    private func secondaryView(_ screen: SecondaryScreen) -> some View {
-        Group {
-            switch screen {
-            case .raw: RawHubView()
-            case .sun: SunView()
-            case .friends: FriendsView()
-            }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            HStack {
-                Button("Back") { secondary = nil }.buttonStyle(.glass)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 4)
+        // Set the direction first, then change tab on the next pass, so the outgoing screen's removal
+        // transition already knows which way to go.
+        forward = new > tab
+        DispatchQueue.main.async {
+            withAnimation(.smooth(duration: 0.38)) { tab = new }
         }
     }
 }
@@ -147,9 +153,20 @@ struct VitalisTabBar: View {
 
 /// Liquid Glass where available; otherwise a thin blurred material with a hairline edge and soft shadow.
 private struct GlassIsland: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: Capsule())
+        if reduceTransparency || contrast == .increased {
+            // Accessibility settings: an opaque island with a clear edge.
+            content
+                .background(Color.ncSurface, in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.white.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 1))
+                .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
+        } else if #available(iOS 26.0, *) {
+            // Not .interactive(): interactive glass catches drags ~24 pt beyond its edge and scrubs between tabs,
+            // which stole horizontal drags from content just above the bar (the map's filter wheel).
+            content.glassEffect(.regular, in: Capsule())
         } else {
             content
                 .background(.ultraThinMaterial, in: Capsule())

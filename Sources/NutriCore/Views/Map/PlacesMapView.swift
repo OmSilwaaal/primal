@@ -69,7 +69,7 @@ struct PlacesMapView: View {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { selectedItem = item }
                         } label: {
                             Text(distance(to: item) ?? "•")
-                                .font(.mono(10, .semibold)).tracking(0.6)
+                                .font(.mono(11, .semibold)).tracking(0.6)
                                 .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .frame(minHeight: 32)
@@ -97,19 +97,12 @@ struct PlacesMapView: View {
                     .padding(.horizontal, 16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(queries, id: \.self) { query in
-                            OptionChip(label: query, selected: selectedQuery == query, glassy: true) {
-                                selectedQuery = query
-                                selectedItem = nil
-                                searchPlaces()
-                            }
-                        }
+                FilterWheel(options: queries, selection: $selectedQuery)
+                    .padding(.bottom, 104) // clears the tab bar, including the edge chips' downward arc
+                    .onChange(of: selectedQuery) { _, _ in
+                        selectedItem = nil
+                        searchPlaces()
                     }
-                    .padding(.horizontal, 16)
-                }
-                .padding(.bottom, 100)
             }
         }
     }
@@ -117,7 +110,7 @@ struct PlacesMapView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Real food sources").font(.mono(10)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
+                Text("Real food sources").font(.mono(11)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
                 Text(isSearching ? "SEARCHING \(selectedQuery.uppercased())…"
                                  : "\(searchResults.count) × \(selectedQuery.uppercased()) WITHIN 20 KM")
                     .font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
@@ -220,5 +213,86 @@ struct PlaceDetailCard: View {
         }
         .padding(20)
         .glass(.thick)
+    }
+}
+
+// MARK: - Filter wheel
+
+/// Categories on a dial: scroll sideways and each chip snaps to the centre, which selects it. Chips further
+/// from the centre drop, tilt, shrink and fade along an arc, so the row reads as the top of a wheel.
+private struct FilterWheel: View {
+    let options: [String]
+    @Binding var selection: String
+    @State private var centered: String?
+
+    private let chipWidth: CGFloat = 132
+
+    var body: some View {
+        GeometryReader { geo in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(options, id: \.self) { option in
+                        chip(option)
+                            .visualEffect { content, proxy in
+                                // -1 at the left edge of the wheel, 0 in the centre, 1 at the right edge.
+                                let width = proxy.bounds(of: .scrollView)?.width ?? 1
+                                let d = max(-1, min(1, (proxy.frame(in: .scrollView).midX - width / 2) / (width / 2)))
+                                return content
+                                    .rotationEffect(.degrees(d * 18), anchor: .center)
+                                    .offset(y: d * d * 34)
+                                    .scaleEffect(1 - abs(d) * 0.18)
+                                    .opacity(1 - abs(d) * 0.55)
+                            }
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            // Room on both sides so the first and last chips can reach the centre.
+            .safeAreaPadding(.horizontal, max(0, (geo.size.width - chipWidth) / 2))
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $centered, anchor: .center)
+            .scrollClipDisabled()
+        }
+        .frame(height: 80)
+        .onAppear { centered = selection }
+        .onChange(of: centered) { _, new in
+            guard let new, new != selection else { return }
+            Haptics.selection()
+            selection = new
+        }
+        .onChange(of: selection) { _, new in
+            if centered != new { withAnimation(.smooth) { centered = new } }
+        }
+        // VoiceOver and Switch Control get a plain picker instead of the wheel.
+        .accessibilityRepresentation {
+            Picker("Category", selection: $selection) {
+                ForEach(options, id: \.self) { Text($0).tag($0) }
+            }
+        }
+    }
+
+    private func chip(_ option: String) -> some View {
+        let on = option == selection
+        return Button {
+            withAnimation(.smooth) { centered = option }
+        } label: {
+            Text(option)
+                .font(.mono(12, .semibold)).tracking(1.2).textCase(.uppercase)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
+                .frame(width: chipWidth, height: 44)
+                .background {
+                    if on {
+                        Capsule().fill(Color.ncPrimary)
+                    } else {
+                        Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(Color.white.opacity(0.08)))
+                            .environment(\.colorScheme, .dark)
+                    }
+                }
+                .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0 : 0.2), lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .animation(.smooth(duration: 0.25), value: on)
     }
 }

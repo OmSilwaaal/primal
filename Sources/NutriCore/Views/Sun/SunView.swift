@@ -42,7 +42,7 @@ struct SunView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        Group {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
@@ -61,7 +61,6 @@ struct SunView: View {
                     .padding(.horizontal, 20)
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
             .task { await loadAll() }
             .onChange(of: location.location) { _, loc in
                 if let loc { Task { await sun.refresh(location: loc) } }

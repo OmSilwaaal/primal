@@ -17,7 +17,7 @@ struct RawHubView: View {
     private var flagged: Int { batches.filter { !$0.recallFlag.isEmpty }.count }
 
     var body: some View {
-        NavigationStack {
+        Group {
             ZStack {
                 AppBackdrop()
                 ScrollView(showsIndicators: false) {
@@ -57,7 +57,6 @@ struct RawHubView: View {
                     .padding(.bottom, 140)
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showLog) { NavigationStack { RawLogView() } }
         }
     }

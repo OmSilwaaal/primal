@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct ProfileView: View {
-    var onOpen: (SecondaryScreen) -> Void = { _ in }
+    @State private var pushed: SecondaryScreen?
 
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
@@ -26,8 +26,7 @@ struct ProfileView: View {
         ("sedentary", "Sedentary"), ("light", "Light"), ("moderate", "Moderate"), ("active", "Active"), ("veryActive", "Very active"),
     ]
 
-    init(onOpen: @escaping (SecondaryScreen) -> Void = { _ in }) {
-        self.onOpen = onOpen
+    init() {
         let start = Calendar.current.startOfDay(for: .now)
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= start })
     }
@@ -71,8 +70,9 @@ struct ProfileView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .navigationBarBackButtonHidden(true)
-            .navigationDestination(isPresented: $showSettings) { SettingsView() }
+            .navigationTitle("Profile") // names the back button on pushed screens
+            .navigationDestination(isPresented: $showSettings) { SettingsView().pushedScreen() }
+            .navigationDestination(item: $pushed) { $0.destination }
         }
     }
 
@@ -188,9 +188,9 @@ struct ProfileView: View {
             Text("More").monoLabel()
             VStack(spacing: 0) {
                 Rule()
-                row("Raw", "Diet position, food safety, organ rotation") { onOpen(.raw) }
-                row("Sun", "Time outside and today's vitamin D window") { onOpen(.sun) }
-                row("Friends", "Eat together, shared meals") { onOpen(.friends) }
+                row("Raw", "Diet position, food safety, organ rotation") { pushed = .raw }
+                row("Sun", "Time outside and today's vitamin D window") { pushed = .sun }
+                row("Friends", "Eat together, shared meals") { pushed = .friends }
                 row("Settings", "Account, privacy, subscription") { showSettings = true }
             }
         }

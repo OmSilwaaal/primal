@@ -95,6 +95,7 @@ struct FriendProfileView: View {
                 Button { withAnimation(.snappy) { dayOffset -= 1 } } label: {
                     Image(systemName: "chevron.left").frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Previous day")
                 Spacer()
                 Text(dayLabel).font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                     .contentTransition(.opacity)
@@ -102,6 +103,7 @@ struct FriendProfileView: View {
                 Button { withAnimation(.snappy) { dayOffset += 1 } } label: {
                     Image(systemName: "chevron.right").frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Next day")
                 .disabled(dayOffset >= 0)
                 .opacity(dayOffset >= 0 ? 0.3 : 1)
             }

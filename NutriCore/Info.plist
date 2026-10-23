@@ -37,13 +37,13 @@
 		<false/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera to scan barcodes and detect food items.</string>
+	<string>Vitalis uses the camera to scan barcodes and photograph meals so it can log their nutrition.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Vitalis needs access to read your steps and active energy to calculate your daily metabolic rate.</string>
+	<string>Vitalis reads activity (steps, active energy, time in daylight) to adjust your targets, and body and heart readings (weight, body fat, waist, blood pressure, resting heart rate, heart rate variability, blood glucose) to show them next to your diet. Health data stays on your iPhone.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Vitalis needs access to write your logged calories, protein, and water to close your Apple Watch rings.</string>
+	<string>Vitalis saves the calories, protein and water you log to Apple Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to find local butchers and farms near you.</string>
+	<string>Vitalis uses your location to find butchers and farms near you, show local weather and work out today's sunlight.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>ArchivoBlack-Regular.ttf</string>

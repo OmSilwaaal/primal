@@ -4,6 +4,8 @@ struct PaywallView: View {
     @StateObject private var subManager = SubscriptionManager.shared
     @StateObject private var authManager = AuthManager.shared
     @State private var selectedPlan: SubscriptionManager.Plan = .annual
+    /// Guests only: dismisses the paywall and continues into the app.
+    var onNotNow: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -63,7 +65,8 @@ struct PaywallView: View {
 
                         HStack(spacing: 28) {
                             Button("Restore") { Task { await subManager.restorePurchases() } }
-                            Button("Sign out") { Task { await authManager.signOut() } }
+                            // A guest has no account to sign out of; this takes them to the login screen.
+                            Button(authManager.isGuest ? "Log in" : "Sign out") { Task { await authManager.signOut() } }
                         }
                         .spacedCaps(11)
                         .foregroundColor(.ncPrimary.opacity(0.8))
@@ -85,6 +88,19 @@ struct PaywallView: View {
                 }
                 .padding(.horizontal, Space.margin)
                 .padding(.bottom, 32)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            // Same place and style as Skip on the login screen, so guests can always see the way past it.
+            if let onNotNow {
+                Button(action: onNotNow) {
+                    Text("Not now")
+                        .font(.system(size: 15)).foregroundColor(.ncPrimary.opacity(0.8))
+                        .padding(.horizontal, 20)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .disabled(subManager.isWorking)
             }
         }
         .task { if subManager.products.isEmpty { await subManager.loadProducts() } }

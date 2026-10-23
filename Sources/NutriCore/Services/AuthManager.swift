@@ -121,7 +121,11 @@ class AuthManager: ObservableObject {
         setGuest(true)
     }
 
+    /// Set when a guest taps "Not now" on the paywall; cleared whenever guest mode starts or ends.
+    static let guestDismissedPaywallKey = "guestDismissedPaywall"
+
     private func setGuest(_ value: Bool) {
+        if value != isGuest { UserDefaults.standard.removeObject(forKey: Self.guestDismissedPaywallKey) }
         isGuest = value
         UserDefaults.standard.set(value, forKey: "isGuest")
     }

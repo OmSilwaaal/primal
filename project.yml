@@ -46,10 +46,10 @@ targets:
           - IBMPlexMono-SemiBold.ttf
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
-        NSCameraUsageDescription: "We need access to your camera to scan barcodes and detect food items."
-        NSLocationWhenInUseUsageDescription: "We need your location to find local butchers and farms near you."
-        NSHealthShareUsageDescription: "Vitalis needs access to read your steps and active energy to calculate your daily metabolic rate."
-        NSHealthUpdateUsageDescription: "Vitalis needs access to write your logged calories, protein, and water to close your Apple Watch rings."
+        NSCameraUsageDescription: "Vitalis uses the camera to scan barcodes and photograph meals so it can log their nutrition."
+        NSLocationWhenInUseUsageDescription: "Vitalis uses your location to find butchers and farms near you, show local weather and work out today's sunlight."
+        NSHealthShareUsageDescription: "Vitalis reads activity (steps, active energy, time in daylight) to adjust your targets, and body and heart readings (weight, body fat, waist, blood pressure, resting heart rate, heart rate variability, blood glucose) to show them next to your diet. Health data stays on your iPhone."
+        NSHealthUpdateUsageDescription: "Vitalis saves the calories, protein and water you log to Apple Health."
     entitlements:
       path: NutriCore/NutriCore.entitlements
       properties:

@@ -7,7 +7,6 @@ struct SettingsView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var legalDocument: LegalDocument?
     @State private var showManageSubscriptions = false
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
     @StateObject private var social = SocialService.shared
@@ -187,10 +186,7 @@ struct SettingsView: View {
     // MARK: - Pieces
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HeaderIconButton(systemName: "arrow.left", label: "Back") { dismiss() }
-            PageHeader(title: "Settings", caption: "Account · privacy · app")
-        }
+        PageHeader(title: "Settings", caption: "Account · privacy · app")
     }
 
     private func privacyFooter(_ profile: PublicProfile) -> String {

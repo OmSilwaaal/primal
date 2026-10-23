@@ -340,7 +340,7 @@ struct QuickLogCard: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value).font(.ui(size: 20)).foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
                 .contentTransition(.numericText())
-            Text(label.uppercased()).font(.mono(10)).tracking(1).foregroundColor(.ncSecondary).lineLimit(1)
+            Text(label.uppercased()).font(.mono(11)).tracking(1).foregroundColor(.ncSecondary).lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 10)

@@ -112,6 +112,7 @@ struct ProfileSetupView: View {
         withAnimation {
             hasCompletedOnboarding = true
         }
+        UserDefaults.standard.set(true, forKey: HealthPrimingView.pendingKey)
         // Opened from the Profile tab (guests): go back to it. At the root this does nothing.
         dismiss()
         
@@ -144,8 +145,7 @@ struct ProfileSetupView: View {
                 }
             }
             
-            // Request HealthKit permissions in the background after dismissal
-            try? await HealthKitManager.shared.requestAuthorization()
+            // Apple Health is offered on Home with an explanation first (HealthPrimingView), not here.
         }
     }
 }

@@ -18,12 +18,13 @@ extension Color {
     static let ncSurfaceContHighest  = Color(hex: "#2A2A2F")
     static let ncSurfaceBright       = Color(hex: "#26262B")
 
-    // Text
-    static let ncPrimary             = Color(hex: "#F2F1EC") // Paper, 18.4:1 on Ink
+    // Text and status colours live in the asset catalog (Paper, Mute, Soft, Moss, Ember), each with a
+    // brighter variant used when Increase Contrast is on.
+    static let ncPrimary             = Color("Paper") // #F2F1EC, 18.4:1 on Ink
     static let ncOnPrimary           = Color(hex: "#0A0B0A") // text/icons on a ncPrimary fill
-    static let ncOnSurface           = Color(hex: "#F2F1EC")
-    static let ncSecondary           = Color(hex: "#9DA19B") // Mute, 7.6:1 on Ink
-    static let ncSoft                = Color(hex: "#C9CBC5") // secondary copy on glass
+    static let ncOnSurface           = Color("Paper")
+    static let ncSecondary           = Color("Mute")  // #9DA19B, 7.6:1 on Ink
+    static let ncSoft                = Color("Soft")  // #C9CBC5, secondary copy on glass
 
     // Lines
     static let ncOutline             = Color(hex: "#52525B")
@@ -43,8 +44,8 @@ extension Color {
     static let ncError               = Color.ncEmber
 
     // Status pair (oklch .80 .10 135 / oklch .72 .15 35)
-    static let ncMoss                = Color(hex: "#A2CD8B")
-    static let ncEmber               = Color(hex: "#F37E61")
+    static let ncMoss                = Color("Moss")  // #A2CD8B
+    static let ncEmber               = Color("Ember") // #F37E61
 
     // Legacy alias
     static let ncSurface2            = Color(hex: "#17171A")

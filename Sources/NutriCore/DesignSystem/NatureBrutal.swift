@@ -97,6 +97,7 @@ extension View {
 /// Darkened forest photograph behind every screen, with the design's top/bottom scrim.
 struct AppBackdrop: View {
     var intensity: Double = 1
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         GeometryReader { geo in
@@ -116,6 +117,8 @@ struct AppBackdrop: View {
                     .init(color: .black.opacity(0.45), location: 0.75),
                     .init(color: .black.opacity(0.7), location: 1),
                 ], startPoint: .top, endPoint: .bottom)
+                // Increase Contrast: the photo recedes further behind text.
+                if contrast == .increased { Color.black.opacity(0.35) }
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
@@ -154,6 +157,7 @@ struct SectionLabel: View {
                     Text(index).font(.mono(11)).foregroundColor(.ncSecondary)
                 }
                 Text(title).monoLabel()
+                    .accessibilityAddTraits(.isHeader) // VoiceOver: jump between sections with the rotor
                 Spacer(minLength: 8)
                 if let trailing {
                     Text(trailing).font(.mono(12, .semibold)).tracking(0.96).textCase(.uppercase).foregroundColor(trailingColor)
@@ -196,6 +200,7 @@ struct PageHeader<Accessory: View>: View {
             }
             .frame(minHeight: 44)
             Text(title).font(.ui(size: 30, weight: .bold)).foregroundColor(.ncPrimary)
+                .accessibilityAddTraits(.isHeader)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

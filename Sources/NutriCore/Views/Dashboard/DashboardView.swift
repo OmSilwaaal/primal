@@ -11,14 +11,12 @@ struct DashboardView: View {
     @StateObject private var healthManager = HealthKitManager.shared
 
     var onSearch: () -> Void = {}
-    var onRaw: () -> Void = {}
-    var onSun: () -> Void = {}
     @State private var showRawLog = false
+    @State private var pushed: SecondaryScreen?
+    @AppStorage(HealthPrimingView.pendingKey) private var healthPrimingPending = false
 
-    init(onSearch: @escaping () -> Void = {}, onRaw: @escaping () -> Void = {}, onSun: @escaping () -> Void = {}) {
+    init(onSearch: @escaping () -> Void = {}) {
         self.onSearch = onSearch
-        self.onRaw = onRaw
-        self.onSun = onSun
         // Rows back to the start of the month (eating cycle) or the week, whichever is earlier; at least 7 days for
         // the raw snapshot. "Today" is filtered in memory so the view survives midnight.
         let cal = Calendar.current, today = cal.startOfDay(for: .now)
@@ -59,7 +57,7 @@ struct DashboardView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        HomeHeader(onSearch: onSearch, onWeather: onSun)
+                        HomeHeader(onSearch: onSearch, onWeather: { pushed = .sun })
                             .padding(.horizontal, Space.margin)
                             .padding(.top, 12)
 
@@ -98,7 +96,7 @@ struct DashboardView: View {
                                     onAddSalt: { hydration.addedSodiumMg += 400; try? modelContext.save() })
                             }
 
-                            RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: onRaw,
+                            RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: { pushed = .raw },
                                                onLogRaw: { showRawLog = true }, onSearch: onSearch)
                         }
                         .padding(.horizontal, Space.margin)
@@ -108,7 +106,15 @@ struct DashboardView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Home") // names the back button on pushed screens
+            .navigationDestination(item: $pushed) { $0.destination }
             .sheet(isPresented: $showRawLog) { NavigationStack { RawLogView() } }
+            // Offered once after profile setup, explaining what's read and written before the system prompt.
+            .sheet(isPresented: $healthPrimingPending) {
+                HealthPrimingView { healthPrimingPending = false }
+                    .presentationDetents([.large])
+                    .presentationBackground(Color.ncBg)
+            }
             .task {
                 ensureRecords()
                 await healthManager.fetchTodayData()
@@ -155,15 +161,20 @@ private struct HomeHeader: View {
         }
     }
     private var actions: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             WeatherChip(onOpen: onWeather)
-            Button("Search", action: onSearch).buttonStyle(.glass).fixedSize()
+            Button(action: onSearch) {
+                Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium))
+            }
+            .buttonStyle(.glassDot)
+            .accessibilityLabel("Search foods")
+            .accessibilityShowsLargeContentViewer { Image(systemName: "magnifyingglass"); Text("Search") }
         }
     }
 }
 
-/// Current conditions as an SF Symbol and temperature, in the same clear glass as Search. Tapping opens the
-/// Sun screen. Location is only requested when the user taps the chip, never on launch.
+/// Current conditions as a glass dot beside Search: the SF Symbol over the temperature. Tapping opens the
+/// Sun screen. Location is only requested when the user taps the dot, never on launch.
 private struct WeatherChip: View {
     let onOpen: () -> Void
     @StateObject private var location = LocationManager(continuous: false)
@@ -177,45 +188,47 @@ private struct WeatherChip: View {
         Group {
             if authorized, let now = weather.current {
                 Button(action: onOpen) {
-                    HStack(spacing: 7) {
-                        Image(systemName: now.symbol)
-                            .font(.system(size: 16, weight: .regular))
-                            .symbolRenderingMode(.hierarchical)
-                            .contentTransition(.symbolEffect(.replace))
-                        Text(now.temperature)
-                    }
+                    dot(now.symbol, now.temperature)
                 }
+                .accessibilityShowsLargeContentViewer { Image(systemName: now.symbol); Text(now.temperature) }
                 .accessibilityLabel("Weather: \(now.summary), \(now.temperature)")
                 .accessibilityHint("Opens Sun")
             } else if authorized {
                 // Loading. Always draw something: the fetch below is attached to this view, and SwiftUI
                 // doesn't run tasks on an empty one.
                 Button(action: onOpen) {
-                    HStack(spacing: 7) {
-                        Image(systemName: "cloud").font(.system(size: 16, weight: .regular))
-                        Text("--°")
-                    }
-                    .opacity(0.5)
+                    dot("cloud", "--°").opacity(0.5)
                 }
                 .accessibilityLabel("Weather loading")
             } else if location.authorizationStatus == .notDetermined {
                 Button { location.requestPermission() } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: "cloud.sun").font(.system(size: 16, weight: .regular))
-                        Text("Weather")
-                    }
+                    Image(systemName: "cloud.sun").font(.system(size: 17, weight: .regular))
                 }
+                .accessibilityLabel("Weather")
                 .accessibilityHint("Asks for your location to show local weather")
             }
             // Denied or restricted: no chip.
         }
-        .buttonStyle(.glass)
-        .fixedSize()
+        .buttonStyle(.glassDot)
         .task(id: location.location?.coordinate.latitude) {
             if let loc = location.location { await weather.refresh(location: loc) }
         }
         // A fresh coarse fix each time Home appears; WeatherService skips the network if nothing changed.
         .onAppear { if authorized { location.requestOnce() } }
+    }
+
+    /// Symbol over temperature, sized to sit inside the 44 pt dot.
+    private func dot(_ symbol: String, _ temperature: String) -> some View {
+        VStack(spacing: 0) {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .regular))
+                .symbolRenderingMode(.hierarchical)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(height: 17)
+            Text(temperature)
+                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
     }
 }
 
@@ -290,7 +303,7 @@ private struct CycleSection: View {
                 ForEach(cycle.week) { day in
                     let today = day.mark == .today
                     VStack(spacing: 6) {
-                        Text(day.weekday).font(.mono(10, .semibold)).tracking(0.8).opacity(0.8)
+                        Text(day.weekday).font(.mono(11, .semibold)).tracking(0.8).opacity(0.8)
                             .lineLimit(1).minimumScaleFactor(0.6)
                         Text("\(day.number)").font(.display(17))
                             .lineLimit(1).minimumScaleFactor(0.6)
@@ -341,7 +354,7 @@ private struct CycleSection: View {
     private func legend(_ color: Color, _ text: String) -> some View {
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text(text.uppercased()).font(.mono(10)).tracking(0.8).foregroundColor(.ncSecondary)
+            Text(text.uppercased()).font(.mono(11)).tracking(0.8).foregroundColor(.ncSecondary)
                 .lineLimit(1).fixedSize()
         }
     }

@@ -1,11 +1,13 @@
 import Foundation
-import SwiftUI
-import UIKit
-import StripePaymentSheet
+import StoreKit
 import Supabase
 
-/// Subscription state. The source of truth is the `subscriptions` table, which only the Stripe
-/// webhook can write, so the app can't be tricked into granting itself access.
+/// Vitalis Pro, sold as an auto-renewing App Store subscription (StoreKit 2).
+///
+/// The source of truth is `Transaction.currentEntitlements`: transactions are signed by the App Store and
+/// verified by StoreKit on device, so the app can't be tricked into granting itself access. The subscription
+/// belongs to the Apple ID, not the Vitalis account; purchases made while signed in carry the account's
+/// user ID as `appAccountToken` so they can be matched server-side later.
 @MainActor
 final class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
@@ -14,21 +16,30 @@ final class SubscriptionManager: ObservableObject {
         case monthly, annual
         var id: String { rawValue }
 
-        // Display only. The amount actually charged is the Stripe price configured on the backend; keep these in sync.
-        var priceLabel: String { self == .monthly ? "$9.99 / month" : "$71.99 / year" }
-        var detail: String { self == .monthly ? "Cancel anytime" : "Best value · $6.00/month equivalent" }
+        /// Must match the product IDs in App Store Connect and Vitalis.storekit.
+        var productID: String { "com.omsilwal.NutriCorePrimal.pro.\(rawValue)" }
         var title: String { self == .monthly ? "Monthly" : "Annual" }
     }
 
     @Published private(set) var isSubscribed: Bool
     @Published private(set) var isWorking = false
+    @Published private(set) var products: [Plan: Product] = [:]
     @Published var errorMessage: String?
 
     private static let cacheKey = "isSubscribed"
+    private var updatesTask: Task<Void, Never>?
 
     private init() {
         // Cached so the app opens correctly offline; refreshEntitlement() corrects it.
         isSubscribed = UserDefaults.standard.bool(forKey: Self.cacheKey)
+        // Renewals, refunds, Ask to Buy approvals and purchases made on other devices arrive here.
+        updatesTask = Task { [weak self] in
+            for await update in Transaction.updates {
+                if case .verified(let transaction) = update { await transaction.finish() }
+                await self?.refreshEntitlement()
+            }
+        }
+        Task { await loadProducts() }
     }
 
     private func setSubscribed(_ value: Bool) {
@@ -36,164 +47,108 @@ final class SubscriptionManager: ObservableObject {
         UserDefaults.standard.set(value, forKey: Self.cacheKey)
     }
 
+    // MARK: - Products
+
+    func loadProducts() async {
+        do {
+            let loaded = try await Product.products(for: Plan.allCases.map(\.productID))
+            var byPlan: [Plan: Product] = [:]
+            for plan in Plan.allCases { byPlan[plan] = loaded.first { $0.id == plan.productID } }
+            products = byPlan
+        } catch {
+            print("Loading products failed: \(error)")
+        }
+    }
+
+    /// Localized price from the App Store, e.g. "$9.99 / month". Empty until products load.
+    func priceLabel(for plan: Plan) -> String {
+        guard let product = products[plan] else { return "" }
+        return "\(product.displayPrice) / \(plan == .monthly ? "month" : "year")"
+    }
+
+    /// Second line under each plan; the annual one shows its monthly equivalent.
+    func detail(for plan: Plan) -> String {
+        guard plan == .annual, let product = products[plan] else { return "Cancel anytime" }
+        let monthly = (product.price / 12).formatted(product.priceFormatStyle)
+        return "Best value · \(monthly)/month equivalent"
+    }
+
+    /// Annual saving against twelve monthly payments, e.g. 40.
+    var annualSavingsPercent: Int? {
+        guard let m = products[.monthly]?.price, let a = products[.annual]?.price, m > 0 else { return nil }
+        let saving = (1 - (a as NSDecimalNumber).doubleValue / ((m as NSDecimalNumber).doubleValue * 12)) * 100
+        return saving >= 1 ? Int(saving.rounded()) : nil
+    }
+
     // MARK: - Entitlement
 
-    private struct SubscriptionRow: Decodable {
-        let status: String
-        let currentPeriodEnd: Date?
-
-        enum CodingKeys: String, CodingKey {
-            case status
-            case currentPeriodEnd = "current_period_end"
-        }
-
-        var isEntitled: Bool {
-            guard status == "active" || status == "trialing" else { return false }
-            return currentPeriodEnd.map { $0 > Date() } ?? true
-        }
-    }
-
-    /// Reads the user's subscription row. With `onlyUpgrade`, a missing/inactive row is ignored
-    /// (used while waiting for the webhook right after a payment).
+    /// Recomputes access from the App Store's current entitlements.
     @discardableResult
-    func refreshEntitlement(onlyUpgrade: Bool = false) async -> Bool {
-        guard let userId = try? await supabase.auth.session.user.id else {
-            if !onlyUpgrade { setSubscribed(false) }
-            return false
+    func refreshEntitlement() async -> Bool {
+        let ids = Set(Plan.allCases.map(\.productID))
+        var entitled = false
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  ids.contains(transaction.productID),
+                  transaction.revocationDate == nil,
+                  transaction.expirationDate.map({ $0 > Date() }) ?? true else { continue }
+            entitled = true
         }
-        do {
-            let rows: [SubscriptionRow] = try await supabase
-                .from("subscriptions")
-                .select("status, current_period_end")
-                .eq("user_id", value: userId.uuidString)
-                .limit(1)
-                .execute()
-                .value
-            let entitled = rows.first?.isEntitled ?? false
-            if entitled || !onlyUpgrade { setSubscribed(entitled) }
-            return entitled
-        } catch {
-            // Offline or transient failure: keep the cached value rather than locking the user out.
-            print("Entitlement refresh failed: \(error)")
-            return isSubscribed
-        }
+        setSubscribed(entitled)
+        return entitled
     }
 
+    /// The subscription is tied to the Apple ID, so this only resets the cache; the next refresh restores it.
     func clearOnSignOut() { setSubscribed(false) }
 
-    // MARK: - Checkout
-
-    private struct CheckoutRequest: Encodable { let plan: String }
-    private struct CheckoutResponse: Decodable {
-        let clientSecret: String
-        let customerId: String
-        let ephemeralKey: String
-        let publishableKey: String
-    }
+    // MARK: - Purchase
 
     func subscribe(to plan: Plan) async {
         guard !isWorking else { return }
-        isWorking = true
         errorMessage = nil
+        guard let product = products[plan] else {
+            await loadProducts()
+            errorMessage = "Couldn't reach the App Store. Check your connection and try again."
+            return
+        }
+        isWorking = true
         defer { isWorking = false }
 
+        var options: Set<Product.PurchaseOption> = []
+        if let userId = supabase.auth.currentUser?.id { options.insert(.appAccountToken(userId)) }
+
         do {
-            let checkout: CheckoutResponse = try await supabase.functions.invoke(
-                "create-subscription",
-                options: FunctionInvokeOptions(body: CheckoutRequest(plan: plan.rawValue))
-            )
-
-            STPAPIClient.shared.publishableKey = checkout.publishableKey
-            var config = PaymentSheet.Configuration()
-            config.merchantDisplayName = "Vitalis"
-            config.customer = .init(id: checkout.customerId, ephemeralKeySecret: checkout.ephemeralKey)
-            config.returnURL = "com.omsilwal.NutriCorePrimal://stripe-redirect"
-            config.allowsDelayedPaymentMethods = false
-
-            let sheet = PaymentSheet(paymentIntentClientSecret: checkout.clientSecret, configuration: config)
-            let result = await present(sheet)
-
-            switch result {
-            case .completed:
-                setSubscribed(true) // optimistic; the webhook row confirms below
-                await confirmWithServer()
-            case .canceled:
+            switch try await product.purchase(options: options) {
+            case .success(.verified(let transaction)):
+                await transaction.finish()
+                await refreshEntitlement()
+            case .success(.unverified(_, let error)):
+                errorMessage = "The App Store couldn't verify this purchase. (\(error.localizedDescription))"
+            case .pending:
+                errorMessage = "Your purchase is waiting for approval. You'll get access as soon as it's approved."
+            case .userCancelled:
                 break
-            case .failed(let error):
-                errorMessage = error.localizedDescription
+            @unknown default:
+                break
             }
         } catch {
-            errorMessage = Self.message(for: error)
+            errorMessage = error.localizedDescription
         }
     }
 
-    /// The webhook usually lands within a couple of seconds. If it never does, revert the optimistic grant.
-    private func confirmWithServer() async {
-        for _ in 0..<10 {
-            if await refreshEntitlement(onlyUpgrade: true) { return }
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-        }
-        errorMessage = "Payment received, but activation is taking longer than expected. Tap Restore in a moment."
-        await refreshEntitlement()
-    }
-
-    private func present(_ sheet: PaymentSheet) async -> PaymentSheetResult {
-        await withCheckedContinuation { continuation in
-            guard let top = Self.topViewController() else {
-                continuation.resume(returning: .failed(error: NSError(
-                    domain: "Subscription", code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "Couldn't open the payment screen."])))
-                return
-            }
-            sheet.present(from: top) { continuation.resume(returning: $0) }
-        }
-    }
-
-    private static func topViewController() -> UIViewController? {
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }
-        var top = scene?.keyWindow?.rootViewController
-        while let presented = top?.presentedViewController { top = presented }
-        return top
-    }
-
-    private static func message(for error: Error) -> String {
-        if let fn = error as? FunctionsError, case .httpError(let code, let data) = fn {
-            if code == 409 { return "You're already subscribed. Tap Restore." }
-            if let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let text = body["error"] as? String { return text }
-        }
-        return "Couldn't start checkout. Check your connection and try again."
-    }
-
-    // MARK: - Manage
-
-    private struct PortalResponse: Decodable { let url: URL }
-
-    /// Opens Stripe's billing portal (update card, cancel, invoices).
-    func openBillingPortal() async {
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-        do {
-            let portal: PortalResponse = try await supabase.functions.invoke("create-portal-session")
-            await UIApplication.shared.open(portal.url)
-        } catch {
-            errorMessage = Self.message(for: error)
-        }
-    }
-
+    /// Asks the App Store to sync this Apple ID's purchases. Shows a sign-in prompt if needed.
     func restorePurchases() async {
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
+        try? await AppStore.sync()
         if !(await refreshEntitlement()) {
-            errorMessage = "No active subscription found for this account."
+            errorMessage = "No active Vitalis Pro subscription found for this Apple ID."
         }
     }
 
     #if DEBUG
-    /// Development only: unlocks the app locally without Stripe. Compiled out of release builds.
+    /// Development only: unlocks the app locally without a purchase. Compiled out of release builds.
     func debugUnlock() { setSubscribed(true) }
     #endif
 }

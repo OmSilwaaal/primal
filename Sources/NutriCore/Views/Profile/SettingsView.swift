@@ -1,10 +1,12 @@
 import SwiftUI
+import StoreKit
 import SwiftData
 
 struct SettingsView: View {
     @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var legalDocument: LegalDocument?
+    @State private var showManageSubscriptions = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
@@ -101,9 +103,9 @@ struct SettingsView: View {
                     // ── Subscription ────────────────────────────────────────
                     SettingsSection(title: "Subscription") {
                         SettingsRow(icon: "creditcard", title: "Manage subscription",
-                                    subtitle: subManager.isSubscribed ? "Update card, cancel, view invoices" : "No active subscription",
+                                    subtitle: subManager.isSubscribed ? "Change plan or cancel" : "No active subscription",
                                     enabled: subManager.isSubscribed && !subManager.isWorking) {
-                            Task { await subManager.openBillingPortal() }
+                            showManageSubscriptions = true
                         }
                         if let error = subManager.errorMessage {
                             Text(error).font(.system(size: 13)).foregroundColor(.ncError)
@@ -167,6 +169,10 @@ struct SettingsView: View {
             Text("We'll email a confirmation link to the new address.")
         }
         .sheet(item: $legalDocument) { LegalView(document: $0) }
+        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
+        .onChange(of: showManageSubscriptions) { _, shown in
+            if !shown { Task { await subManager.refreshEntitlement() } }
+        }
         .confirmationDialog("Sign out of Vitalis?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await auth.signOut() } }
         }
@@ -174,7 +180,7 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete forever", role: .destructive) { Task { await deleteAccount() } }
         } message: {
-            Text("This permanently erases your profile, friends, shared meals and cancels your subscription. It can't be undone.")
+            Text("This permanently erases your profile, friends and shared meals. It can't be undone. An App Store subscription isn't cancelled by this; cancel it in your Apple ID settings.")
         }
     }
 

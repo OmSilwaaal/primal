@@ -46,7 +46,6 @@
 		731AB24A35D0BC8DB7B9C0A7 /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */; };
 		7357FD61549764B2B09A73D5 /* SocialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1AD6AC640EBE79C71B38BA /* SocialService.swift */; };
 		750F6508177D60A155055D46 /* MealLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E907E2F0A8AA847C698087 /* MealLogger.swift */; };
-		75CA47B234DB87AE29CD283C /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = 7E22A6BD7EA598DC2ED47338 /* StripePaymentSheet */; };
 		77BAD8C59581698F78094765 /* BiomarkersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC280A787F7031CC2EDA9DCE /* BiomarkersView.swift */; };
 		78BAAA27D7BFDC2A1C8A2756 /* PlacesMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD082626A804F4A3A2E08C21 /* PlacesMapView.swift */; };
 		7927F808E78F1D42559C06D1 /* DietRaterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D6FA7E66374E8996710C714 /* DietRaterView.swift */; };
@@ -163,7 +162,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				B3ECB307AEE36631A5E2397D /* Supabase in Frameworks */,
-				75CA47B234DB87AE29CD283C /* StripePaymentSheet in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -434,7 +432,6 @@
 			name = NutriCore;
 			packageProductDependencies = (
 				2C5F05EA7ECBF9CDB81E583C /* Supabase */,
-				7E22A6BD7EA598DC2ED47338 /* StripePaymentSheet */,
 			);
 			productName = NutriCore;
 			productReference = 1571293BD926D8C15F4A1D30 /* NutriCore.app */;
@@ -464,7 +461,6 @@
 			mainGroup = CC91350CD9EB8FEC93AE178A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A338720C92BE8BCFA3706E7E /* XCRemoteSwiftPackageReference "stripe-ios-spm" */,
 				D20199A7C4BEDCA375E31CCE /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -752,14 +748,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A338720C92BE8BCFA3706E7E /* XCRemoteSwiftPackageReference "stripe-ios-spm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stripe/stripe-ios-spm.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 23.0.0;
-			};
-		};
 		D20199A7C4BEDCA375E31CCE /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase-community/supabase-swift.git";
@@ -775,11 +763,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D20199A7C4BEDCA375E31CCE /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
-		};
-		7E22A6BD7EA598DC2ED47338 /* StripePaymentSheet */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A338720C92BE8BCFA3706E7E /* XCRemoteSwiftPackageReference "stripe-ios-spm" */;
-			productName = StripePaymentSheet;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

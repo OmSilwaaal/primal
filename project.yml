@@ -11,9 +11,6 @@ packages:
   Supabase:
     url: https://github.com/supabase-community/supabase-swift.git
     from: 2.0.0
-  Stripe:
-    url: https://github.com/stripe/stripe-ios-spm.git
-    from: 23.0.0
 
 targets:
   NutriCore:
@@ -22,8 +19,6 @@ targets:
     deploymentTarget: "17.0"
     dependencies:
       - package: Supabase
-      - package: Stripe
-        product: StripePaymentSheet
     sources:
       - path: Sources/NutriCore
         createIntermediateGroups: true
@@ -60,6 +55,9 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.applesignin: ["Default"]
+    scheme:
+      # Local App Store for testing purchases in the simulator and from Xcode.
+      storeKitConfiguration: Vitalis.storekit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal

@@ -2,7 +2,7 @@
 
 1. Run `migrations/20261016000000_social.sql` in the Supabase SQL editor (creates tables, RLS,
    search functions and the public `avatars` storage bucket).
-2. Deploy the account deletion function (needs the same Stripe secrets as billing):
+2. Deploy the account deletion function (uses only the built-in Supabase secrets):
    `supabase functions deploy delete-account`
 3. Profiles are created automatically the first time a signed-in user opens the app.
 

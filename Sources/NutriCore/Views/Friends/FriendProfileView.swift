@@ -51,15 +51,15 @@ struct FriendProfileView: View {
             AvatarView(url: full?.avatarUrl ?? profile.avatarUrl, name: profile.name, size: 92)
             VStack(spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(profile.name).font(.system(size: 22, weight: .bold)).foregroundColor(.ncPrimary)
+                    Text(profile.name).font(.ui(size: 22, weight: .bold)).foregroundColor(.ncPrimary)
                     if profile.isPrivate {
-                        Image(systemName: "lock.fill").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        Image(systemName: "lock.fill").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     }
                 }
-                Text("@\(profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                Text("@\(profile.username)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             if let bio = full?.bio, !bio.isEmpty {
-                Text(bio).font(.system(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.center)
+                Text(bio).font(.ui(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.center)
             }
         }
         .padding(.top, 8)
@@ -96,7 +96,7 @@ struct FriendProfileView: View {
                     Image(systemName: "chevron.left").frame(width: 44, height: 44)
                 }
                 Spacer()
-                Text(dayLabel).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                Text(dayLabel).font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                     .contentTransition(.opacity)
                 Spacer()
                 Button { withAnimation(.snappy) { dayOffset += 1 } } label: {
@@ -105,16 +105,16 @@ struct FriendProfileView: View {
                 .disabled(dayOffset >= 0)
                 .opacity(dayOffset >= 0 ? 0.3 : 1)
             }
-            .font(.system(size: 14, weight: .semibold))
+            .font(.ui(size: 14, weight: .semibold))
             .foregroundColor(.ncPrimary)
 
             VStack(spacing: 14) {
                 HStack(alignment: .lastTextBaseline, spacing: 4) {
                     Text("\(Int(summary.calories))")
-                        .font(.system(size: 34, weight: .bold).monospacedDigit())
+                        .font(.ui(size: 34, weight: .bold).monospacedDigit())
                         .foregroundColor(.ncPrimary)
                         .contentTransition(.numericText())
-                    Text("kcal").font(.system(size: 14)).foregroundColor(.ncSecondary)
+                    Text("kcal").font(.ui(size: 14)).foregroundColor(.ncSecondary)
                     Spacer()
                 }
                 HStack(spacing: 8) {
@@ -129,7 +129,7 @@ struct FriendProfileView: View {
 
             if meals.isEmpty {
                 Text(isLoading ? "Loading…" : "Nothing logged this day")
-                    .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     .frame(maxWidth: .infinity).padding(.vertical, 24)
             } else {
                 VStack(spacing: 8) {
@@ -170,10 +170,10 @@ private struct MacroChip: View {
     let tint: Color
     var body: some View {
         VStack(spacing: 3) {
-            Text("\(Int(value))g").font(.system(size: 15, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
+            Text("\(Int(value))g").font(.ui(size: 15, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
             HStack(spacing: 4) {
                 Circle().fill(tint).frame(width: 6, height: 6)
-                Text(label).font(.system(size: 12)).foregroundColor(.ncSecondary)
+                Text(label).font(.ui(size: 12)).foregroundColor(.ncSecondary)
             }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 10)
@@ -185,12 +185,12 @@ private struct MealLine: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(meal.foodName.capitalized).font(.system(size: 14, weight: .semibold)).foregroundColor(.ncPrimary).lineLimit(1)
+                Text(meal.foodName.capitalized).font(.ui(size: 14, weight: .semibold)).foregroundColor(.ncPrimary).lineLimit(1)
                 Text("\(meal.eatenAt.formatted(date: .omitted, time: .shortened)) · P \(Int(meal.protein))g · C \(Int(meal.carbohydrates))g · F \(Int(meal.totalFat))g")
-                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    .font(.ui(size: 12)).foregroundColor(.ncSecondary)
             }
             Spacer()
-            Text("\(Int(meal.calories)) kcal").font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
+            Text("\(Int(meal.calories)) kcal").font(.ui(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
         }
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }

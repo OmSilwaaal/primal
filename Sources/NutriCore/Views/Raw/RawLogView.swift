@@ -69,7 +69,7 @@ struct RawLogView: View {
                     } else {
                         RawField(title: "Cut or item (optional)", text: $itemName)
                         Toggle(isOn: $ground) {
-                            Text("Ground / minced").font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
+                            Text("Ground / minced").font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
                         }.tint(.ncIndigo)
                     }
                 }
@@ -110,8 +110,8 @@ struct RawLogView: View {
                             }
                         }
                         Button { showNewBatch = true } label: {
-                            Label("New batch", systemImage: "plus").font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.ncPrimary).padding(.horizontal, 14).frame(height: 40)
+                            Label("New batch", systemImage: "plus").font(.ui(size: 14, weight: .medium))
+                                .foregroundColor(.ncPrimary).padding(.horizontal, 14).frame(minHeight: 44)
                                 .overlay(Rectangle().stroke(Color.ncPrimary.opacity(0.28), style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
                         }.buttonStyle(.plain)
                     }
@@ -127,7 +127,7 @@ struct RawLogView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             FieldLabel(text: "Time out of fridge")
-                            Text(outMin == 0 ? "Not noted" : "\(Int(outMin)) min").font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                            Text(outMin == 0 ? "Not noted" : "\(Int(outMin)) min").font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                         }
                         Spacer()
                         Stepper("", value: $outMin, in: 0...720, step: 15).labelsHidden()
@@ -143,7 +143,7 @@ struct RawLogView: View {
                     }
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         Label(photoData == nil ? "Add photo" : "Change photo", systemImage: "photo")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.ui(size: 14, weight: .semibold))
                     }
                     .buttonStyle(.vitalisSecondary)
                     .frame(maxWidth: 180)
@@ -296,9 +296,9 @@ struct RiskSummaryCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(Int(assessment.score))")
-                        .font(.system(size: 40, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
+                        .font(.ui(size: 40, weight: .bold).monospacedDigit()).foregroundColor(.ncPrimary)
                         .contentTransition(.numericText())
-                    Text("/ 100").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("/ 100").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     Spacer()
                     if assessment.parasiteMitigated { Tag(text: "Parasite-mitigated", color: .ncGreen) }
                 }
@@ -306,17 +306,17 @@ struct RiskSummaryCard: View {
 
                 ForEach(assessment.hardWarnings, id: \.self) { w in
                     HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.ncError).font(.system(size: 13))
-                        Text(w).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.ncError).font(.ui(size: 13))
+                        Text(w).font(.ui(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                     }
                     .padding(10)
                     .background(Color.ncError.opacity(0.12), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                 }
                 ForEach(assessment.notes, id: \.self) { n in
-                    Text("• \(n)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("• \(n)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
                 if !assessment.mitigationNote.isEmpty {
-                    Text(assessment.mitigationNote).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text(assessment.mitigationNote).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
                 if !assessment.pathogens.isEmpty {
                     FlowLayout(spacing: 6) {
@@ -330,18 +330,18 @@ struct RiskSummaryCard: View {
                         Text(expanded ? "Hide how it's scored" : "How it's scored")
                         Image(systemName: "chevron.down").rotationEffect(.degrees(expanded ? 180 : 0))
                     }
-                    .font(.system(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
+                    .font(.ui(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
                 }
                 if expanded {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(assessment.factors) { f in
                             HStack { Text(f.label); Spacer(); Text(f.detail).foregroundColor(.ncSecondary) }
-                                .font(.system(size: 13)).foregroundColor(.ncPrimary)
+                                .font(.ui(size: 13)).foregroundColor(.ncPrimary)
                         }
                     }
                 }
                 Text("Risk information, not a safety clearance. Lower risk never means safe.")
-                    .font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    .font(.ui(size: 12)).foregroundColor(.ncSecondary)
             }
         }
     }

@@ -134,7 +134,7 @@ private struct HomeHeader: View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Today").monoLabel()
-                Text(dateText).font(.system(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
+                Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
             }
             Spacer()
             Button("Search", action: onSearch).buttonStyle(.glass)
@@ -214,7 +214,9 @@ private struct CycleSection: View {
                     let today = day.mark == .today
                     VStack(spacing: 6) {
                         Text(day.weekday).font(.mono(10, .semibold)).tracking(0.8).opacity(0.8)
+                            .lineLimit(1).minimumScaleFactor(0.6)
                         Text("\(day.number)").font(.display(17))
+                            .lineLimit(1).minimumScaleFactor(0.6)
                         Circle().fill(dotColor(day.mark)).frame(width: 6, height: 6)
                     }
                     .foregroundColor(today ? .ncOnPrimary : day.mark == .upcoming ? .ncSecondary : .ncPrimary)
@@ -222,14 +224,18 @@ private struct CycleSection: View {
                     .padding(.top, 10).padding(.bottom, 9)
                     .background(Capsule().fill(today ? Color.ncPrimary : Color.white.opacity(0.06)))
                     .overlay(Capsule().strokeBorder(today ? Color.ncPrimary : Color.white.opacity(0.14), lineWidth: 1))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(day.id.formatted(.dateTime.weekday(.wide))) \(day.number), \(markDescription(day.mark))")
                 }
             }
             .padding(.top, 4)
+            // Seven fixed columns can't grow with the text, so the row stops at the largest standard size.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
-            HStack(spacing: 14) {
-                legend(.ncMoss, "On target")
-                legend(.ncEmber, "Under / over")
-                legend(.ncPrimary.opacity(0.25), "Upcoming")
+            // One line when it fits; stacked at large text sizes.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) { legendItems }
+                VStack(alignment: .leading, spacing: 6) { legendItems }
             }
         }
     }
@@ -250,10 +256,25 @@ private struct CycleSection: View {
         case .upcoming, .empty: .ncPrimary.opacity(0.25)
         }
     }
+    @ViewBuilder private var legendItems: some View {
+        legend(.ncMoss, "On target")
+        legend(.ncEmber, "Under / over")
+        legend(.ncPrimary.opacity(0.25), "Upcoming")
+    }
     private func legend(_ color: Color, _ text: String) -> some View {
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text(text.uppercased()).font(.mono(10)).tracking(0.8).foregroundColor(.ncSecondary)
+                .lineLimit(1).fixedSize()
+        }
+    }
+    private func markDescription(_ m: EatingCycle.Mark) -> String {
+        switch m {
+        case .onTarget: "on target"
+        case .offTarget: "under or over target"
+        case .today: "today"
+        case .upcoming: "upcoming"
+        case .empty: "nothing logged"
         }
     }
 }
@@ -303,9 +324,9 @@ private struct MacroGrid: View {
                 ForEach(items, id: \.0) { label, cur, goal in
                     let p = goal > 0 ? cur / goal : 0
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(label).font(.system(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
+                        Text(label).font(.ui(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(Int(cur.rounded()).formatted()).font(.system(size: 26)).foregroundColor(.ncPrimary)
+                            Text(Int(cur.rounded()).formatted()).font(.ui(size: 26)).foregroundColor(.ncPrimary)
                                 .contentTransition(.numericText())
                             Text("/\(Int(goal.rounded()).formatted()) G").font(.mono(11)).foregroundColor(.ncSecondary)
                         }
@@ -352,7 +373,7 @@ private struct HydrationSection: View {
             }
             .animation(.smooth, value: value)
             LineGauge(value: progress)
-            Text(target).font(.system(size: 13)).foregroundColor(.ncSecondary)
+            Text(target).font(.ui(size: 13)).foregroundColor(.ncSecondary)
             Button(action: action) { Text(button) }
                 .buttonStyle(SecondaryButtonStyle(height: 40))
         }
@@ -379,7 +400,7 @@ struct RawSnapshotSection: View {
                         Text(rating.tier.title).font(.serif(28)).foregroundColor(.ncPrimary)
                             .multilineTextAlignment(.leading)
                         Spacer()
-                        Image(systemName: "arrow.up.right").font(.system(size: 14)).foregroundColor(.ncSecondary)
+                        Image(systemName: "arrow.up.right").font(.ui(size: 14)).foregroundColor(.ncSecondary)
                     }
                 }
                 .buttonStyle(.plain)
@@ -403,6 +424,8 @@ struct MealsSection: View {
     let meals: [MealEntry]
     let onAdd: () -> Void
     let onDelete: (MealEntry) -> Void
+    /// Removing a meal is confirmed first: it also deletes it from Apple Health sharing and friends' feeds.
+    @State private var pendingDelete: MealEntry?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -417,13 +440,18 @@ struct MealsSection: View {
                 Rule()
                 if meals.isEmpty {
                     Text("Nothing logged yet today. Search, scan a barcode or photograph a meal to start.")
-                        .font(.system(size: 15)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 15)).foregroundColor(.ncSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 28)
                 } else {
                     ForEach(meals.reversed()) { meal in
-                        MealRow(meal: meal) { onDelete(meal) }
+                        MealRow(meal: meal) { pendingDelete = meal }
                             .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
+                            .contextMenu {
+                                Button(role: .destructive) { pendingDelete = meal } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                            }
                     }
                 }
             }
@@ -432,6 +460,17 @@ struct MealsSection: View {
             Button("Log food", action: onAdd)
                 .buttonStyle(.vitalis)
                 .padding(Space.margin)
+        }
+        .confirmationDialog(
+            "Remove \(pendingDelete.map { $0.foodName.components(separatedBy: ",").first ?? $0.foodName } ?? "meal")?",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingDelete
+        ) { meal in
+            Button("Remove", role: .destructive) { onDelete(meal) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("It's removed from today's totals and from anything you've shared.")
         }
     }
 }
@@ -454,19 +493,20 @@ struct MealRow: View {
             Text(timeStr).font(.mono(12)).foregroundColor(.ncSecondary)
                 .frame(width: 44, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
-                Text(meal.foodName.capitalized).font(.system(size: 15, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(1)
-                Text(meta).font(.system(size: 12)).foregroundColor(meal.riskScore >= 65 ? .ncEmber : .ncSecondary).lineLimit(1)
+                Text(meal.foodName.capitalized).font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(1)
+                Text(meta).font(.ui(size: 12)).foregroundColor(meal.riskScore >= 65 ? .ncEmber : .ncSecondary).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             (Text("\(Int(meal.calories).formatted())") + Text(" KCAL").foregroundColor(.ncSecondary))
                 .font(.mono(13)).foregroundColor(.ncPrimary)
             Button(action: onDelete) {
-                Text("×").font(.system(size: 22)).foregroundColor(.ncSecondary)
-                    .frame(width: 36, height: 44)
+                Text("×").font(.ui(size: 22)).foregroundColor(.ncSecondary)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(meal.foodName)")
+            .accessibilityHint("Asks before removing")
         }
         .frame(minHeight: 64)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.28) }

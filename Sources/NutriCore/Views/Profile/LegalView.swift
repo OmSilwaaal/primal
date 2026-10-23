@@ -48,7 +48,7 @@ struct LegalView: View {
             Color.ncBg.ignoresSafeArea()
             VStack(spacing: 0) {
                 HStack {
-                    Text(document.title).font(.system(size: 17, weight: .bold)).foregroundColor(.ncPrimary)
+                    Text(document.title).font(.ui(size: 17, weight: .bold)).foregroundColor(.ncPrimary)
                     Spacer()
                     Button("Done") { dismiss() }.buttonStyle(.glass)
                 }
@@ -76,7 +76,7 @@ struct LegalView: View {
         switch block {
         case .heading(let text, let level):
             Text(text)
-                .font(.system(size: level == 2 ? 19 : 16, weight: .bold))
+                .font(.ui(size: level == 2 ? 19 : 16, weight: .bold))
                 .foregroundColor(.ncPrimary)
                 .padding(.top, level == 2 ? 16 : 6)
                 .accessibilityAddTraits(.isHeader)
@@ -92,7 +92,7 @@ struct LegalView: View {
 
     private func inline(_ text: String) -> some View {
         Text((try? AttributedString(markdown: text)) ?? AttributedString(text))
-            .font(.system(size: 15))
+            .font(.ui(size: 15))
             .foregroundColor(.ncPrimary.opacity(0.88))
             .lineSpacing(3)
             .fixedSize(horizontal: false, vertical: true)
@@ -105,12 +105,18 @@ struct LegalView: View {
 struct LegalLinks: View {
     @State private var shown: LegalDocument?
     var body: some View {
-        HStack(spacing: 6) {
-            Button("Terms of Service") { shown = .terms }
-            Text("·")
-            Button("Privacy Policy") { shown = .privacy }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                Button("Terms of Service") { shown = .terms }.fixedSize()
+                Text("·")
+                Button("Privacy Policy") { shown = .privacy }.fixedSize()
+            }
+            VStack(spacing: 4) {
+                Button("Terms of Service") { shown = .terms }
+                Button("Privacy Policy") { shown = .privacy }
+            }
         }
-        .font(.system(size: 12))
+        .font(.ui(size: 12))
         .foregroundColor(.ncPrimary.opacity(0.7))
         .sheet(item: $shown) { LegalView(document: $0) }
     }

@@ -16,7 +16,7 @@ struct BodyGoalsView: View {
                         Metric(value: Int(profile.dailyCalorieGoal).formatted(), unit: "kcal", size: 56)
                             .animation(.smooth, value: Int(profile.dailyCalorieGoal))
                         Text("Calculated with the Mifflin-St Jeor formula from the values below.")
-                            .font(.system(size: 14)).foregroundColor(.ncSecondary)
+                            .font(.ui(size: 14)).foregroundColor(.ncSecondary)
                     }
                 }
 
@@ -27,7 +27,7 @@ struct BodyGoalsView: View {
                         stepper("Height", value: Binding(get: { profile.heightCm }, set: { profile.heightCm = $0 }), range: 100...230, step: 1, unit: "cm")
                         stepper("Age", value: Binding(get: { Double(profile.age) }, set: { profile.age = Int($0) }), range: 13...100, step: 1, unit: "yrs")
                         HStack {
-                            Text("Sex").font(.system(size: 17)).foregroundColor(.ncPrimary)
+                            Text("Sex").font(.ui(size: 17)).foregroundColor(.ncPrimary)
                             Spacer()
                             ForEach(["Male", "Female"], id: \.self) { s in
                                 Chip(label: s, selected: (profile.isMale ? "Male" : "Female") == s) { profile.sex = s }
@@ -52,7 +52,7 @@ struct BodyGoalsView: View {
     private func stepper(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double, unit: String) -> some View {
         VStack(spacing: 0) {
             HStack {
-                Text(title).font(.system(size: 17)).foregroundColor(.ncPrimary)
+                Text(title).font(.ui(size: 17)).foregroundColor(.ncPrimary)
                 Spacer()
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(String(format: step < 1 ? "%.1f" : "%.0f", value.wrappedValue)).font(.metric(17)).foregroundColor(.ncPrimary)

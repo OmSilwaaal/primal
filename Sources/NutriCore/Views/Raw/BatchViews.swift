@@ -46,7 +46,7 @@ struct BatchEditView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.octagon.fill").foregroundColor(.ncError)
                     Text("Possible recall match — \(flag). Check the original notice before eating.")
-                        .font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
+                        .font(.ui(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                 }
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.ncError.opacity(0.14), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
@@ -66,7 +66,7 @@ struct BatchEditView: View {
                             ForEach(Organ.allCases) { o in Chip(label: o.label, selected: o == organ) { organ = o } }
                         }
                     }
-                    Toggle(isOn: $ground) { Text("Ground / minced").font(.system(size: 14, weight: .medium)).foregroundColor(.ncPrimary) }.tint(.ncIndigo)
+                    Toggle(isOn: $ground) { Text("Ground / minced").font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary) }.tint(.ncIndigo)
                     FlowLayout(spacing: 8) {
                         ForEach(Rearing.allCases) { r in Chip(label: r.label, selected: r == rearing) { rearing = r } }
                     }
@@ -103,7 +103,7 @@ struct BatchEditView: View {
                     if frozen {
                         DatePicker("Frozen on", selection: $frozenAt, displayedComponents: .date).foregroundColor(.ncPrimary)
                         VStack(alignment: .leading, spacing: 4) {
-                            HStack { FieldLabel(text: "Freezer temp"); Spacer(); Text("\(Int(temp)) °C").font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary) }
+                            HStack { FieldLabel(text: "Freezer temp"); Spacer(); Text("\(Int(temp)) °C").font(.ui(size: 13, weight: .semibold)).foregroundColor(.ncPrimary) }
                             Slider(value: $temp, in: -40...(-5), step: 1).tint(.ncIndigo)
                         }
                         Toggle("Thawed", isOn: $thawed.animation()).tint(.ncIndigo).foregroundColor(.ncPrimary)
@@ -116,7 +116,7 @@ struct BatchEditView: View {
                         if let r = freezeResult {
                             HStack(alignment: .top, spacing: 8) {
                                 if r.effective { Tag(text: "Parasite-mitigated", color: .ncGreen) }
-                                Text(r.note).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                Text(r.note).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                             }
                         }
                     }
@@ -207,14 +207,14 @@ struct SafetyView: View {
             RawCard(title: "Recall check", trailing: recalls.lastChecked.map { "Checked \($0.formatted(date: .omitted, time: .shortened))" }) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Compares your logged lot numbers with USDA FSIS and openFDA recall data. No match found is not a clearance.")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     let flagged = batches.filter { !$0.recallFlag.isEmpty }
                     ForEach(flagged) { b in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.octagon.fill").foregroundColor(.ncError)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(b.label).font(.system(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
-                                Text(b.recallFlag).font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                Text(b.label).font(.ui(size: 13, weight: .semibold)).foregroundColor(.ncPrimary)
+                                Text(b.recallFlag).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                             }
                         }
                     }
@@ -225,7 +225,7 @@ struct SafetyView: View {
                     }
                     .buttonStyle(.vitalisSecondary)
                     if !recalls.fsisAvailable && recalls.lastChecked != nil {
-                        Text("USDA FSIS feed unreachable right now; only openFDA was checked.").font(.system(size: 12)).foregroundColor(.ncOrange)
+                        Text("USDA FSIS feed unreachable right now; only openFDA was checked.").font(.ui(size: 12)).foregroundColor(.ncOrange)
                     }
                 }
             }
@@ -235,7 +235,7 @@ struct SafetyView: View {
                     VStack(spacing: 10) {
                         ForEach(highRisk) { m in
                             HStack {
-                                Text(m.foodName).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary).lineLimit(1)
+                                Text(m.foodName).font(.ui(size: 13, weight: .medium)).foregroundColor(.ncPrimary).lineLimit(1)
                                 Spacer()
                                 Tag(text: "\(Int(m.riskScore))", color: m.riskScore >= 65 ? .ncError : .ncOrange)
                             }
@@ -277,7 +277,7 @@ private struct BatchRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(batch.label.isEmpty ? "Batch" : batch.label).font(.system(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
+                Text(batch.label.isEmpty ? "Batch" : batch.label).font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                 Spacer()
                 if !batch.recallFlag.isEmpty { Tag(text: "Recall?", color: .ncError) }
                 Tag(text: assessment.level.label, color: assessment.level.color)
@@ -295,7 +295,7 @@ private struct BatchRow: View {
                 Spacer()
                 if let s = batch.sellByDate { Text("Sell by \(s.formatted(date: .abbreviated, time: .omitted))") }
             }
-            .font(.system(size: 13)).foregroundColor(.ncSecondary)
+            .font(.ui(size: 13)).foregroundColor(.ncSecondary)
         }
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.12) }

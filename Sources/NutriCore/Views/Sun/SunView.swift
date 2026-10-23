@@ -78,10 +78,10 @@ struct SunView: View {
                     .animation(.smooth, value: Int(todayMin))
                 LineGauge(value: todayMin / Double(max(goal, 1)))
                 HStack {
-                    Text("Daily goal").font(.system(size: 15)).foregroundColor(.ncSecondary)
+                    Text("Daily goal").font(.ui(size: 15)).foregroundColor(.ncSecondary)
                     Spacer()
                     Stepper("\(goal) min", value: $goal, in: 10...180, step: 5)
-                        .font(.system(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
+                        .font(.ui(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
                         .fixedSize()
                 }
                 if !health.isAuthorized {
@@ -89,10 +89,10 @@ struct SunView: View {
                         Task { try? await health.requestAuthorization(); await loadAll() }
                     } label: { Label("Connect Apple Health", systemImage: "applewatch") }
                         .buttonStyle(.vitalisSecondary)
-                    Text("Adds Apple Watch “time in daylight” automatically.").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Adds Apple Watch “time in daylight” automatically.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     Text(daylight.isEmpty ? "Daylight from Apple Watch appears here once Health has data." : "Includes Apple Watch time in daylight.")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
         }
@@ -118,7 +118,7 @@ struct SunView: View {
                         .buttonStyle(.vitalis)
                 }
                 Button("Add time manually") { showManual = true }
-                    .font(.system(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
+                    .font(.ui(size: 13, weight: .semibold)).foregroundColor(.ncIndigo)
             }
         }
     }
@@ -128,10 +128,10 @@ struct SunView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if location.authorizationStatus == .notDetermined {
                     Text("Allow location to see UV index, sunrise/sunset and when the sun is high enough for vitamin D.")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     Button("Enable location") { location.requestPermission() }.buttonStyle(.vitalisSecondary)
                 } else if location.location == nil {
-                    Text("Finding your location…").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                    Text("Finding your location…").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     HStack(spacing: 8) {
                         StatTile(title: "UV now", value: sun.uvNow.map { String(format: "%.1f", $0) } ?? "—", color: uvColor(sun.uvNow))
@@ -144,27 +144,27 @@ struct SunView: View {
                             Spacer()
                             Label(s.formatted(date: .omitted, time: .shortened), systemImage: "sunset")
                         }
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                     }
                     if sun.uvbAllDay {
-                        Text("The sun stays above 45° all day here.").font(.system(size: 13)).foregroundColor(.ncPrimary)
+                        Text("The sun stays above 45° all day here.").font(.ui(size: 13)).foregroundColor(.ncPrimary)
                     } else if let w = sun.uvbWindow {
                         VStack(alignment: .leading, spacing: 4) {
                             FieldLabel(text: "Vitamin D window")
                             Text("\(w.lowerBound.formatted(date: .omitted, time: .shortened)) – \(w.upperBound.formatted(date: .omitted, time: .shortened))")
                                 .font(.metric(26)).foregroundColor(.ncPrimary)
                             Text("While the sun is above 45° (your shadow is shorter than you), sunlight carries enough UVB for skin to make vitamin D.")
-                                .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 4) {
                             FieldLabel(text: "Vitamin D window")
                             Text("None today").font(.serif(26)).foregroundColor(.ncPrimary)
                             Text("At your latitude the sun doesn't climb above 45° today, so little vitamin D is made from sunlight in this season.")
-                                .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                                .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                         }
                     }
-                    if sun.failed { Text("UV data unavailable (offline?). Solar times are calculated on-device.").font(.system(size: 12)).foregroundColor(.ncOrange) }
+                    if sun.failed { Text("UV data unavailable (offline?). Solar times are calculated on-device.").font(.ui(size: 12)).foregroundColor(.ncOrange) }
                     if !sun.hourlyUV.isEmpty {
                         Chart(sun.hourlyUV, id: \.hour) { p in
                             BarMark(x: .value("Hour", p.hour, unit: .hour), y: .value("UV", p.uv)).foregroundStyle(uvColor(p.uv))
@@ -206,17 +206,17 @@ struct SunView: View {
             VStack(alignment: .leading, spacing: 10) {
                 if rows.isEmpty {
                     Text("Do daily check-ins for a couple of weeks. Once there are 3+ days at or above your goal and 3+ below, your energy, mood, sleep and focus are compared here.")
-                        .font(.system(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 } else {
                     ForEach(rows, id: \.0) { r in
                         HStack {
-                            Text(r.0).font(.system(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
+                            Text(r.0).font(.ui(size: 13, weight: .medium)).foregroundColor(.ncPrimary)
                             Spacer()
-                            Text(String(format: "%.1f vs %.1f", r.1, r.2)).font(.system(size: 13, weight: .semibold).monospacedDigit())
+                            Text(String(format: "%.1f vs %.1f", r.1, r.2)).font(.ui(size: 13, weight: .semibold).monospacedDigit())
                                 .foregroundColor(.ncPrimary)
                         }
                     }
-                    Text("Average on days at/above goal vs below. A pattern in your logs, not proof of cause.").font(.system(size: 12)).foregroundColor(.ncSecondary)
+                    Text("Average on days at/above goal vs below. A pattern in your logs, not proof of cause.").font(.ui(size: 12)).foregroundColor(.ncSecondary)
                 }
             }
         }
@@ -235,10 +235,10 @@ struct SunView: View {
 
     private func learn(_ icon: String, _ title: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon).font(.system(size: 15)).foregroundColor(.ncPrimary).frame(width: 26)
+            Image(systemName: icon).font(.ui(size: 15)).foregroundColor(.ncPrimary).frame(width: 26)
             VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.serif(19)).foregroundColor(.ncPrimary)
-                Text(text).font(.system(size: 14)).foregroundColor(.ncSecondary).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.ui(size: 14)).foregroundColor(.ncSecondary).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
             }
         }
     }

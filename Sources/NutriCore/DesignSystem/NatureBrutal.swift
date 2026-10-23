@@ -17,13 +17,46 @@ enum Space {
 }
 
 extension Font {
+    /// The text style a design size scales with under Dynamic Type: the nearest one at or above it.
+    static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case ..<11.5: return .caption2
+        case ..<12.5: return .caption
+        case ..<13.5: return .footnote
+        case ..<15.5: return .subheadline
+        case ..<16.5: return .callout
+        case ..<19.5: return .body
+        case ..<21: return .title3
+        case ..<25: return .title2
+        case ..<31: return .title
+        default: return .largeTitle
+        }
+    }
+
+    /// Sizes above this are display text (wordmarks, hero numbers). They're already large, and growing them
+    /// further breaks the layout, so they stay fixed; everything at or below it scales with Dynamic Type.
+    static let largestScalingSize: CGFloat = 40
+
+    /// The system font (SF) at a design size that scales with Dynamic Type. Use instead of `.system(size:)`,
+    /// which never scales. Same parameters, so call sites read the same.
+    static func ui(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+        // SwiftUI has no scaling `.system(size:)`, so text snaps to the nearest system text style (its default
+        // size can differ from `size` by a point or two) and then scales with it.
+        size > largestScalingSize
+            ? .system(size: size, weight: weight, design: design)
+            : .system(textStyle(for: size), design: design, weight: weight)
+    }
+
     /// Archivo Black. Bundled in Resources/Fonts; falls back to a heavy expanded system face.
     static func display(_ size: CGFloat) -> Font {
-        UIFont(name: "ArchivoBlack-Regular", size: size) != nil
+        guard UIFont(name: "ArchivoBlack-Regular", size: size) != nil else {
+            return .ui(size: size, weight: .black).width(.expanded)
+        }
+        return size > largestScalingSize
             ? .custom("ArchivoBlack-Regular", fixedSize: size)
-            : .system(size: size, weight: .black).width(.expanded)
+            : .custom("ArchivoBlack-Regular", size: size, relativeTo: textStyle(for: size))
     }
-    /// IBM Plex Mono for labels, units and tabular data.
+    /// IBM Plex Mono for labels, units and tabular data. Scales with Dynamic Type.
     static func mono(_ size: CGFloat, _ weight: Font.Weight = .medium) -> Font {
         let name: String
         switch weight {
@@ -32,8 +65,8 @@ extension Font {
         default: name = "IBMPlexMono"
         }
         return UIFont(name: name, size: size) != nil
-            ? .custom(name, fixedSize: size)
-            : .system(size: size, weight: weight, design: .monospaced)
+            ? .custom(name, size: size, relativeTo: textStyle(for: size))
+            : .ui(size: size, weight: weight, design: .monospaced)
     }
     /// Wordmark and titles.
     static func brutal(_ size: CGFloat, weight: Font.Weight = .black) -> Font { .display(size) }
@@ -41,9 +74,9 @@ extension Font {
     static func metric(_ size: CGFloat) -> Font { .display(size).monospacedDigit() }
     /// Formerly a serif; the design system has no serif, so reading text is plain sans.
     static func serif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight)
+        .ui(size: size, weight: weight)
     }
-    static let ncTitle = Font.system(size: 22, weight: .bold)
+    static let ncTitle = Font.ui(size: 22, weight: .bold)
 }
 
 extension View {
@@ -162,7 +195,7 @@ struct PageHeader<Accessory: View>: View {
                 accessory
             }
             .frame(minHeight: 44)
-            Text(title).font(.system(size: 30, weight: .bold)).foregroundColor(.ncPrimary)
+            Text(title).font(.ui(size: 30, weight: .bold)).foregroundColor(.ncPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -182,7 +215,7 @@ struct HeaderIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
+                .font(.ui(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
                 .frame(width: 44, height: 44)
                 .glass(.clear, in: Rectangle())
         }
@@ -207,7 +240,7 @@ struct Metric: View {
                     Text(unit.uppercased()).font(.mono(max(11, size * 0.22))).foregroundColor(.ncSecondary)
                 }
             }
-            if let caption { Text(caption).font(.system(size: 14)).foregroundColor(.ncSecondary) }
+            if let caption { Text(caption).font(.ui(size: 14)).foregroundColor(.ncSecondary) }
         }
     }
 }
@@ -236,27 +269,46 @@ struct LineGauge: View {
     }
 }
 
-/// A row of values divided by vertical hairlines.
+/// A row of values divided by vertical hairlines. At large text sizes, where the labels no longer fit
+/// side by side, the values stack into rows divided by horizontal hairlines.
 struct StatStrip: View {
     struct Item: Identifiable { let id = UUID(); let label: String; let value: String; var note: String? = nil; var progress: Double? = nil }
     let items: [Item]
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(item.label).monoLabel().lineLimit(1)
-                    Text(item.value).font(.system(size: 22)).foregroundColor(.ncPrimary)
-                        .lineLimit(1).minimumScaleFactor(0.55)
-                        .contentTransition(.numericText())
-                    if let p = item.progress { LineGauge(value: p, height: 2) }
-                    if let note = item.note { Text(note.uppercased()).font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1) }
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                    cell(item)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, i == 0 ? 0 : 14)
+                        .overlay(alignment: .leading) {
+                            if i > 0 { Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1) }
+                        }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, i == 0 ? 0 : 14)
-                .overlay(alignment: .leading) {
-                    if i > 0 { Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1) }
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                    cell(item)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .overlay(alignment: .top) {
+                            if i > 0 { Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(height: 1) }
+                        }
                 }
             }
         }
+    }
+
+    private func cell(_ item: Item) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // fixedSize: labels never break inside a word; ViewThatFits stacks the strip instead.
+            Text(item.label).monoLabel().lineLimit(1).fixedSize()
+            Text(item.value).font(.ui(size: 22)).foregroundColor(.ncPrimary)
+                .lineLimit(1).minimumScaleFactor(0.55)
+                .contentTransition(.numericText())
+            if let p = item.progress { LineGauge(value: p, height: 2) }
+            if let note = item.note { Text(note.uppercased()).font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1) }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

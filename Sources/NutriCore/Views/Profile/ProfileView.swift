@@ -56,7 +56,7 @@ struct ProfileView: View {
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("Profile").monoLabel()
                                 Text("Set up your profile so goals can be calculated for you.")
-                                    .font(.system(size: 15)).foregroundColor(.ncPrimary)
+                                    .font(.ui(size: 15)).foregroundColor(.ncPrimary)
                                 NavigationLink(destination: ProfileSetupView()) { Text("Set up profile") }.buttonStyle(.vitalis)
                                 more
                                 accountButton
@@ -88,6 +88,7 @@ struct ProfileView: View {
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 3) {
                     Text("VITALIS").font(.display(18)).tracking(0.36).foregroundColor(.ncPrimary)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                     Text(social.myProfile.map { "@\($0.username)" } ?? profile.dietType)
                         .font(.mono(11)).tracking(1.54).textCase(.uppercase).foregroundColor(.ncSecondary).lineLimit(1)
                 }
@@ -95,7 +96,8 @@ struct ProfileView: View {
                 if !isEditing {
                     Button { startEditing(profile) } label: {
                         Text("EDIT").font(.mono(11, .semibold)).tracking(1.1).foregroundColor(.ncPrimary)
-                            .padding(.horizontal, 16).frame(height: 40)
+                            .fixedSize()
+                            .padding(.horizontal, 16).frame(minHeight: 44)
                             .background(Capsule().fill(Color.white.opacity(0.08)))
                             .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
                     }
@@ -132,10 +134,10 @@ struct ProfileView: View {
         let goals = NutrientGoals.from(profile)
         let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1 ?? profile.activityLevel
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 0) {
-                stat("Weight", "\(Int(profile.weightKg))", unit: "KG")
-                stat("Height", "\(Int(profile.heightCm))", unit: "CM")
-                stat("Age", "\(profile.age)")
+            // Side by side when the labels fit on one line; stacked at large text sizes.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 0) { stats(profile) }
+                VStack(alignment: .leading, spacing: 0) { stats(profile) }
             }
             .padding(.top, 24)
 
@@ -199,11 +201,18 @@ struct ProfileView: View {
             .buttonStyle(.plain)
     }
 
+    @ViewBuilder private func stats(_ profile: UserProfile) -> some View {
+        stat("Weight", "\(Int(profile.weightKg))", unit: "KG")
+        stat("Height", "\(Int(profile.heightCm))", unit: "CM")
+        stat("Age", "\(profile.age)")
+    }
+
     private func stat(_ label: String, _ value: String, unit: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).monoLabel()
-            (Text(value).font(.system(size: 22)) + Text(unit.map { " \($0)" } ?? "").font(.mono(12)).foregroundColor(.ncSecondary))
+            Text(label).monoLabel().lineLimit(1).fixedSize()
+            (Text(value).font(.ui(size: 22)) + Text(unit.map { " \($0)" } ?? "").font(.mono(12)).foregroundColor(.ncSecondary))
                 .foregroundColor(.ncPrimary)
+                .lineLimit(1).fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Space.margin).padding(.vertical, 14)
@@ -212,7 +221,7 @@ struct ProfileView: View {
 
     private func target(_ label: String, _ value: String) -> some View {
         HStack {
-            Text(label).font(.system(size: 15)).foregroundColor(.ncPrimary)
+            Text(label).font(.ui(size: 15)).foregroundColor(.ncPrimary)
             Spacer()
             Text(value).font(.mono(13)).foregroundColor(.ncPrimary)
         }
@@ -261,7 +270,7 @@ struct ProfileView: View {
             TextField("", text: text)
                 .keyboardType(keyboard)
                 .multilineTextAlignment(.trailing)
-                .font(.system(size: 18)).foregroundColor(.ncPrimary)
+                .font(.ui(size: 18)).foregroundColor(.ncPrimary)
                 .frame(width: 120)
         }
         .frame(minHeight: 56)
@@ -330,7 +339,7 @@ struct StitchInputField: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).spacedCaps(11, tracking: 1.4).foregroundColor(.ncSecondary)
             TextField("", text: $text)
-                .font(.system(size: 16, weight: .bold))
+                .font(.ui(size: 16, weight: .bold))
                 .foregroundColor(.ncPrimary)
                 .keyboardType(.decimalPad)
                 .padding(10)

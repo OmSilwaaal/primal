@@ -73,7 +73,7 @@ struct RawHubView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Before you start").serifCaps(11).foregroundColor(.ncOrange)
             Text("Raw and undercooked animal foods can carry bacteria, parasites and prions. Vitalis scores risk from what you log, but a low score is never a promise that food is safe. Raw poultry, wild game and ground meat carry the highest risk. This is not medical advice.")
-                .font(.system(size: 15)).foregroundColor(.ncPrimary).lineSpacing(3)
+                .font(.ui(size: 15)).foregroundColor(.ncPrimary).lineSpacing(3)
             Button("I understand") { withAnimation(.snappy) { accepted = true } }
                 .buttonStyle(SecondaryButtonStyle(height: 44))
         }
@@ -89,10 +89,10 @@ struct RawHubView: View {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(r.tier.title).font(.serif(30)).foregroundColor(.ncPrimary).multilineTextAlignment(.leading)
-                            Text(r.tier.blurb).font(.system(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.leading)
+                            Text(r.tier.blurb).font(.ui(size: 14)).foregroundColor(.ncSecondary).multilineTextAlignment(.leading)
                         }
                         Spacer()
-                        Image(systemName: "arrow.up.right").font(.system(size: 14)).foregroundColor(.ncSecondary)
+                        Image(systemName: "arrow.up.right").font(.ui(size: 14)).foregroundColor(.ncSecondary)
                     }
                 }
                 .buttonStyle(.plain)
@@ -131,7 +131,7 @@ struct RawHubView: View {
                         Tag(text: "\(frozen) frozen")
                         Tag(text: "\(batches.count) batches")
                         Spacer()
-                        Image(systemName: "arrow.up.right").font(.system(size: 14)).foregroundColor(.ncSecondary)
+                        Image(systemName: "arrow.up.right").font(.ui(size: 14)).foregroundColor(.ncSecondary)
                     }
                 }
             }

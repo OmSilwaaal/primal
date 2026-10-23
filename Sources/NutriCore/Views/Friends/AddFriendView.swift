@@ -24,11 +24,11 @@ struct AddFriendView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .focused($focused)
-                            .font(.system(size: 18))
+                            .font(.ui(size: 18))
                             .foregroundColor(.ncPrimary)
                         if isSearching { ProgressView().controlSize(.small) }
                     }
-                    .frame(height: 48)
+                    .frame(minHeight: 48)
                     .overlay(alignment: .bottom) { Rectangle().fill(Color.ncPrimary.opacity(focused ? 0.9 : 0.3)).frame(height: 1) }
                     .padding(.horizontal, Space.margin)
 
@@ -79,10 +79,10 @@ private struct SearchRow: View {
                 HStack(spacing: 4) {
                     Text(profile.name).font(.serif(19)).foregroundColor(.ncPrimary)
                     if profile.isPrivate {
-                        Image(systemName: "lock.fill").font(.system(size: 11)).foregroundColor(.ncSecondary)
+                        Image(systemName: "lock.fill").font(.ui(size: 11)).foregroundColor(.ncSecondary)
                     }
                 }
-                Text("@\(profile.username)").font(.system(size: 13)).foregroundColor(.ncSecondary)
+                Text("@\(profile.username)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
             }
             Spacer()
             FriendActionButton(profile: profile)
@@ -113,7 +113,7 @@ struct FriendActionButton: View {
     private func pill(_ title: String, filled: Bool, action: (() -> Void)?) -> some View {
         Button { action?() } label: {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.ui(size: 13, weight: .semibold))
                 .foregroundColor(filled ? .ncOnPrimary : .ncSecondary)
                 .padding(.horizontal, 14).padding(.vertical, 7)
                 .background(filled ? Color.ncPrimary : Color.ncSurfaceContHigh, in: Rectangle())

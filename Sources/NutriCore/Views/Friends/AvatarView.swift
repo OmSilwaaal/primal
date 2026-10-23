@@ -34,7 +34,7 @@ struct AvatarView: View {
 
     private var placeholder: some View {
         Text(initials.isEmpty ? "?" : initials)
-            .font(.system(size: size * 0.38, weight: .semibold))
+            .font(.system(size: size * 0.38, weight: .semibold)) // fixed: it fills a fixed-size avatar
             .foregroundColor(.ncSecondary)
     }
 }

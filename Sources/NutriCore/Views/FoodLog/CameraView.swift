@@ -87,7 +87,7 @@ struct CameraView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Camera access needed").monoLabel()
             Text("Allow camera access to scan barcodes and photograph meals.")
-                .font(.system(size: 15)).foregroundColor(.ncPrimary)
+                .font(.ui(size: 15)).foregroundColor(.ncPrimary)
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             }
@@ -293,7 +293,7 @@ struct QuickLogCard: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(title).monoLabel().lineLimit(1)
-                Text(foodName.capitalized).font(.system(size: 20, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(2)
+                Text(foodName.capitalized).font(.ui(size: 20, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(2)
             }
 
             HStack(spacing: 0) {
@@ -338,7 +338,7 @@ struct QuickLogCard: View {
 
     private func cell(_ value: String, _ label: String, first: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 20)).foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
+            Text(value).font(.ui(size: 20)).foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
                 .contentTransition(.numericText())
             Text(label.uppercased()).font(.mono(10)).tracking(1).foregroundColor(.ncSecondary).lineLimit(1)
         }
@@ -353,7 +353,7 @@ struct QuickLogCard: View {
             Haptics.selection()
             action()
         } label: {
-            Text(glyph).font(.system(size: 22)).foregroundColor(.ncPrimary)
+            Text(glyph).font(.ui(size: 22)).foregroundColor(.ncPrimary)
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(Color.white.opacity(0.1)))
         }

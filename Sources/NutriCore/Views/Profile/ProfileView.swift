@@ -3,6 +3,7 @@ import SwiftData
 
 struct ProfileView: View {
     @State private var pushed: SecondaryScreen?
+    @State private var legalDocument: LegalDocument?
 
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
@@ -73,6 +74,7 @@ struct ProfileView: View {
             .navigationTitle("Profile") // names the back button on pushed screens
             .navigationDestination(isPresented: $showSettings) { SettingsView().pushedScreen() }
             .navigationDestination(item: $pushed) { $0.destination }
+            .sheet(item: $legalDocument) { LegalView(document: $0) }
         }
     }
 
@@ -193,6 +195,28 @@ struct ProfileView: View {
                 row("Friends", "Eat together, shared meals") { pushed = .friends }
                 row("Settings", "Account, privacy, subscription") { showSettings = true }
             }
+
+            // The policies agreed to before first use, always one tap away.
+            Text("Legal").monoLabel().padding(.top, 24)
+            VStack(spacing: 0) {
+                Rule()
+                ForEach(LegalDocument.allCases) { doc in
+                    row(doc.title, legalDetail(doc)) { legalDocument = doc }
+                }
+            }
+            if let date = LegalAcceptance.acceptedAt {
+                Text("Agreed \(date.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.mono(11)).foregroundColor(.ncSecondary)
+                    .padding(.top, 6)
+            }
+        }
+    }
+
+    private func legalDetail(_ doc: LegalDocument) -> String {
+        switch doc {
+        case .terms: "Your agreement with Vitalis LLC"
+        case .privacy: "What's collected and why"
+        case .safety: "Not medical advice; use at your own risk"
         }
     }
 

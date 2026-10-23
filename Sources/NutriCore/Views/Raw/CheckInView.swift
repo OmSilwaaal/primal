@@ -56,7 +56,6 @@ struct CheckInView: View {
                     }
                 }
             }
-            Disclaimer(text: "Self-tracking for your own patterns. Not a diagnosis; see a clinician for symptoms that worry you.")
         }
         .onAppear(perform: loadToday)
     }
@@ -146,7 +145,6 @@ struct InsightsView: View {
                     }
                 }
             }
-            Disclaimer(text: "These are patterns in your own logs, not proof that one thing caused another.")
         }
     }
 }

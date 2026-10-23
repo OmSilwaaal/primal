@@ -122,6 +122,10 @@ struct SettingsView: View {
                             legalDocument = .terms
                         }
                         SettingsDivider()
+                        SettingsRow(icon: "cross.case", title: "Health & safety policy", subtitle: "Not medical advice; use at your own risk") {
+                            legalDocument = .safety
+                        }
+                        SettingsDivider()
                         SettingsRow(icon: "questionmark.circle", title: "Support", subtitle: "Report issues and feedback") {
                             open("mailto:support@vitalis.app")
                         }

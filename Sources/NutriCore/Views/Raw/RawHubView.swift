@@ -7,7 +7,6 @@ struct RawHubView: View {
     @Query(sort: \MealEntry.date) private var meals: [MealEntry]
     @Query private var batches: [SourceBatch]
     @AppStorage(RawSettings.modeKey) private var modeRaw = DietMode.rawCarnivore.rawValue
-    @AppStorage(RawSettings.disclaimerKey) private var accepted = false
     @AppStorage(RawSettings.fatMinKey) private var fatMin = 0.0
     @AppStorage(RawSettings.fatMaxKey) private var fatMax = 0.0
     @State private var showLog = false
@@ -24,7 +23,6 @@ struct RawHubView: View {
                     VStack(alignment: .leading, spacing: Space.section) {
                         VStack(alignment: .leading, spacing: 24) {
                             PageHeader(title: "Raw", caption: mode.label)
-                            if !accepted { disclaimerGate }
                             Button { showLog = true } label: { Label("Log raw food", systemImage: "plus") }
                                 .buttonStyle(.vitalis)
                         }
@@ -50,7 +48,6 @@ struct RawHubView: View {
                             }
                         }
 
-                        Disclaimer(text: "Vitalis provides risk information, not medical advice, and never a clearance that food is safe. Raw and undercooked animal foods can cause serious illness — especially for children, older adults, pregnant people and anyone immunocompromised.")
                     }
                     .padding(.horizontal, Space.margin)
                     .padding(.top, 12)
@@ -68,17 +65,6 @@ struct RawHubView: View {
         .buttonStyle(.plain)
     }
 
-    private var disclaimerGate: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Before you start").serifCaps(11).foregroundColor(.ncOrange)
-            Text("Raw and undercooked animal foods can carry bacteria, parasites and prions. Vitalis scores risk from what you log, but a low score is never a promise that food is safe. Raw poultry, wild game and ground meat carry the highest risk. This is not medical advice.")
-                .font(.ui(size: 15)).foregroundColor(.ncPrimary).lineSpacing(3)
-            Button("I understand") { withAnimation(.snappy) { accepted = true } }
-                .buttonStyle(SecondaryButtonStyle(height: 44))
-        }
-        .padding(.vertical, 18).padding(.horizontal, 18)
-        .overlay(Rectangle().stroke(Color.ncOrange.opacity(0.5), lineWidth: 1))
-    }
 
     private var positionSection: some View {
         let r = DietRater.rate(meals: meals, days: 7)

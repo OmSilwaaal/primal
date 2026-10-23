@@ -149,7 +149,6 @@ struct DietModeView: View {
                     Text("Used for the adaptation tracker and the before/after line on lab charts.").font(.ui(size: 13)).foregroundColor(.ncSecondary)
                 }
             }
-            Disclaimer(text: "Targets shift with your mode as general references. They are not personalised medical advice.")
         }
     }
 }

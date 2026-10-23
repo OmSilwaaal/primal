@@ -43,6 +43,50 @@ enum RawSpecies: String, CaseIterable, Identifiable, Codable {
     static func from(_ raw: String) -> RawSpecies? { RawSpecies(rawValue: raw) }
 }
 
+// MARK: - What makes sense for each species
+// The logging forms only offer combinations that exist, so nothing like grass-fed shellfish, suet from fish or
+// chicken brain can be logged. Changing species resets any choice that no longer applies.
+extension RawSpecies {
+    /// Ruminants: the animals that are grass-fed or grain-finished and whose hard fat is suet or tallow.
+    var isRuminant: Bool { [.beef, .lamb, .bison, .deer, .elk].contains(self) }
+
+    var rearings: [Rearing] {
+        switch self {
+        case .beef, .lamb, .bison: [.unknown, .grassFed, .grainFinished, .pastureRaised]
+        case .pork, .poultry: [.unknown, .pastureRaised, .farmed]
+        case .fish, .shellfish: [.unknown, .wild, .farmed]
+        case .deer, .elk, .rabbit, .otherGame: [.unknown, .wild, .farmed]
+        case .bear: [.unknown, .wild]
+        }
+    }
+
+    var categories: [CutCategory] {
+        switch self {
+        case .shellfish: [.muscle]
+        case .fish, .poultry, .pork, .rabbit, .bear: [.muscle, .organ]
+        case .beef, .lamb, .bison, .deer, .elk, .otherGame: [.muscle, .organ, .fat]
+        }
+    }
+
+    var organs: [Organ] {
+        switch self {
+        case .shellfish: []
+        case .fish: [.liver]
+        case .poultry: [.liver, .heart]
+        case .rabbit: [.liver, .heart, .kidney]
+        default: Organ.allCases
+        }
+    }
+
+    /// Suet and tallow are ruminant fats.
+    var fats: [FatType] { isRuminant || self == .otherGame ? FatType.allCases : [] }
+
+    var canBeGround: Bool { ![.fish, .shellfish].contains(self) }
+
+    /// Shellfish isn't dry-aged or fermented.
+    var preps: [Prep] { self == .shellfish ? Prep.allCases.filter { $0 != .aged } : Prep.allCases }
+}
+
 enum CutCategory: String, CaseIterable, Identifiable {
     case muscle, organ, fat
     var id: String { rawValue }

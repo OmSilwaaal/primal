@@ -8,17 +8,23 @@ struct DashboardView: View {
     @Query private var meals: [MealEntry]
     @Query private var profiles: [UserProfile]
     @Query private var hydrations: [DailyHydration]
+    @Query private var sunSessions: [SunSession]
+    @AppStorage(RawSettings.sunGoalKey) private var sunGoal = 30
+    /// Apple Watch "time in daylight" per day, from Health.
+    @State private var daylight: [Date: Double] = [:]
     @StateObject private var healthManager = HealthKitManager.shared
 
     var onSearch: () -> Void = {}
+    var onOpenData: () -> Void = {}
     @State private var showRawLog = false
     @State private var pushed: SecondaryScreen?
     /// The day Home shows. Past days are view-only.
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @AppStorage(HealthPrimingView.pendingKey) private var healthPrimingPending = false
 
-    init(onSearch: @escaping () -> Void = {}) {
+    init(onSearch: @escaping () -> Void = {}, onOpenData: @escaping () -> Void = {}) {
         self.onSearch = onSearch
+        self.onOpenData = onOpenData
         // Rows back to the start of the month (eating cycle) or the date wheel's history, whichever is earlier.
         // Days are filtered in memory so the view survives midnight.
         let cal = Calendar.current, today = cal.startOfDay(for: .now)
@@ -27,6 +33,7 @@ struct DashboardView: View {
         let cutoff = min(month, history)
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= cutoff }, sort: \.date)
         _hydrations = Query(filter: #Predicate<DailyHydration> { $0.date >= cutoff }, sort: \.date)
+        _sunSessions = Query(filter: #Predicate<SunSession> { $0.start >= cutoff }, sort: \.start)
     }
 
     private var baseGoals: NutrientGoals { profiles.first.map(NutrientGoals.from) ?? .default }
@@ -39,6 +46,16 @@ struct DashboardView: View {
     }
     private var dayMeals: [MealEntry] {
         let cal = Calendar.current; return meals.filter { cal.isDate($0.date, inSameDayAs: selectedDay) }
+    }
+    /// The day's vitamins and minerals against the base targets.
+    private var dayMicros: [NutrientInfo] {
+        buildNutrientList(from: dayMeals, goals: baseGoals).filter { $0.group != .macros }
+    }
+    /// Minutes outside: manual sessions or Apple Watch daylight, whichever is larger (they can overlap).
+    private var daySunMinutes: Double {
+        let cal = Calendar.current
+        let manual = sunSessions.filter { cal.isDate($0.start, inSameDayAs: selectedDay) }.reduce(0) { $0 + $1.minutes }
+        return max(manual, daylight[cal.startOfDay(for: selectedDay)] ?? 0)
     }
     private var dayHydration: DailyHydration? {
         hydrations.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDay) })
@@ -87,6 +104,11 @@ struct DashboardView: View {
                             ("Fat", dayMeals.totalFat, goals.fat),
                         ])
 
+                        MicrosSunSection(micros: dayMicros, sunMinutes: daySunMinutes, sunGoal: Double(sunGoal),
+                                         onMicros: isToday ? onOpenData : nil, onSun: { pushed = .sun })
+                            .padding(.horizontal, Space.margin)
+                            .padding(.top, 24)
+
                         MealsSection(meals: dayMeals, readOnly: !isToday, onAdd: onSearch) { meal in
                             Haptics.success()
                             let name = meal.foodName.components(separatedBy: ",").first ?? meal.foodName
@@ -99,12 +121,16 @@ struct DashboardView: View {
                         .transition(.opacity.combined(with: .offset(y: 10)))
 
                         VStack(alignment: .leading, spacing: Space.section) {
-                            HydrationSection(ounces: dayHydration?.waterOunces ?? 0, readOnly: !isToday) { newOunces, added in
+                            HydrationSection(drinksMl: (dayHydration?.waterOunces ?? 0) * HydrationSection.mlPerOunce,
+                                             foodMl: FoodWater.millilitres(in: dayMeals),
+                                             readOnly: !isToday) { ml in
                                 guard let hydration = todaysHydration else { return }
-                                hydration.waterOunces = newOunces
+                                let ounces = ml / HydrationSection.mlPerOunce
+                                withAnimation(.smooth(duration: 0.45)) { hydration.waterOunces += ounces }
                                 try? modelContext.save()
-                                // Apple Health only gets additions; samples can't be partly taken back.
-                                if added > 0 { healthManager.saveDietaryWater(ounces: added) }
+                                healthManager.saveDietaryWater(ounces: ounces)
+                                Haptics.success()
+                                ToastCenter.shared.show("Added \(Int(ml)) ml water")
                             }
 
                             // A today-only summary (it covers the last 7 days and has a log button).
@@ -133,6 +159,7 @@ struct DashboardView: View {
             .task {
                 ensureRecords()
                 await healthManager.fetchTodayData()
+                daylight = await healthManager.dailyDaylightMinutes(days: EatingCycle.historyDays)
                 await SocialService.shared.backfill(meals)
             }
             .onChange(of: scenePhase) { _, phase in
@@ -445,24 +472,100 @@ private struct MacroGrid: View {
     }
 }
 
+// MARK: - Micronutrients and sunlight
+/// The day's vitamins and minerals (how many are met and the three lowest) beside minutes of sunlight against
+/// the goal. Side by side when they fit; stacked at large text sizes.
+private struct MicrosSunSection: View {
+    let micros: [NutrientInfo]
+    let sunMinutes: Double
+    let sunGoal: Double
+    /// nil on past days (the Data tab shows today).
+    let onMicros: (() -> Void)?
+    let onSun: () -> Void
+
+    private var met: Int { micros.filter(\.isMet).count }
+    private var lowest: [NutrientInfo] { Array(micros.sorted { $0.progress < $1.progress }.prefix(3)) }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 0) {
+                microsBlock.frame(maxWidth: .infinity, alignment: .leading)
+                Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1).padding(.horizontal, 16)
+                sunBlock.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            VStack(alignment: .leading, spacing: 24) {
+                microsBlock
+                sunBlock
+            }
+        }
+    }
+
+    private var microsBlock: some View {
+        Button { onMicros?() } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Micronutrients").monoLabel().lineLimit(1).fixedSize()
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(met)").font(.metric(26)).foregroundColor(.ncPrimary).contentTransition(.numericText())
+                    Text("/\(micros.count) MET").font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1).fixedSize()
+                }
+                ForEach(lowest) { n in
+                    let status = IntakeStatus(progress: n.progress)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(n.name).font(.ui(size: 12)).foregroundColor(.ncPrimary).lineLimit(1)
+                        LineGauge(value: n.progress, tint: status.bar, height: 3)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(onMicros == nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Micronutrients: \(met) of \(micros.count) met. Lowest: \(lowest.map { "\($0.name) \($0.percentage)%" }.joined(separator: ", "))")
+        .accessibilityHint(onMicros == nil ? "" : "Opens Data")
+    }
+
+    private var sunBlock: some View {
+        Button(action: onSun) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Sunlight").monoLabel().lineLimit(1).fixedSize()
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(Int(sunMinutes))").font(.metric(26)).foregroundColor(.ncPrimary).contentTransition(.numericText())
+                    Text("/\(Int(sunGoal)) MIN").font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1).fixedSize()
+                }
+                LineGauge(value: sunGoal > 0 ? sunMinutes / sunGoal : 0, tint: sunMinutes >= sunGoal ? .ncMoss : .ncPrimary, height: 3)
+                Image(systemName: sunMinutes >= sunGoal ? "sun.max.fill" : "sun.max")
+                    .font(.system(size: 22, weight: .regular)).foregroundColor(.ncPrimary.opacity(0.85))
+                    .symbolEffect(.bounce, value: sunMinutes >= sunGoal)
+                    .padding(.top, 2)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Sunlight: \(Int(sunMinutes)) of \(Int(sunGoal)) minutes")
+        .accessibilityHint("Opens Sun")
+    }
+}
+
 // MARK: - Hydration
-/// Water for the day as a drag slider: a glass track that fills as you drag, snapping to 250 ml with a haptic
-/// tick at each step and a stronger one on reaching the goal. View-only on past days.
-private struct HydrationSection: View {
-    let ounces: Double
+/// Water for the day, from drinks and from food, against the goal. Water can only be added (pick an amount on the
+/// wheel, tap the centred one); it never goes down. Past days show the bar only.
+struct HydrationSection: View {
+    static let mlPerOunce = 29.5735
+
+    let drinksMl: Double
+    let foodMl: Double
     let readOnly: Bool
-    /// New total and the amount this change added (negative if lowered), both in fluid ounces.
-    let onCommit: (Double, Double) -> Void
+    let onAdd: (Double) -> Void
 
-    private static let ozPerLiter = 33.814
-    private let goalLiters = 3.5
-    private let maxLiters = 5.0
-    private let step = 0.25
+    private let goalMl = 3500.0
+    private static let amounts: [Double] = [150, 250, 330, 500, 750, 1000]
+    @State private var amount = 250.0
 
-    @State private var dragLiters: Double?
-    @State private var startLiters = 0.0
-
-    private var liters: Double { dragLiters ?? ounces / Self.ozPerLiter }
+    private var totalMl: Double { drinksMl + foodMl }
+    private func litres(_ ml: Double) -> String { String(format: "%.1f", ml / 1000) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -470,67 +573,61 @@ private struct HydrationSection: View {
                 Text("Hydration").monoLabel()
                 Spacer()
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(String(format: "%.2f", liters)).font(.metric(28)).foregroundColor(.ncPrimary)
-                        .contentTransition(.numericText(value: liters))
-                    Text("/ \(String(format: "%.1f", goalLiters)) L").font(.mono(12)).foregroundColor(.ncSecondary)
+                    Text(litres(totalMl)).font(.metric(28)).foregroundColor(.ncPrimary)
+                        .contentTransition(.numericText(value: totalMl))
+                    Text("/ \(litres(goalMl)) L").font(.mono(12)).foregroundColor(.ncSecondary)
                 }
             }
 
+            // Drinks (solid) then food water (lighter) along one track; full width is the goal.
             GeometryReader { geo in
                 let w = geo.size.width
-                let fill = max(0, min(1, liters / maxLiters)) * w
-                let goalX = goalLiters / maxLiters * w
+                let drinksW = min(1, drinksMl / goalMl) * w
+                let foodW = min(max(0, 1 - drinksMl / goalMl), foodMl / goalMl) * w
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.clear).glass(.clear, in: Capsule())
-                    Capsule()
-                        .fill(LinearGradient(colors: [Color.ncPrimary.opacity(0.75), Color.ncPrimary],
-                                             startPoint: .leading, endPoint: .trailing))
-                        .frame(width: max(44, fill))
-                        .opacity(liters > 0 ? 1 : 0)
-                    // Goal mark
-                    Capsule().fill(Color.ncPrimary.opacity(0.4)).frame(width: 2, height: 20)
-                        .offset(x: goalX - 1)
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(liters > 0 ? .ncOnPrimary : .ncPrimary)
-                        .frame(width: 44, height: 44)
-                        .offset(x: max(0, fill - 44))
-                }
-                .frame(height: 44)
-                .contentShape(Rectangle())
-                .gesture(readOnly ? nil : DragGesture(minimumDistance: 0)
-                    .onChanged { g in
-                        if dragLiters == nil { startLiters = liters; Haptics.tap() }
-                        let raw = max(0, min(maxLiters, g.location.x / max(w, 1) * maxLiters))
-                        let snapped = (raw / step).rounded() * step
-                        if snapped != (dragLiters ?? startLiters) {
-                            let previous = dragLiters ?? startLiters
-                            let crossedGoal = previous < goalLiters && snapped >= goalLiters
-                            if crossedGoal { Haptics.success() } else { Haptics.selection() }
-                        }
-                        withAnimation(.interactiveSpring(response: 0.25, dampingFraction: 0.85)) { dragLiters = snapped }
+                    HStack(spacing: 0) {
+                        Rectangle().fill(Color.ncPrimary).frame(width: drinksW)
+                        Rectangle().fill(Color.ncPrimary.opacity(0.45)).frame(width: foodW)
                     }
-                    .onEnded { _ in
-                        guard let final = dragLiters else { return }
-                        onCommit(final * Self.ozPerLiter, (final - startLiters) * Self.ozPerLiter)
-                        dragLiters = nil
-                    })
+                    .clipShape(Capsule())
+                    .padding(3)
+                }
             }
-            .frame(height: 44)
-            .opacity(readOnly ? 0.7 : 1)
+            .frame(height: 16)
             .accessibilityElement()
-            .accessibilityLabel("Water")
-            .accessibilityValue("\(String(format: "%.2f", liters)) of \(String(format: "%.1f", goalLiters)) litres")
-            .accessibilityAdjustableAction { direction in
-                guard !readOnly else { return }
-                let now = ounces / Self.ozPerLiter
-                let next = direction == .increment ? min(maxLiters, now + step) : max(0, now - step)
-                Haptics.selection()
-                onCommit(next * Self.ozPerLiter, (next - now) * Self.ozPerLiter)
+            .accessibilityLabel("Hydration")
+            .accessibilityValue("\(litres(totalMl)) of \(litres(goalMl)) litres, \(litres(foodMl)) from food")
+
+            Text("DRINKS \(litres(drinksMl)) L · FOOD \(litres(foodMl)) L")
+                .font(.mono(11)).tracking(0.9).foregroundColor(.ncSecondary)
+                .contentTransition(.numericText())
+
+            if !readOnly {
+                ArcWheel(items: Self.amounts, selection: $amount, onTapSelected: { onAdd(amount) }) { ml, on in
+                    Text(on ? "+ \(label(ml))" : label(ml))
+                        .font(.mono(12, .semibold)).tracking(1.1)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
+                        .frame(maxWidth: .infinity).frame(height: 44)
+                        .background {
+                            if on { Capsule().fill(Color.ncPrimary) } else { Capsule().fill(Color.clear).glass(.clear, in: Capsule()) }
+                        }
+                        .contentShape(Capsule())
+                        .animation(.smooth(duration: 0.25), value: on)
+                }
+                .accessibilityRepresentation {
+                    Button("Add \(label(amount)) water") { onAdd(amount) }
+                    Picker("Amount", selection: $amount) {
+                        ForEach(Self.amounts, id: \.self) { Text(label($0)).tag($0) }
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private func label(_ ml: Double) -> String { ml >= 1000 ? "1 L" : "\(Int(ml)) ML" }
 }
 
 // MARK: - Raw snapshot

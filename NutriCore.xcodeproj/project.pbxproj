@@ -10,6 +10,7 @@
 		064DDF0FEE8E06C40F395580 /* NutrientGoals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474856B080FB52DA4FFD872C /* NutrientGoals.swift */; };
 		075D2C9EDC8568EC05C6ABF2 /* AppleSignInManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F14C826925E51C37844523 /* AppleSignInManager.swift */; };
 		0D4EC413238E0A2C04505EF6 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004CAD6EE28C84C93837813 /* CameraManager.swift */; };
+		0EEFB94EBE44A4818C02C616 /* health-safety-policy.md in Resources */ = {isa = PBXBuildFile; fileRef = 2DC557DC944A171CF514CC1A /* health-safety-policy.md */; };
 		124173302101384832CB9559 /* MealEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0712DDAAF60F9760150B04 /* MealEntry.swift */; };
 		1427A82A18A1EDF3B0EE84B9 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A77EBAD8D87738E365240C /* Constants.swift */; };
 		14F5A56A9E058289DB7EB43C /* OFL-IBMPlexMono.txt in Resources */ = {isa = PBXBuildFile; fileRef = AB7F10AF1EC87597030E11A3 /* OFL-IBMPlexMono.txt */; };
@@ -54,6 +55,7 @@
 		8B1B4409C53154BE5D8DC091 /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5533F78CEA849FDBE956B109 /* ProfileSetupView.swift */; };
 		8D0073D882FE6BBC37998A64 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123F064BE32FA91341C2A063 /* ExportService.swift */; };
 		917D2FCC77102B58DBEE0C39 /* USDAService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF698CFC82E7D0B43E582D3 /* USDAService.swift */; };
+		917D4C5E132FEBD0BC6593C3 /* ArcWheel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 130042E88420E3954DF48AE2 /* ArcWheel.swift */; };
 		935C627B56DFBE9AC8F57C50 /* SourcingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B13AF344677AC019C75292 /* SourcingView.swift */; };
 		94227205B8F1BE725EB66610 /* IBMPlexMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9080278985972B7F1AC47371 /* IBMPlexMono-Medium.ttf */; };
 		98511612CDB6663E002612FD /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F43AEEE97508ADEB765043 /* HealthKitManager.swift */; };
@@ -66,6 +68,7 @@
 		B3ECB307AEE36631A5E2397D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 2C5F05EA7ECBF9CDB81E583C /* Supabase */; };
 		B7815FBC9B84DC33C9C0AA18 /* ArchivoBlack-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2A884FFF0CF76B461BE6F271 /* ArchivoBlack-Regular.ttf */; };
 		BC8F61B2366BD2A2F53FC29D /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */; };
+		C0109886D000BEBEEE96E826 /* FoodWater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9139A9FEEF058D4EB56BD291 /* FoodWater.swift */; };
 		C3DBAB9B35225D2538E31F07 /* NutriCoreApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E1EF83A53A31EA88A5B4107 /* NutriCoreApp.swift */; };
 		CAD248835D9D8F49F262B14C /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BBE5253355C28064890C87 /* Glass.swift */; };
 		CEA9172FA5A3B0E5CFD89727 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C6BF77B8657F9B7ABC7D04 /* CameraPreviewView.swift */; };
@@ -92,6 +95,7 @@
 		11684C00CECA16B864847336 /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
 		11F14C826925E51C37844523 /* AppleSignInManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInManager.swift; sourceTree = "<group>"; };
 		123F064BE32FA91341C2A063 /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		130042E88420E3954DF48AE2 /* ArcWheel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcWheel.swift; sourceTree = "<group>"; };
 		1571293BD926D8C15F4A1D30 /* NutriCore.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NutriCore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CB7B90EC7E178C37D61339A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1E1EF83A53A31EA88A5B4107 /* NutriCoreApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutriCoreApp.swift; sourceTree = "<group>"; };
@@ -99,6 +103,7 @@
 		25A8278F1F626B1A7EB6E39F /* RawHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawHubView.swift; sourceTree = "<group>"; };
 		2A884FFF0CF76B461BE6F271 /* ArchivoBlack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ArchivoBlack-Regular.ttf"; sourceTree = "<group>"; };
 		2A9F566DAB98A5C47CC58095 /* AddFriendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFriendView.swift; sourceTree = "<group>"; };
+		2DC557DC944A171CF514CC1A /* health-safety-policy.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "health-safety-policy.md"; sourceTree = "<group>"; };
 		3619314069F75ECB5F473603 /* CheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInView.swift; sourceTree = "<group>"; };
 		3C7736E564069E5E8A1822BA /* FoodSearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchResult.swift; sourceTree = "<group>"; };
 		3D29E9A7EF6D5F44C6A9702A /* OFL-ArchivoBlack.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-ArchivoBlack.txt"; sourceTree = "<group>"; };
@@ -123,6 +128,7 @@
 		8553A6D92E1D4E7879A71878 /* MicronutrientsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicronutrientsView.swift; sourceTree = "<group>"; };
 		8669E7ED4CB0F8CC71E4C196 /* BodyGoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyGoalsView.swift; sourceTree = "<group>"; };
 		9080278985972B7F1AC47371 /* IBMPlexMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Medium.ttf"; sourceTree = "<group>"; };
+		9139A9FEEF058D4EB56BD291 /* FoodWater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodWater.swift; sourceTree = "<group>"; };
 		9402E1253CE8AD9F8EC2D945 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
 		973AEBB9A626E614C100036C /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		97522CB9E8D36549A45F50D7 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
@@ -235,6 +241,7 @@
 		3CE3416EA69B5836EB1C9B05 /* Legal */ = {
 			isa = PBXGroup;
 			children = (
+				2DC557DC944A171CF514CC1A /* health-safety-policy.md */,
 				BE8C556C1C77BCD72C692483 /* privacy-policy.md */,
 				9DE028D2712E5E3DB2423CD5 /* terms-of-service.md */,
 			);
@@ -352,6 +359,7 @@
 				11F14C826925E51C37844523 /* AppleSignInManager.swift */,
 				CAD6F4EC5D7730A444C40FE3 /* AuthManager.swift */,
 				6B7DF9F11867B82EFACF1261 /* BarcodeLookupService.swift */,
+				9139A9FEEF058D4EB56BD291 /* FoodWater.swift */,
 				251F0BEBCB947BC76AB847EC /* LocationManager.swift */,
 				F2E907E2F0A8AA847C698087 /* MealLogger.swift */,
 				CE1AD6AC640EBE79C71B38BA /* SocialService.swift */,
@@ -385,6 +393,7 @@
 		D6E60ABD4242AB77C473CAEE /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				130042E88420E3954DF48AE2 /* ArcWheel.swift */,
 				AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */,
 				C1BBE5253355C28064890C87 /* Glass.swift */,
 				FB2900E28FAD8503B46089A9 /* NatureBrutal.swift */,
@@ -492,6 +501,7 @@
 				43E4E79233C0631492C94A71 /* IBMPlexMono-SemiBold.ttf in Resources */,
 				B36FC690C4938D7B0EBEB256 /* OFL-ArchivoBlack.txt in Resources */,
 				14F5A56A9E058289DB7EB43C /* OFL-IBMPlexMono.txt in Resources */,
+				0EEFB94EBE44A4818C02C616 /* health-safety-policy.md in Resources */,
 				CEBAA1D47C4B7DC8DB08EBA1 /* privacy-policy.md in Resources */,
 				4B8C5DCB268D4D972309C847 /* terms-of-service.md in Resources */,
 			);
@@ -507,6 +517,7 @@
 				23C60BBF009ECA2D917F7798 /* AIService.swift in Sources */,
 				16963E1B65A5479E23AF679F /* AddFriendView.swift in Sources */,
 				075D2C9EDC8568EC05C6ABF2 /* AppleSignInManager.swift in Sources */,
+				917D4C5E132FEBD0BC6593C3 /* ArcWheel.swift in Sources */,
 				9A28B90AC9D6CC55E36219AE /* AuthManager.swift in Sources */,
 				882EFFCD16B6736E93137501 /* AvatarView.swift in Sources */,
 				3A95FC56916E7D22DF1FAFE1 /* BarcodeLookupService.swift in Sources */,
@@ -527,6 +538,7 @@
 				59C1BA7B2892DE7269E7ABF2 /* EditProfileView.swift in Sources */,
 				8D0073D882FE6BBC37998A64 /* ExportService.swift in Sources */,
 				55CC0C95FCD1CF24CF7617F2 /* FoodSearchResult.swift in Sources */,
+				C0109886D000BEBEEE96E826 /* FoodWater.swift in Sources */,
 				1836314A372BB7AF95625A12 /* FriendProfileView.swift in Sources */,
 				AFE323A571CF61E302779765 /* FriendsView.swift in Sources */,
 				CAD248835D9D8F49F262B14C /* Glass.swift in Sources */,

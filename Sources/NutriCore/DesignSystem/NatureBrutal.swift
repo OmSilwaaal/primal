@@ -94,7 +94,24 @@ extension View {
     }
 }
 
-/// Darkened forest photograph behind every screen, with the design's top/bottom scrim.
+/// The photographs behind every screen. One is picked each time the app launches, never the same as last time,
+/// and used on every screen for that session. All are from Unsplash under the Unsplash License (free for
+/// commercial use, no attribution required), cropped to 2:3 and darkened the same way.
+enum Backdrop: String, CaseIterable {
+    case forest, desert, ocean, fog, night
+
+    var assetName: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() + "Dark" }
+
+    static let current: Backdrop = {
+        let key = "lastBackdrop"
+        let last = UserDefaults.standard.string(forKey: key).flatMap(Backdrop.init(rawValue:))
+        let pick = allCases.filter { $0 != last }.randomElement() ?? .forest
+        UserDefaults.standard.set(pick.rawValue, forKey: key)
+        return pick
+    }()
+}
+
+/// The session's darkened photograph (see `Backdrop`) behind every screen, with the design's top/bottom scrim.
 struct AppBackdrop: View {
     var intensity: Double = 1
     @Environment(\.colorSchemeContrast) private var contrast
@@ -103,7 +120,7 @@ struct AppBackdrop: View {
         GeometryReader { geo in
             ZStack {
                 Color.ncBg
-                Image("ForestDark")
+                Image(Backdrop.current.assetName)
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)

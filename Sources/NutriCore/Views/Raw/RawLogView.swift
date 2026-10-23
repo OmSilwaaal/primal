@@ -54,23 +54,37 @@ struct RawLogView: View {
                             Chip(label: s.label, selected: s == species) { select(s) }
                         }
                     }
-                    FieldLabel(text: "Category")
-                    FlowLayout(spacing: 8) {
-                        ForEach(CutCategory.allCases) { c in Chip(label: c.label, selected: c == category) { category = c } }
+                    if species.categories.count > 1 {
+                        FieldLabel(text: "Category")
+                        FlowLayout(spacing: 8) {
+                            ForEach(species.categories) { c in
+                                Chip(label: c.label, selected: c == category) { withAnimation(.smooth(duration: 0.3)) { category = c } }
+                                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
+                        }
                     }
                     if category == .organ {
                         FlowLayout(spacing: 8) {
-                            ForEach(Organ.allCases) { o in Chip(label: o.label, selected: o == organ) { organ = o } }
+                            ForEach(species.organs) { o in
+                                Chip(label: o.label, selected: o == organ) { organ = o }
+                                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
                         }
                     } else if category == .fat {
                         FlowLayout(spacing: 8) {
-                            ForEach(FatType.allCases) { f in Chip(label: f.label, selected: f == fat) { fat = f } }
+                            ForEach(species.fats) { f in
+                                Chip(label: f.label, selected: f == fat) { fat = f }
+                                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
                         }
                     } else {
                         RawField(title: "Cut or item (optional)", text: $itemName)
-                        Toggle(isOn: $ground) {
-                            Text("Ground / minced").font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
-                        }.tint(.ncIndigo)
+                        if species.canBeGround {
+                            Toggle(isOn: $ground) {
+                                Text("Ground / minced").font(.ui(size: 14, weight: .medium)).foregroundColor(.ncPrimary)
+                            }.tint(.ncIndigo)
+                            .transition(.opacity)
+                        }
                     }
                 }
             }
@@ -78,7 +92,10 @@ struct RawLogView: View {
             RawCard(title: "Preparation") {
                 VStack(alignment: .leading, spacing: 12) {
                     FlowLayout(spacing: 8) {
-                        ForEach(Prep.allCases) { p in Chip(label: p.label, selected: p == prep) { prep = p } }
+                        ForEach(species.preps) { p in
+                            Chip(label: p.label, selected: p == prep) { prep = p }
+                                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
                     }
                     RawField(title: "Weight (grams)", text: $grams, keyboard: .decimalPad)
                 }
@@ -88,7 +105,10 @@ struct RawLogView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     FieldLabel(text: "Raised")
                     FlowLayout(spacing: 8) {
-                        ForEach(Rearing.allCases) { r in Chip(label: r.label, selected: r == rearing) { rearing = r } }
+                        ForEach(species.rearings) { r in
+                            Chip(label: r.label, selected: r == rearing) { rearing = r }
+                                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
                     }
                     RawField(title: "Farm or brand", text: $supplierName)
                     if !suppliers.isEmpty {
@@ -164,7 +184,6 @@ struct RawLogView: View {
             .disabled(saving || gramsValue <= 0)
             .opacity(gramsValue <= 0 ? 0.5 : 1)
 
-            Disclaimer()
         }
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } } }
         .sheet(isPresented: $showNewBatch) {
@@ -187,10 +206,18 @@ struct RawLogView: View {
         }
     }
 
+    /// Switches species and drops any choice that doesn't exist for it; the option chips animate in and out.
     private func select(_ s: RawSpecies) {
-        species = s
-        if batch?.species != s.rawValue { batchId = nil }
-        if s == .shellfish || s == .fish { ground = false }
+        withAnimation(.smooth(duration: 0.3)) {
+            species = s
+            if batch?.species != s.rawValue { batchId = nil }
+            if !s.categories.contains(category) { category = .muscle }
+            if !s.organs.contains(organ), let first = s.organs.first { organ = first }
+            if !s.fats.contains(fat), let first = s.fats.first { fat = first }
+            if !s.rearings.contains(rearing) { rearing = .unknown }
+            if !s.preps.contains(prep) { prep = .raw }
+            if !s.canBeGround { ground = false }
+        }
     }
 
     private var displayName: String {

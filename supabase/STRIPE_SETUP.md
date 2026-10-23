@@ -1,6 +1,6 @@
 # Stripe subscription backend
 
-1. **Stripe dashboard** (test mode first): create a product "Primal Pro" with two recurring prices
+1. **Stripe dashboard** (test mode first): create a product "Vitalis Pro" with two recurring prices
    (monthly, yearly). Copy both price IDs (`price_...`). Enable the Customer Portal
    (Settings → Billing → Customer portal).
 2. **Database**: run `migrations/20261015000000_subscriptions.sql` in the Supabase SQL editor.

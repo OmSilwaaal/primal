@@ -13,25 +13,35 @@ struct DashboardView: View {
     var onSearch: () -> Void = {}
     @State private var showRawLog = false
     @State private var pushed: SecondaryScreen?
+    /// The day Home shows. Past days are view-only.
+    @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @AppStorage(HealthPrimingView.pendingKey) private var healthPrimingPending = false
 
     init(onSearch: @escaping () -> Void = {}) {
         self.onSearch = onSearch
-        // Rows back to the start of the month (eating cycle) or the week, whichever is earlier; at least 7 days for
-        // the raw snapshot. "Today" is filtered in memory so the view survives midnight.
+        // Rows back to the start of the month (eating cycle) or the date wheel's history, whichever is earlier.
+        // Days are filtered in memory so the view survives midnight.
         let cal = Calendar.current, today = cal.startOfDay(for: .now)
         let month = cal.dateInterval(of: .month, for: today)?.start ?? today
-        let week = cal.date(byAdding: .day, value: -6, to: today) ?? today
-        let cutoff = min(month, week, EatingCycle.weekStart(for: today))
+        let history = cal.date(byAdding: .day, value: -(EatingCycle.historyDays - 1), to: today) ?? today
+        let cutoff = min(month, history)
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= cutoff }, sort: \.date)
         _hydrations = Query(filter: #Predicate<DailyHydration> { $0.date >= cutoff }, sort: \.date)
     }
 
     private var baseGoals: NutrientGoals { profiles.first.map(NutrientGoals.from) ?? .default }
+    private var isToday: Bool { Calendar.current.isDateInToday(selectedDay) }
+    /// Active energy from Apple Health is only fetched for today, so past days use the base target.
     private var goals: NutrientGoals {
         var g = baseGoals
-        if profiles.first != nil, healthManager.todayActiveEnergy > 0 { g.calories += healthManager.todayActiveEnergy }
+        if isToday, profiles.first != nil, healthManager.todayActiveEnergy > 0 { g.calories += healthManager.todayActiveEnergy }
         return g
+    }
+    private var dayMeals: [MealEntry] {
+        let cal = Calendar.current; return meals.filter { cal.isDate($0.date, inSameDayAs: selectedDay) }
+    }
+    private var dayHydration: DailyHydration? {
+        hydrations.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDay) })
     }
     private var todaysMeals: [MealEntry] {
         let cal = Calendar.current; return meals.filter { cal.isDateInToday($0.date) }
@@ -57,47 +67,52 @@ struct DashboardView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        HomeHeader(onSearch: onSearch, onWeather: { pushed = .sun })
+                        HomeHeader(day: selectedDay, onToday: isToday ? nil : { select(Calendar.current.startOfDay(for: .now)) },
+                                   onSearch: onSearch, onWeather: { pushed = .sun })
                             .padding(.horizontal, Space.margin)
                             .padding(.top, 12)
 
-                        CycleSection(cycle: EatingCycle(meals: meals, calorieGoal: baseGoals.calories,
-                                                        todayProgress: progress))
-                            .padding(.horizontal, Space.margin)
+                        CycleSection(cycle: EatingCycle(meals: meals, calorieGoal: baseGoals.calories),
+                                     selected: selectedDay, onSelect: select)
                             .padding(.top, 20)
 
-                        CalorieRing(total: todaysMeals.totalCalories, goal: goals.calories)
+                        CalorieRing(total: dayMeals.totalCalories, goal: goals.calories, isToday: isToday)
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 32)
+                            .padding(.top, 28)
                             .padding(.bottom, 28)
 
                         MacroGrid(items: [
-                            ("Protein", todaysMeals.totalProtein, goals.protein),
-                            ("Carbs", todaysMeals.totalCarbs, goals.carbohydrates),
-                            ("Fat", todaysMeals.totalFat, goals.fat),
+                            ("Protein", dayMeals.totalProtein, goals.protein),
+                            ("Carbs", dayMeals.totalCarbs, goals.carbohydrates),
+                            ("Fat", dayMeals.totalFat, goals.fat),
                         ])
 
-                        MealsSection(meals: todaysMeals, onAdd: onSearch) { meal in
+                        MealsSection(meals: dayMeals, readOnly: !isToday, onAdd: onSearch) { meal in
                             Haptics.success()
                             let name = meal.foodName.components(separatedBy: ",").first ?? meal.foodName
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { MealLogger.delete(meal, in: modelContext) }
                             ToastCenter.shared.show("Removed — \(name)")
                         }
                         .padding(.top, 32)
+                        // Each day's list fades in rather than snapping when the date changes.
+                        .id(selectedDay)
+                        .transition(.opacity.combined(with: .offset(y: 10)))
 
                         VStack(alignment: .leading, spacing: Space.section) {
-                            if let hydration = todaysHydration {
-                                HydrationSection(hydration: hydration,
-                                    onAddWater: {
-                                        hydration.waterOunces += 8.45
-                                        try? modelContext.save()
-                                        healthManager.saveDietaryWater(ounces: 8.45)
-                                    },
-                                    onAddSalt: { hydration.addedSodiumMg += 400; try? modelContext.save() })
+                            HydrationSection(ounces: dayHydration?.waterOunces ?? 0, readOnly: !isToday) { newOunces, added in
+                                guard let hydration = todaysHydration else { return }
+                                hydration.waterOunces = newOunces
+                                try? modelContext.save()
+                                // Apple Health only gets additions; samples can't be partly taken back.
+                                if added > 0 { healthManager.saveDietaryWater(ounces: added) }
                             }
 
-                            RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: { pushed = .raw },
-                                               onLogRaw: { showRawLog = true })
+                            // A today-only summary (it covers the last 7 days and has a log button).
+                            if isToday {
+                                RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: { pushed = .raw },
+                                                   onLogRaw: { showRawLog = true })
+                                    .transition(.opacity)
+                            }
                         }
                         .padding(.horizontal, Space.margin)
                         .padding(.top, 20)
@@ -129,15 +144,23 @@ struct DashboardView: View {
         }
     }
 
-    private var progress: Double { goals.calories > 0 ? todaysMeals.totalCalories / goals.calories : 0 }
+    /// Moves Home to another day; every section follows with the same smooth animation.
+    private func select(_ day: Date) {
+        let day = Calendar.current.startOfDay(for: day)
+        guard day != selectedDay else { return }
+        withAnimation(.smooth(duration: 0.45)) { selectedDay = day }
+    }
 }
 
 // MARK: - Header
 private struct HomeHeader: View {
+    let day: Date
+    /// Set when a past day is showing.
+    let onToday: (() -> Void)?
     let onSearch: () -> Void
     let onWeather: () -> Void
     private var dateText: String {
-        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"; return f.string(from: Date()).uppercased()
+        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"; return f.string(from: day).uppercased()
     }
     var body: some View {
         // Date and buttons on one row when they fit; buttons drop below the date at large text sizes.
@@ -157,10 +180,24 @@ private struct HomeHeader: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
                 .lineLimit(1).fixedSize()
+                .contentTransition(.numericText())
         }
     }
     private var actions: some View {
         HStack(spacing: 10) {
+            if let onToday {
+                Button(action: onToday) {
+                    Text("Today").font(.mono(12, .semibold)).tracking(1.2).textCase(.uppercase)
+                        .foregroundColor(.ncPrimary)
+                        .padding(.horizontal, 16).frame(height: 44)
+                        .glass(.clear, in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+                .accessibilityHint("Shows today")
+                .transition(.scale(scale: 0.8).combined(with: .opacity))
+            }
             WeatherChip(onOpen: onWeather)
             Button(action: onSearch) {
                 Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium))
@@ -236,19 +273,19 @@ private struct WeatherChip: View {
 /// 85–110% of the calorie goal. Days with nothing logged stay neutral.
 struct EatingCycle {
     enum Mark { case onTarget, offTarget, today, upcoming, empty }
-    struct Day: Identifiable { let id: Date; let mark: Mark; let weekday: String; let number: Int }
+    struct Day: Identifiable, Equatable { let id: Date; let mark: Mark; let weekday: String; let number: Int }
+
+    /// How far back the date wheel goes.
+    static let historyDays = 30
 
     let day: Int
     let length: Int
-    let ticks: [Mark]
-    let week: [Day]
+    /// One per day of the calendar month, with its date.
+    let ticks: [(date: Date, mark: Mark)]
+    /// The last `historyDays` days, oldest first, ending today.
+    let history: [Day]
 
-    static func weekStart(for date: Date) -> Date {
-        var cal = Calendar(identifier: .iso8601); cal.timeZone = .current
-        return cal.dateInterval(of: .weekOfYear, for: date)?.start ?? Calendar.current.startOfDay(for: date)
-    }
-
-    init(meals: [MealEntry], calorieGoal: Double, todayProgress: Double, now: Date = .now) {
+    init(meals: [MealEntry], calorieGoal: Double, now: Date = .now) {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
         var kcalByDay: [Date: Double] = [:]
@@ -265,12 +302,14 @@ struct EatingCycle {
         let month = cal.dateInterval(of: .month, for: today)!
         length = cal.range(of: .day, in: .month, for: today)?.count ?? 30
         day = cal.component(.day, from: today)
-        ticks = (0..<length).map { mark(cal.date(byAdding: .day, value: $0, to: month.start)!) }
+        ticks = (0..<length).map { i in
+            let d = cal.date(byAdding: .day, value: i, to: month.start)!
+            return (d, mark(d))
+        }
 
-        let start = Self.weekStart(for: today)
         let f = DateFormatter(); f.dateFormat = "EEE"
-        week = (0..<7).map { i in
-            let d = cal.date(byAdding: .day, value: i, to: start)!
+        history = (0..<Self.historyDays).reversed().map { back in
+            let d = cal.date(byAdding: .day, value: -back, to: today)!
             return Day(id: d, mark: mark(d), weekday: f.string(from: d).uppercased(), number: cal.component(.day, from: d))
         }
     }
@@ -278,45 +317,38 @@ struct EatingCycle {
 
 private struct CycleSection: View {
     let cycle: EatingCycle
+    let selected: Date
+    let onSelect: (Date) -> Void
+
+    /// The selected day's place in this month's cycle (today's when the selection is in an earlier month).
+    private var dayNumber: Int {
+        let cal = Calendar.current
+        return cal.isDate(selected, equalTo: .now, toGranularity: .month) ? cal.component(.day, from: selected) : cycle.day
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            (Text("DAY \(cycle.day) ") + Text("OF \(cycle.length)").foregroundColor(.ncSecondary))
-                .font(.mono(12, .semibold)).tracking(0.96).foregroundColor(.ncPrimary)
-            HStack(alignment: .bottom, spacing: 3) {
-                ForEach(Array(cycle.ticks.enumerated()), id: \.offset) { _, mark in
-                    Capsule().fill(tickColor(mark))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: mark == .today ? 22 : 14)
-                }
-            }
-            .frame(height: 22)
-            .accessibilityElement()
-            .accessibilityLabel("Day \(cycle.day) of \(cycle.length)")
-
-            HStack(spacing: 6) {
-                ForEach(cycle.week) { day in
-                    let today = day.mark == .today
-                    VStack(spacing: 6) {
-                        Text(day.weekday).font(.mono(11, .semibold)).tracking(0.8).opacity(0.8)
-                            .lineLimit(1).minimumScaleFactor(0.6)
-                        Text("\(day.number)").font(.display(17))
-                            .lineLimit(1).minimumScaleFactor(0.6)
-                        Circle().fill(dotColor(day.mark)).frame(width: 6, height: 6)
+            Group {
+                (Text("DAY \(dayNumber) ") + Text("OF \(cycle.length)").foregroundColor(.ncSecondary))
+                    .font(.mono(12, .semibold)).tracking(0.96).foregroundColor(.ncPrimary)
+                    .contentTransition(.numericText())
+                HStack(alignment: .bottom, spacing: 3) {
+                    ForEach(Array(cycle.ticks.enumerated()), id: \.offset) { _, tick in
+                        let isSelected = tick.date == selected
+                        Capsule().fill(isSelected ? Color.ncPrimary : tickColor(tick.mark))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: isSelected || tick.mark == .today ? 22 : 14)
+                            .opacity(isSelected || tick.mark != .today ? 1 : 0.5)
                     }
-                    .foregroundColor(today ? .ncOnPrimary : day.mark == .upcoming ? .ncSecondary : .ncPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 10).padding(.bottom, 9)
-                    .background(Capsule().fill(today ? Color.ncPrimary : Color.white.opacity(0.06)))
-                    .overlay(Capsule().strokeBorder(today ? Color.ncPrimary : Color.white.opacity(0.14), lineWidth: 1))
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(day.id.formatted(.dateTime.weekday(.wide))) \(day.number), \(markDescription(day.mark))")
                 }
+                .frame(height: 22)
+                .accessibilityElement()
+                .accessibilityLabel("Day \(dayNumber) of \(cycle.length)")
             }
-            .padding(.top, 4)
-            // Seven fixed columns can't grow with the text, so the row stops at the largest standard size.
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .padding(.horizontal, Space.margin)
 
+            DateWheel(days: cycle.history, selected: selected, onSelect: onSelect, describe: markDescription)
+                .padding(.top, 4)
         }
     }
 
@@ -351,7 +383,14 @@ private struct CycleSection: View {
 private struct CalorieRing: View {
     let total: Double
     let goal: Double
+    var isToday = true
     private var progress: Double { goal > 0 ? total / goal : 0 }
+    /// "Left" for today; for a finished day, how far under or over the target it ended.
+    private var remaining: String {
+        let diff = Int((goal - total).rounded())
+        if isToday { return "\(max(0, diff).formatted()) KCAL LEFT" }
+        return diff >= 0 ? "\(diff.formatted()) KCAL UNDER" : "\((-diff).formatted()) KCAL OVER"
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -373,8 +412,9 @@ private struct CalorieRing: View {
             .frame(width: 240, height: 240)
             .accessibilityElement(children: .combine)
 
-            Text("\(Int(max(0, goal - total)).formatted()) KCAL LEFT")
+            Text(remaining)
                 .font(.mono(13)).tracking(1.04).foregroundColor(.ncSecondary)
+                .contentTransition(.numericText())
         }
     }
 }
@@ -405,39 +445,89 @@ private struct MacroGrid: View {
     }
 }
 
-// MARK: - Water & salt
+// MARK: - Hydration
+/// Water for the day as a drag slider: a glass track that fills as you drag, snapping to 250 ml with a haptic
+/// tick at each step and a stronger one on reaching the goal. View-only on past days.
 private struct HydrationSection: View {
-    let hydration: DailyHydration
-    let onAddWater: () -> Void
-    let onAddSalt: () -> Void
-    private var liters: Double { hydration.waterOunces * 0.0295735 }
-    private var salt: Double { hydration.addedSodiumMg / 1000.0 }
+    let ounces: Double
+    let readOnly: Bool
+    /// New total and the amount this change added (negative if lowered), both in fluid ounces.
+    let onCommit: (Double, Double) -> Void
+
+    private static let ozPerLiter = 33.814
+    private let goalLiters = 3.5
+    private let maxLiters = 5.0
+    private let step = 0.25
+
+    @State private var dragLiters: Double?
+    @State private var startLiters = 0.0
+
+    private var liters: Double { dragLiters ?? ounces / Self.ozPerLiter }
 
     var body: some View {
-        RawCard {
-            HStack(alignment: .top, spacing: 0) {
-                column(label: "Water", value: String(format: "%.1f", liters), unit: "L", target: "of 3.5 L",
-                       progress: liters / 3.5, button: "+ 250 ml", action: onAddWater)
-                Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1).padding(.horizontal, 16)
-                column(label: "Added salt", value: String(format: "%.1f", salt), unit: "g", target: "of 5 g",
-                       progress: salt / 5, button: "+ 1 pinch", action: onAddSalt)
-            }
-        }
-    }
-
-    private func column(label: String, value: String, unit: String, target: String, progress: Double,
-                        button: String, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(label).serifCaps(10).foregroundColor(.ncSecondary)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value).font(.metric(34)).foregroundColor(.ncPrimary).contentTransition(.numericText())
-                Text(unit).font(.serif(14)).foregroundColor(.ncSecondary)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Hydration").monoLabel()
+                Spacer()
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(String(format: "%.2f", liters)).font(.metric(28)).foregroundColor(.ncPrimary)
+                        .contentTransition(.numericText(value: liters))
+                    Text("/ \(String(format: "%.1f", goalLiters)) L").font(.mono(12)).foregroundColor(.ncSecondary)
+                }
             }
-            .animation(.smooth, value: value)
-            LineGauge(value: progress)
-            Text(target).font(.ui(size: 13)).foregroundColor(.ncSecondary)
-            Button(action: action) { Text(button) }
-                .buttonStyle(SecondaryButtonStyle(height: 40))
+
+            GeometryReader { geo in
+                let w = geo.size.width
+                let fill = max(0, min(1, liters / maxLiters)) * w
+                let goalX = goalLiters / maxLiters * w
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.clear).glass(.clear, in: Capsule())
+                    Capsule()
+                        .fill(LinearGradient(colors: [Color.ncPrimary.opacity(0.75), Color.ncPrimary],
+                                             startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(44, fill))
+                        .opacity(liters > 0 ? 1 : 0)
+                    // Goal mark
+                    Capsule().fill(Color.ncPrimary.opacity(0.4)).frame(width: 2, height: 20)
+                        .offset(x: goalX - 1)
+                    Image(systemName: "drop.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(liters > 0 ? .ncOnPrimary : .ncPrimary)
+                        .frame(width: 44, height: 44)
+                        .offset(x: max(0, fill - 44))
+                }
+                .frame(height: 44)
+                .contentShape(Rectangle())
+                .gesture(readOnly ? nil : DragGesture(minimumDistance: 0)
+                    .onChanged { g in
+                        if dragLiters == nil { startLiters = liters; Haptics.tap() }
+                        let raw = max(0, min(maxLiters, g.location.x / max(w, 1) * maxLiters))
+                        let snapped = (raw / step).rounded() * step
+                        if snapped != (dragLiters ?? startLiters) {
+                            let previous = dragLiters ?? startLiters
+                            let crossedGoal = previous < goalLiters && snapped >= goalLiters
+                            if crossedGoal { Haptics.success() } else { Haptics.selection() }
+                        }
+                        withAnimation(.interactiveSpring(response: 0.25, dampingFraction: 0.85)) { dragLiters = snapped }
+                    }
+                    .onEnded { _ in
+                        guard let final = dragLiters else { return }
+                        onCommit(final * Self.ozPerLiter, (final - startLiters) * Self.ozPerLiter)
+                        dragLiters = nil
+                    })
+            }
+            .frame(height: 44)
+            .opacity(readOnly ? 0.7 : 1)
+            .accessibilityElement()
+            .accessibilityLabel("Water")
+            .accessibilityValue("\(String(format: "%.2f", liters)) of \(String(format: "%.1f", goalLiters)) litres")
+            .accessibilityAdjustableAction { direction in
+                guard !readOnly else { return }
+                let now = ounces / Self.ozPerLiter
+                let next = direction == .increment ? min(maxLiters, now + step) : max(0, now - step)
+                Haptics.selection()
+                onCommit(next * Self.ozPerLiter, (next - now) * Self.ozPerLiter)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -480,6 +570,8 @@ struct RawSnapshotSection: View {
 // MARK: - Meals
 struct MealsSection: View {
     let meals: [MealEntry]
+    /// Past days: no removing and no logging.
+    var readOnly = false
     let onAdd: () -> Void
     let onDelete: (MealEntry) -> Void
     /// Removing a meal is confirmed first: it also deletes it from Apple Health sharing and friends' feeds.
@@ -498,21 +590,31 @@ struct MealsSection: View {
                 if !meals.isEmpty {
                     Rule()
                     ForEach(meals.reversed()) { meal in
-                        MealRow(meal: meal) { pendingDelete = meal }
-                            .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
-                            .contextMenu {
-                                Button(role: .destructive) { pendingDelete = meal } label: {
-                                    Label("Remove", systemImage: "trash")
+                        if readOnly {
+                            MealRow(meal: meal, onDelete: nil)
+                        } else {
+                            MealRow(meal: meal) { pendingDelete = meal }
+                                .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
+                                .contextMenu {
+                                    Button(role: .destructive) { pendingDelete = meal } label: {
+                                        Label("Remove", systemImage: "trash")
+                                    }
                                 }
-                            }
+                        }
                     }
+                } else if readOnly {
+                    Text("No meals logged").font(.ui(size: 15)).foregroundColor(.ncSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 20)
                 }
             }
             .padding(.horizontal, Space.margin)
 
-            Button("Log food", action: onAdd)
-                .buttonStyle(.vitalis)
-                .padding(Space.margin)
+            if !readOnly {
+                Button("Log food", action: onAdd)
+                    .buttonStyle(.vitalis)
+                    .padding(Space.margin)
+            }
         }
         .confirmationDialog(
             "Remove \(pendingDelete.map { $0.foodName.components(separatedBy: ",").first ?? $0.foodName } ?? "meal")?",
@@ -531,7 +633,8 @@ struct MealsSection: View {
 /// Time · name + portion · kcal · a visible 44 pt remove target (no hidden swipe).
 struct MealRow: View {
     let meal: MealEntry
-    let onDelete: () -> Void
+    /// nil on past days: the row is view-only.
+    let onDelete: (() -> Void)?
 
     private var timeStr: String { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: meal.date) }
     private var meta: String {
@@ -552,17 +655,113 @@ struct MealRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             (Text("\(Int(meal.calories).formatted())") + Text(" KCAL").foregroundColor(.ncSecondary))
                 .font(.mono(13)).foregroundColor(.ncPrimary)
-            Button(action: onDelete) {
-                Text("×").font(.ui(size: 22)).foregroundColor(.ncSecondary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+            if let onDelete {
+                Button(action: onDelete) {
+                    Text("×").font(.ui(size: 22)).foregroundColor(.ncSecondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(meal.foodName)")
+                .accessibilityHint("Asks before removing")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(meal.foodName)")
-            .accessibilityHint("Asks before removing")
         }
         .frame(minHeight: 64)
         .overlay(alignment: .bottom) { Hairline(opacity: 0.28) }
         .accessibilityElement(children: .contain)
+    }
+}
+
+// MARK: - Date wheel
+
+/// The last 30 days as pills on a dial, like the map's category wheel: scroll back through past days and the one
+/// that snaps to the centre is the day Home shows. Tapping a pill spins it there. Today sits at the right end.
+private struct DateWheel: View {
+    let days: [EatingCycle.Day]
+    let selected: Date
+    let onSelect: (Date) -> Void
+    let describe: (EatingCycle.Mark) -> String
+    @State private var centered: Date?
+
+    private let pillWidth: CGFloat = 50
+
+    var body: some View {
+        GeometryReader { geo in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(days) { day in
+                        pill(day)
+                            .visualEffect { content, proxy in
+                                // -1 at the left edge of the wheel, 0 in the centre, 1 at the right edge.
+                                let width = proxy.bounds(of: .scrollView)?.width ?? 1
+                                let d = max(-1, min(1, (proxy.frame(in: .scrollView).midX - width / 2) / (width / 2)))
+                                return content
+                                    .rotationEffect(.degrees(d * 14), anchor: .center)
+                                    .offset(y: d * d * 16)
+                                    .scaleEffect(1 - abs(d) * 0.16)
+                                    .opacity(1 - abs(d) * 0.55)
+                            }
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            // Room on both sides so the first and last pills can reach the centre.
+            .safeAreaPadding(.horizontal, max(0, (geo.size.width - pillWidth) / 2))
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $centered, anchor: .center)
+            .scrollClipDisabled()
+        }
+        .frame(height: 92)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .onAppear { centered = selected }
+        .onChange(of: centered) { _, new in
+            guard let new, new != selected else { return }
+            Haptics.selection()
+            onSelect(new)
+        }
+        .onChange(of: selected) { _, new in
+            if centered != new { withAnimation(.smooth(duration: 0.45)) { centered = new } }
+        }
+    }
+
+    private func pill(_ day: EatingCycle.Day) -> some View {
+        let on = day.id == selected
+        return Button {
+            withAnimation(.smooth(duration: 0.45)) { centered = day.id }
+        } label: {
+            VStack(spacing: 6) {
+                Text(day.weekday).font(.mono(11, .semibold)).tracking(0.8).opacity(0.8)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Text("\(day.number)").font(.display(17))
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Circle().fill(dotColor(day.mark, on: on)).frame(width: 6, height: 6)
+            }
+            .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
+            .frame(width: pillWidth)
+            .padding(.top, 10).padding(.bottom, 9)
+            .background {
+                if on {
+                    Capsule().fill(Color.ncPrimary)
+                } else {
+                    Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(Color.white.opacity(0.06)))
+                        .environment(\.colorScheme, .dark)
+                }
+            }
+            .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0 : 0.16), lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .animation(.smooth(duration: 0.3), value: on)
+        .accessibilityLabel("\(day.id.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(describe(day.mark))")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func dotColor(_ m: EatingCycle.Mark, on: Bool) -> Color {
+        switch m {
+        case .onTarget: .ncMoss
+        case .offTarget: .ncEmber
+        case .today: on ? .ncOnPrimary : .ncPrimary
+        case .upcoming, .empty: on ? .ncOnPrimary.opacity(0.3) : .ncPrimary.opacity(0.25)
+        }
     }
 }

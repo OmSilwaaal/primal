@@ -11,6 +11,8 @@ struct CameraView: View {
     @State private var selectedMode = "Barcode"
     @State private var servingSize: Double = 100.0
     @State private var currentZoomFactor: CGFloat = 1.0
+    /// Bumped when a barcode or photo locks on; flashes the ᛉ in the frame.
+    @State private var lockFlash = 0
 
     private var sheetShown: Bool {
         if selectedMode == "Barcode" { if case .found = barcodeService.state { return true }; return false }
@@ -36,6 +38,15 @@ struct CameraView: View {
                 ViewfinderCorners(showsScanLine: selectedMode == "Barcode")
                     .offset(y: -25)
                     .allowsHitTesting(false)
+                // The tool's signature: a small ᛉ under the frame (outside what the camera reads), and a brief
+                // flash of it in the frame when something locks on.
+                AlgizMark().fill(Color.ncPrimary.opacity(0.55))
+                    .frame(width: 12, height: 15)
+                    .offset(y: -25 + 125 + 22)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                RuneFlash(trigger: lockFlash)
+                    .offset(y: -25)
             } else {
                 permissionPrompt
             }
@@ -54,6 +65,7 @@ struct CameraView: View {
             if sheetShown { quickLogSheet }
         }
         .hidesTabBar(sheetShown)
+        .onChange(of: sheetShown) { _, shown in if shown { lockFlash += 1 } }
         .onAppear {
             cameraManager.checkPermissions()
             cameraManager.setBarcodeScanning(selectedMode == "Barcode")
@@ -364,5 +376,25 @@ struct QuickLogCard: View {
     /// "LOGGED — RIBEYE STEAK 250 G"
     static func loggedMessage(_ name: String, grams: Double) -> String {
         "Logged — \(name.components(separatedBy: ",").first ?? name) \(Int(grams)) g"
+    }
+}
+
+/// A ᛉ that flashes in the viewfinder when a scan locks on: grows in, then fades. Fades only with Reduce Motion.
+private struct RuneFlash: View {
+    let trigger: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+
+    var body: some View {
+        AlgizMark().fill(Color.ncPrimary)
+            .frame(width: 76, height: 98)
+            .scaleEffect(visible || reduceMotion ? 1 : 0.7)
+            .opacity(visible ? 0.85 : 0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onChange(of: trigger) { _, _ in
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { visible = true }
+                withAnimation(.easeOut(duration: 0.4).delay(0.35)) { visible = false }
+            }
     }
 }

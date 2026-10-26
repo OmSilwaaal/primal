@@ -9,6 +9,7 @@ struct OnboardingView: View {
     @State private var email = ""
     @State private var password = ""
     @FocusState private var focus: Field?
+    @State private var wordmarkShown = false
 
     private enum Field { case email, password }
     private var canSubmit: Bool { !email.isEmpty && !password.isEmpty && !authManager.isLoading }
@@ -83,11 +84,9 @@ struct OnboardingView: View {
 
     private var wordmark: some View {
         VStack(spacing: 22) {
-            AlgizMark().fill(Color.ncPrimary)
-                .frame(width: 40, height: 52)
+            RuneReveal(width: 40, height: 52)
                 .shadow(color: .black.opacity(0.4), radius: 10, y: 4)
                 .padding(.bottom, 6)
-                .accessibilityHidden(true)
             Text("VITALIS")
                 .font(.ui(size: 44, weight: .regular))
                 .tracking(19)
@@ -101,6 +100,10 @@ struct OnboardingView: View {
                 .lineLimit(3).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
+        // The words follow the rune as it finishes drawing.
+        .opacity(wordmarkShown ? 1 : 0)
+        .animation(.easeOut(duration: 0.5).delay(0.55), value: wordmarkShown)
+        .onAppear { wordmarkShown = true }
         .accessibilityElement(children: .combine)
     }
 

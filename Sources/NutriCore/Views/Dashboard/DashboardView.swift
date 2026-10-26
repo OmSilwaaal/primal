@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 // MARK: - Home
 struct DashboardView: View {
@@ -169,8 +170,10 @@ struct DashboardView: View {
                 ensureRecords()
                 await healthManager.fetchTodayData()
                 daylight = await healthManager.dailyDaylightMinutes(days: EatingCycle.historyDays)
+                publishSnapshot()
                 await SocialService.shared.backfill(meals)
             }
+            .onChange(of: todaySnapshot) { _, _ in publishSnapshot() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     ensureRecords()
@@ -178,6 +181,23 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    /// Today's numbers for the widgets, whatever day Home is showing.
+    private var todaySnapshot: WidgetSnapshot {
+        let cal = Calendar.current
+        var calorieGoal = baseGoals.calories
+        if profiles.first != nil, healthManager.todayActiveEnergy > 0 { calorieGoal += healthManager.todayActiveEnergy }
+        let drinksMl = (todaysHydration?.waterOunces ?? 0) * HydrationSection.mlPerOunce
+        let manualSun = sunSessions.filter { cal.isDateInToday($0.start) }.reduce(0) { $0 + $1.minutes }
+        return WidgetSnapshot(day: cal.startOfDay(for: .now), calories: todaysMeals.totalCalories, calorieGoal: calorieGoal,
+                              waterLitres: (drinksMl + FoodWater.millilitres(in: todaysMeals)) / 1000, waterGoalLitres: 3.5,
+                              sunMinutes: max(manualSun, daylight[cal.startOfDay(for: .now)] ?? 0),
+                              sunGoalMinutes: Double(sunGoal))
+    }
+
+    private func publishSnapshot() {
+        if todaySnapshot.save() { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     /// Moves Home to another day; every section follows with the same smooth animation.
@@ -732,9 +752,7 @@ struct MealsSection: View {
                         }
                     }
                 } else if readOnly {
-                    Text("No meals logged").font(.ui(size: 15)).foregroundColor(.ncSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 20)
+                    BrandEmptyState(message: "No meals logged this day")
                 }
             }
             .padding(.horizontal, Space.margin)

@@ -35,8 +35,8 @@ struct FriendsView: View {
 
                             section("Friends") {
                                 if social.friends.isEmpty {
-                                    EmptyState(icon: "person.2", title: "No friends yet",
-                                               message: "Search by username to add someone.", compact: true)
+                                    BrandEmptyState(message: "No friends yet. Search by username to add someone.",
+                                                    actionTitle: "Add friend") { showAdd = true }
                                 } else {
                                     ForEach(social.friends) { friend in
                                         NavigationLink(value: friend) {
@@ -181,6 +181,13 @@ struct EmptyState: View {
         .padding(.horizontal, 24)
         .padding(.vertical, compact ? 24 : 0)
         .frame(maxWidth: .infinity)
+        .background {
+            // Full-screen empty states sit on a large faint ᛉ, like the rest of the app's empty states.
+            if !compact {
+                AlgizMark().fill(Color.ncPrimary.opacity(0.06)).frame(width: 150, height: 196)
+                    .accessibilityHidden(true)
+            }
+        }
         .modifier(OptionalCard(enabled: compact))
     }
 }

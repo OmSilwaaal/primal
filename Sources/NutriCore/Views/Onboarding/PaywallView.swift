@@ -139,7 +139,7 @@ private struct PlanRow: View {
                     }
                     Spacer()
                     if price.isEmpty {
-                        ProgressView().tint(.ncPrimary)
+                        VitalisSpinner(size: 22)
                     } else {
                         Text(price).font(.metric(15)).foregroundColor(.ncPrimary)
                     }

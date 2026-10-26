@@ -63,7 +63,7 @@ struct EditProfileView: View {
             ZStack {
                 AvatarView(url: social.myProfile?.avatarUrl, name: displayName.isEmpty ? username : displayName, size: 96)
                     .opacity(isUploading ? 0.4 : 1)
-                if isUploading { ProgressView() }
+                if isUploading { VitalisSpinner(size: 30) }
             }
             VStack(alignment: .leading, spacing: 12) {
                 PhotosPicker(selection: $photoItem, matching: .images) {

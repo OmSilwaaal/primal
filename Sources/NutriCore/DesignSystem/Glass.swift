@@ -297,6 +297,7 @@ final class ToastCenter: ObservableObject {
             message = text.uppercased()
             self.branded = branded
         }
+        if branded { BrandSound.play() }
         hideTask?.cancel()
         hideTask = Task {
             try? await Task.sleep(for: .seconds(2.2))

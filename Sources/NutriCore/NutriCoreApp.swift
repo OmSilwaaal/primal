@@ -35,7 +35,10 @@ struct RootView: View {
     // ────────────────────────────────────────────────────────────────────────
 
     var body: some View {
-        content
+        ZStack {
+            content
+            LaunchHandoff()
+        }
             .task(id: authManager.isAuthenticated) {
                 // The subscription belongs to the Apple ID, so check it whether or not anyone is signed in.
                 await subManager.refreshEntitlement()

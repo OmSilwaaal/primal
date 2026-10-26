@@ -4,6 +4,10 @@ import SwiftData
 
 struct SettingsView: View {
     @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
+    @AppStorage(BrandSound.enabledKey) private var isSoundEnabled = false
+    @State private var eveningReminder = Reminders.isOn(.eveningLog)
+    @State private var morningReminder = Reminders.isOn(.morningSun)
+    @State private var reminderDenied = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var legalDocument: LegalDocument?
     @State private var showManageSubscriptions = false
@@ -97,6 +101,28 @@ struct SettingsView: View {
                     SettingsSection(title: "Preferences") {
                         SettingsToggleRow(icon: "waveform.path", title: "Haptic feedback",
                                           subtitle: "Taps and confirmations", isOn: $isHapticsEnabled)
+                        SettingsDivider()
+                        SettingsToggleRow(icon: "speaker.wave.1", title: "Sounds",
+                                          subtitle: "A soft knock when you log or hit a goal", isOn: $isSoundEnabled)
+                    }
+
+                    SettingsSection(title: "App icon") {
+                        AppIconPicker()
+                    }
+
+                    SettingsSection(title: "Reminders",
+                                    footer: reminderDenied ? "Notifications are off for Vitalis. Turn them on in iOS Settings to use reminders." : nil) {
+                        SettingsToggleRow(icon: "fork.knife", title: "Evening log",
+                                          subtitle: "8 pm · log today's meals and water", isOn: $eveningReminder)
+                        SettingsDivider()
+                        SettingsToggleRow(icon: "sun.horizon", title: "Morning light",
+                                          subtitle: "8 am · a nudge to get outside", isOn: $morningReminder)
+                    }
+                    .onChange(of: eveningReminder) { _, on in
+                        Task { if !(await Reminders.set(.eveningLog, on: on)) { eveningReminder = false; reminderDenied = true } }
+                    }
+                    .onChange(of: morningReminder) { _, on in
+                        Task { if !(await Reminders.set(.morningSun, on: on)) { morningReminder = false; reminderDenied = true } }
                     }
 
                     // ── Subscription ────────────────────────────────────────

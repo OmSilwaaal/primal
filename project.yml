@@ -19,13 +19,17 @@ targets:
     deploymentTarget: "17.0"
     dependencies:
       - package: Supabase
+      - target: VitalisWidgets
     sources:
       - path: Sources/NutriCore
         createIntermediateGroups: true
+      - path: Sources/Shared
       - path: Resources/Assets.xcassets
       - path: Resources/Fonts
         buildPhase: resources
       - path: Resources/Legal
+        buildPhase: resources
+      - path: Resources/Sounds
         buildPhase: resources
     info:
       path: NutriCore/Info.plist
@@ -58,6 +62,8 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.applesignin: ["Default"]
+        # Shared with the widgets, which read today's snapshot (WidgetSnapshot).
+        com.apple.security.application-groups: ["group.com.omsilwal.NutriCorePrimal"]
     scheme:
       # Local App Store for testing purchases in the simulator and from Xcode.
       storeKitConfiguration: Vitalis.storekit
@@ -67,5 +73,36 @@ targets:
         DEVELOPMENT_TEAM: H5KUB3S9FY
         SWIFT_VERSION: "5.9"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Alternate icons chosen in Settings → App icon.
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Ink AppIcon-Paper AppIcon-Ember AppIcon-Moss AppIcon-Desert AppIcon-Ocean AppIcon-Fog AppIcon-Night"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+
+  # Home Screen and Lock Screen widgets. They read WidgetSnapshot from the App Group, never the app's database.
+  VitalisWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/Widgets
+      - path: Sources/Shared
+      - path: Sources/NutriCore/DesignSystem/AlgizMark.swift
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Vitalis
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/VitalisWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: ["group.com.omsilwal.NutriCorePrimal"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal.widgets
+        DEVELOPMENT_TEAM: H5KUB3S9FY
+        SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic

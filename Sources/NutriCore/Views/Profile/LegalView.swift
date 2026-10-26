@@ -160,6 +160,11 @@ struct LegalConsentView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            AlgizMark().fill(Color.ncPrimary).frame(width: 14, height: 18).accessibilityHidden(true)
+                            Text("Vitalis LLC").monoLabel()
+                        }
+                        .padding(.bottom, 8)
                         Text("Before you start").monoLabel()
                         Text("Vitalis is not medical advice")
                             .font(.ui(size: 28, weight: .bold)).foregroundColor(.ncPrimary)

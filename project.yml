@@ -35,8 +35,11 @@ targets:
           - CFBundleURLName: com.omsilwal.NutriCorePrimal
             CFBundleURLSchemes:
               - com.omsilwal.NutriCorePrimal
+        # Launch: the rune, small and centred on the app's ink background. No text, no delay.
         UILaunchScreen:
-          UIColorName: ""
+          UIColorName: LaunchBackground
+          UIImageName: LaunchMark
+          UIImageRespectsSafeAreaInsets: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIAppFonts:

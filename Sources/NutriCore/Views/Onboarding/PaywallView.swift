@@ -14,7 +14,10 @@ struct PaywallView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: Space.section) {
                     VStack(alignment: .leading, spacing: 18) {
-                        Text("Membership").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
+                        HStack(spacing: 10) {
+                            AlgizMark().fill(Color.ncPrimary).frame(width: 14, height: 18).accessibilityHidden(true)
+                            Text("Membership").serifCaps(11).foregroundColor(.ncPrimary.opacity(0.8))
+                        }
                         Wordmark(text: "VITALIS PRO", size: 64)
                         Text("Everything Vitalis measures, with nothing held back.")
                             .font(.serif(19)).foregroundColor(.ncPrimary).lineSpacing(3)

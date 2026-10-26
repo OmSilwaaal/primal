@@ -24,6 +24,11 @@ struct DietRaterView: View {
                         .contentTransition(.opacity)
                     Text(r.tier.blurb).font(.ui(size: 15)).foregroundColor(.ncSecondary)
                     SpectrumBar(position: r.position, active: r.tier != .insufficient).padding(.top, 8)
+                    if r.tier != .insufficient {
+                        ShareCardButton(title: "Share my diet") {
+                            DietTierCard(tier: r.tier.title, days: days, rawPct: r.rawPct, animalPct: r.animalPct)
+                        }
+                    }
                 }
             }
 

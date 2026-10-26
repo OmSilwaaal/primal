@@ -89,8 +89,11 @@ struct ProfileView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("VITALIS").font(.display(18)).tracking(0.36).foregroundColor(.ncPrimary)
-                        .lineLimit(1).minimumScaleFactor(0.5)
+                    HStack(spacing: 7) {
+                        AlgizMark().fill(Color.ncPrimary).frame(width: 12, height: 15).accessibilityHidden(true)
+                        Text("VITALIS").font(.display(18)).tracking(0.36).foregroundColor(.ncPrimary)
+                            .lineLimit(1).minimumScaleFactor(0.5)
+                    }
                     Text(social.myProfile.map { "@\($0.username)" } ?? profile.dietType)
                         .font(.mono(11)).tracking(1.54).textCase(.uppercase).foregroundColor(.ncSecondary).lineLimit(1)
                 }
@@ -117,8 +120,9 @@ struct ProfileView: View {
         }
         .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 22)
         .background(alignment: .bottomTrailing) {
-            Text("VITALIS").font(.display(120)).tracking(-7.2).foregroundColor(.ncPrimary.opacity(0.05))
-                .fixedSize().offset(x: 28, y: 34)
+            AlgizMark().fill(Color.ncPrimary.opacity(0.06))
+                .frame(width: 150, height: 196)
+                .offset(x: 24, y: 40)
                 .accessibilityHidden(true)
         }
         .background {

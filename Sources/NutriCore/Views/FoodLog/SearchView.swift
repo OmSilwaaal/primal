@@ -96,7 +96,7 @@ struct SearchView: View {
     private func log(_ food: FoodSearchResult) {
         let entry = MealEntry(from: food, servingSize: servingSize)
         MealLogger.log(entry, in: modelContext)
-        ToastCenter.shared.show(QuickLogCard.loggedMessage(food.description, grams: servingSize))
+        ToastCenter.shared.show(QuickLogCard.loggedMessage(food.description, grams: servingSize), branded: true)
         selectedFood = nil
         close()
     }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05B7B2CB101819F6D681A2BB /* AlgizMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40AF724808D1E7FDBCA06C0 /* AlgizMark.swift */; };
 		064DDF0FEE8E06C40F395580 /* NutrientGoals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474856B080FB52DA4FFD872C /* NutrientGoals.swift */; };
 		075D2C9EDC8568EC05C6ABF2 /* AppleSignInManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F14C826925E51C37844523 /* AppleSignInManager.swift */; };
 		0D4EC413238E0A2C04505EF6 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004CAD6EE28C84C93837813 /* CameraManager.swift */; };
@@ -30,6 +31,7 @@
 		44D3F1BBB0EA51B15A502E61 /* BatchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C1E509D1AC6621CA603E0A /* BatchViews.swift */; };
 		44D7383739AC2394FCA4D8DD /* IBMPlexMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9402E1253CE8AD9F8EC2D945 /* IBMPlexMono-Regular.ttf */; };
 		466ADD84F0F08A774914349C /* SunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04462443C6FD3D13C31B39D0 /* SunView.swift */; };
+		496D230FE376CB334F4478FE /* ShareCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC63352402B6EAFF05BEEB1 /* ShareCards.swift */; };
 		4B8C5DCB268D4D972309C847 /* terms-of-service.md in Resources */ = {isa = PBXBuildFile; fileRef = 9DE028D2712E5E3DB2423CD5 /* terms-of-service.md */; };
 		4B9A8C5411439F152A803AC4 /* NutrientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D1957631168BB5774BD04D /* NutrientsView.swift */; };
 		4BB2207A9A46B59AD1E9B1A8 /* RecallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B01121074273574E03EA87A3 /* RecallService.swift */; };
@@ -142,6 +144,7 @@
 		B01121074273574E03EA87A3 /* RecallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecallService.swift; sourceTree = "<group>"; };
 		B29170599826277F533BBD18 /* LegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalView.swift; sourceTree = "<group>"; };
 		B5AADEDA754664969AA15E67 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BBC63352402B6EAFF05BEEB1 /* ShareCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCards.swift; sourceTree = "<group>"; };
 		BE8C556C1C77BCD72C692483 /* privacy-policy.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "privacy-policy.md"; sourceTree = "<group>"; };
 		C1BBE5253355C28064890C87 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		C41EAA53C5C70EC0C6F57015 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
@@ -151,6 +154,7 @@
 		CE1AD6AC640EBE79C71B38BA /* SocialService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialService.swift; sourceTree = "<group>"; };
 		D380AF063C89978A24EDF04F /* RiskEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RiskEngine.swift; sourceTree = "<group>"; };
 		D399FAF59DB0AC5783943253 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
+		D40AF724808D1E7FDBCA06C0 /* AlgizMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgizMark.swift; sourceTree = "<group>"; };
 		D7C1E509D1AC6621CA603E0A /* BatchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchViews.swift; sourceTree = "<group>"; };
 		D91C5E310CB05D3319FE282A /* RawTaxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawTaxonomy.swift; sourceTree = "<group>"; };
 		D9A77EBAD8D87738E365240C /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
@@ -307,6 +311,7 @@
 				C72A6A47A6AD9B9054C85C88 /* Onboarding */,
 				347AD31263E62DA32AE92301 /* Profile */,
 				8579D418F3FCEEAAE0FB8AA9 /* Raw */,
+				97FFEFC1F5BE34A2E5CBA8F7 /* Share */,
 				6DB9868395AC52070C2AC728 /* Sun */,
 			);
 			path = Views;
@@ -326,6 +331,14 @@
 				09B13AF344677AC019C75292 /* SourcingView.swift */,
 			);
 			path = Raw;
+			sourceTree = "<group>";
+		};
+		97FFEFC1F5BE34A2E5CBA8F7 /* Share */ = {
+			isa = PBXGroup;
+			children = (
+				BBC63352402B6EAFF05BEEB1 /* ShareCards.swift */,
+			);
+			path = Share;
 			sourceTree = "<group>";
 		};
 		9BFE78E8B928736E705F7F39 /* Sources */ = {
@@ -393,6 +406,7 @@
 		D6E60ABD4242AB77C473CAEE /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				D40AF724808D1E7FDBCA06C0 /* AlgizMark.swift */,
 				130042E88420E3954DF48AE2 /* ArcWheel.swift */,
 				AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */,
 				C1BBE5253355C28064890C87 /* Glass.swift */,
@@ -516,6 +530,7 @@
 			files = (
 				23C60BBF009ECA2D917F7798 /* AIService.swift in Sources */,
 				16963E1B65A5479E23AF679F /* AddFriendView.swift in Sources */,
+				05B7B2CB101819F6D681A2BB /* AlgizMark.swift in Sources */,
 				075D2C9EDC8568EC05C6ABF2 /* AppleSignInManager.swift in Sources */,
 				917D4C5E132FEBD0BC6593C3 /* ArcWheel.swift in Sources */,
 				9A28B90AC9D6CC55E36219AE /* AuthManager.swift in Sources */,
@@ -571,6 +586,7 @@
 				D3D2ACB1B1ADC9CF11B120F4 /* RiskEngine.swift in Sources */,
 				E3E89EC70672CB4AF7E3F51D /* SearchView.swift in Sources */,
 				22080D63D70DC8670293568C /* SettingsView.swift in Sources */,
+				496D230FE376CB334F4478FE /* ShareCards.swift in Sources */,
 				5C3D9E79D86E5414317C1922 /* SocialModels.swift in Sources */,
 				7357FD61549764B2B09A73D5 /* SocialService.swift in Sources */,
 				935C627B56DFBE9AC8F57C50 /* SourcingView.swift in Sources */,

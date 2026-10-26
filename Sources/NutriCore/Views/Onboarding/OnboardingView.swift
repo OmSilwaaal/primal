@@ -83,6 +83,11 @@ struct OnboardingView: View {
 
     private var wordmark: some View {
         VStack(spacing: 22) {
+            AlgizMark().fill(Color.ncPrimary)
+                .frame(width: 40, height: 52)
+                .shadow(color: .black.opacity(0.4), radius: 10, y: 4)
+                .padding(.bottom, 6)
+                .accessibilityHidden(true)
             Text("VITALIS")
                 .font(.ui(size: 44, weight: .regular))
                 .tracking(19)
@@ -206,7 +211,7 @@ struct OnboardingView: View {
             }
             if authManager.isAuthenticated {
                 password = ""
-                ToastCenter.shared.show(isSignUp ? "Welcome" : "Welcome back")
+                ToastCenter.shared.show(isSignUp ? "Welcome" : "Welcome back", branded: true)
             }
         }
     }

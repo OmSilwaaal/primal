@@ -288,10 +288,15 @@ struct NutrientRow: View {
 final class ToastCenter: ObservableObject {
     static let shared = ToastCenter()
     @Published private(set) var message: String?
+    /// Positive moments (logged, welcome, target hit) carry the rune; errors and removals don't.
+    @Published private(set) var branded = false
     private var hideTask: Task<Void, Never>?
 
-    func show(_ text: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { message = text.uppercased() }
+    func show(_ text: String, branded: Bool = false) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            message = text.uppercased()
+            self.branded = branded
+        }
         hideTask?.cancel()
         hideTask = Task {
             try? await Task.sleep(for: .seconds(2.2))
@@ -306,10 +311,15 @@ struct ToastOverlay: View {
     var body: some View {
         VStack {
             if let message = center.message {
-                Text(message)
-                    .font(.mono(12)).tracking(0.96)
+                HStack(spacing: 10) {
+                    if center.branded {
+                        AlgizMark().fill(Color.ncPrimary).frame(width: 11, height: 14).accessibilityHidden(true)
+                    }
+                    Text(message)
+                        .font(.mono(12)).tracking(0.96)
+                        .lineLimit(1)
+                }
                     .foregroundColor(.ncPrimary)
-                    .lineLimit(1)
                     .padding(.horizontal, 20).padding(.vertical, 12)
                     .glass(.tinted)
                     .padding(.top, 4)

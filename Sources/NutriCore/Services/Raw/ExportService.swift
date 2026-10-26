@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import UIKit
 
 /// Builds the doctor export: labs + diet history as CSV or a simple PDF.
@@ -8,7 +9,8 @@ enum ExportService {
     }()
 
     static func csv(readings: [BiomarkerReading], meals: [MealEntry], dietStart: Date?) -> URL? {
-        var lines = ["# Vitalis export — general information for discussion with a clinician, not medical advice"]
+        var lines = ["# Vitalis export — general information for discussion with a clinician, not medical advice",
+                     "# © Vitalis LLC"]
         if let dietStart { lines.append("# Diet start date,\(df.string(from: dietStart))") }
         lines.append("")
         lines.append("LABS AND MEASUREMENTS")
@@ -31,9 +33,16 @@ enum ExportService {
     static func pdf(readings: [BiomarkerReading], meals: [MealEntry], dietStart: Date?) -> URL? {
         let page = CGRect(x: 0, y: 0, width: 612, height: 792)
         let renderer = UIGraphicsPDFRenderer(bounds: page)
-        let title: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: 20)]
-        let head: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: 13)]
-        let body: [NSAttributedString.Key: Any] = [.font: UIFont.monospacedSystemFont(ofSize: 10, weight: .regular)]
+        // The app's own type: Archivo Black for the title, IBM Plex Mono for everything else.
+        let ink = UIColor(red: 10 / 255, green: 11 / 255, blue: 10 / 255, alpha: 1)
+        let title: [NSAttributedString.Key: Any] = [.font: UIFont(name: "ArchivoBlack-Regular", size: 20) ?? .boldSystemFont(ofSize: 20),
+                                                    .foregroundColor: ink]
+        let head: [NSAttributedString.Key: Any] = [.font: UIFont(name: "IBMPlexMono-SemiBold", size: 12) ?? .boldSystemFont(ofSize: 12),
+                                                   .foregroundColor: ink]
+        let body: [NSAttributedString.Key: Any] = [.font: UIFont(name: "IBMPlexMono", size: 10) ?? .monospacedSystemFont(ofSize: 10, weight: .regular),
+                                                   .foregroundColor: ink]
+        let footer: [NSAttributedString.Key: Any] = [.font: UIFont(name: "IBMPlexMono", size: 8) ?? .monospacedSystemFont(ofSize: 8, weight: .regular),
+                                                     .foregroundColor: UIColor.gray, .kern: 1.2]
 
         // Latest reading per marker, plus the first one for a before/after view.
         let byKind = Dictionary(grouping: readings.compactMap { r in r.kindEnum.map { ($0, r) } }, by: { $0.0 })
@@ -56,14 +65,33 @@ enum ExportService {
         ] + (dietStart.map { ["Diet start date: \(shortDate($0))"] } ?? [])
 
         let data = renderer.pdfData { ctx in
-            ctx.beginPage()
+            var pageNumber = 0
             var y: CGFloat = 40
+            // Every page: a very faint rune watermark and the Vitalis footer.
+            func startPage() {
+                ctx.beginPage()
+                pageNumber += 1
+                y = 40
+                let mark = AlgizMark().path(in: CGRect(x: 360, y: 470, width: 220, height: 290)).cgPath
+                ctx.cgContext.setFillColor(ink.withAlphaComponent(0.035).cgColor)
+                ctx.cgContext.addPath(mark)
+                ctx.cgContext.fillPath()
+                ("VITALIS  ·  VITALIS LLC  ·  PAGE \(pageNumber)" as NSString)
+                    .draw(in: CGRect(x: 40, y: 762, width: 532, height: 14), withAttributes: footer)
+            }
             func draw(_ s: String, _ attrs: [NSAttributedString.Key: Any], gap: CGFloat = 14) {
-                if y > 740 { ctx.beginPage(); y = 40 }
+                if y > 740 { startPage() }
                 (s as NSString).draw(in: CGRect(x: 40, y: y, width: 532, height: 60), withAttributes: attrs)
                 y += gap
             }
-            draw("Vitalis — labs and diet summary", title, gap: 28)
+            startPage()
+            // Header: the rune beside the title.
+            let headerMark = AlgizMark().path(in: CGRect(x: 40, y: 38, width: 20, height: 26)).cgPath
+            ctx.cgContext.setFillColor(ink.cgColor)
+            ctx.cgContext.addPath(headerMark)
+            ctx.cgContext.fillPath()
+            ("Vitalis — labs and diet summary" as NSString).draw(in: CGRect(x: 70, y: 38, width: 502, height: 30), withAttributes: title)
+            y = 40 + 34
             draw("Generated \(shortDate(Date())). General information to discuss with a clinician; not medical advice.", body, gap: 24)
             draw("Labs and measurements (latest)", head, gap: 18)
             (labLines.isEmpty ? ["No readings logged."] : labLines).forEach { draw($0, body) }

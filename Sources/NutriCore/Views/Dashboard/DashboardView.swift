@@ -96,7 +96,16 @@ struct DashboardView: View {
                         CalorieRing(total: dayMeals.totalCalories, goal: goals.calories, isToday: isToday)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 28)
-                            .padding(.bottom, 28)
+
+                        ShareCardButton(title: "Share day") {
+                            DaySummaryCard(day: selectedDay, calories: dayMeals.totalCalories, goal: goals.calories,
+                                           protein: dayMeals.totalProtein, carbs: dayMeals.totalCarbs, fat: dayMeals.totalFat,
+                                           waterLitres: ((dayHydration?.waterOunces ?? 0) * HydrationSection.mlPerOunce
+                                                         + FoodWater.millilitres(in: dayMeals)) / 1000,
+                                           sunMinutes: daySunMinutes)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 16)
 
                         MacroGrid(items: [
                             ("Protein", dayMeals.totalProtein, goals.protein),
@@ -130,7 +139,7 @@ struct DashboardView: View {
                                 try? modelContext.save()
                                 healthManager.saveDietaryWater(ounces: ounces)
                                 Haptics.success()
-                                ToastCenter.shared.show("Added \(Int(ml)) ml water")
+                                ToastCenter.shared.show("Added \(Int(ml)) ml water", branded: true)
                             }
 
                             // A today-only summary (it covers the last 7 days and has a log button).
@@ -178,6 +187,10 @@ struct DashboardView: View {
         withAnimation(.smooth(duration: 0.45)) { selectedDay = day }
     }
 }
+
+
+
+
 
 // MARK: - Header
 private struct HomeHeader: View {
@@ -411,7 +424,9 @@ private struct CalorieRing: View {
     let total: Double
     let goal: Double
     var isToday = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var progress: Double { goal > 0 ? total / goal : 0 }
+    private var reached: Bool { progress >= 1 }
     /// "Left" for today; for a finished day, how far under or over the target it ended.
     private var remaining: String {
         let diff = Int((goal - total).rounded())
@@ -429,6 +444,13 @@ private struct CalorieRing: View {
                     .stroke(Color.ncPrimary, style: StrokeStyle(lineWidth: 14, lineCap: .butt))
                     .rotationEffect(.degrees(-90))
                     .animation(.smooth(duration: 0.6), value: progress)
+                // Target reached: the rune settles in behind the number. Decorative, so hidden from VoiceOver.
+                if reached {
+                    AlgizMark().fill(Color.ncPrimary.opacity(0.08))
+                        .frame(width: 104, height: 136)
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.6).combined(with: .opacity))
+                        .accessibilityHidden(true)
+                }
                 VStack(spacing: 6) {
                     Text(Int(total).formatted()).font(.display(52)).tracking(-2.08).foregroundColor(.ncPrimary)
                         .contentTransition(.numericText())
@@ -437,7 +459,17 @@ private struct CalorieRing: View {
                 }
             }
             .frame(width: 240, height: 240)
+            .animation(.spring(response: 0.6, dampingFraction: 0.75), value: reached)
             .accessibilityElement(children: .combine)
+            .onChange(of: reached) { was, now in
+                // Celebrate crossing the line today, once per day; not on opening the app already past it.
+                guard isToday, !was, now else { return }
+                let key = "targetHitDay", day = Date.now.formatted(.iso8601.year().month().day())
+                guard UserDefaults.standard.string(forKey: key) != day else { return }
+                UserDefaults.standard.set(day, forKey: key)
+                Haptics.success()
+                ToastCenter.shared.show("Target hit", branded: true)
+            }
 
             Text(remaining)
                 .font(.mono(13)).tracking(1.04).foregroundColor(.ncSecondary)

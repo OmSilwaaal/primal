@@ -151,7 +151,7 @@ struct CameraView: View {
 
     private func log(_ entry: MealEntry) {
         MealLogger.log(entry, in: modelContext)
-        ToastCenter.shared.show(QuickLogCard.loggedMessage(entry.foodName, grams: entry.servingSize))
+        ToastCenter.shared.show(QuickLogCard.loggedMessage(entry.foodName, grams: entry.servingSize), branded: true)
     }
 
     private func resetBarcode() {

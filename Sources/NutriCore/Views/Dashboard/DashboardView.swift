@@ -834,20 +834,13 @@ private struct DateWheel: View {
 
     var body: some View {
         GeometryReader { geo in
+            let width = geo.size.width
+            let centerX = geo.frame(in: .global).midX
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(days) { day in
                         pill(day)
-                            .visualEffect { content, proxy in
-                                // -1 at the left edge of the wheel, 0 in the centre, 1 at the right edge.
-                                let width = proxy.bounds(of: .scrollView)?.width ?? 1
-                                let d = max(-1, min(1, (proxy.frame(in: .scrollView).midX - width / 2) / (width / 2)))
-                                return content
-                                    .rotationEffect(.degrees(d * 14), anchor: .center)
-                                    .offset(y: d * d * 16)
-                                    .scaleEffect(1 - abs(d) * 0.16)
-                                    .opacity(1 - abs(d) * 0.55)
-                            }
+                            .drumEffect(centerX: centerX, radius: width * 0.36)
                     }
                 }
                 .scrollTargetLayout()
@@ -857,6 +850,7 @@ private struct DateWheel: View {
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $centered, anchor: .center)
             .scrollClipDisabled()
+            .drumRimFade()
         }
         .frame(height: 92)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)

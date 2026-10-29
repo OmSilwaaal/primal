@@ -219,7 +219,7 @@ struct PlaceDetailCard: View {
 // MARK: - Filter wheel
 
 /// Categories on a dial: scroll sideways and each chip snaps to the centre, which selects it. Chips further
-/// from the centre drop, tilt, shrink and fade along an arc, so the row reads as the top of a wheel.
+/// from the centre turn away, shrink and fade round the edge of a drum, like the date wheel on Home.
 private struct FilterWheel: View {
     let options: [String]
     @Binding var selection: String
@@ -229,20 +229,12 @@ private struct FilterWheel: View {
 
     var body: some View {
         GeometryReader { geo in
+            let centerX = geo.frame(in: .global).midX
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(options, id: \.self) { option in
                         chip(option)
-                            .visualEffect { content, proxy in
-                                // -1 at the left edge of the wheel, 0 in the centre, 1 at the right edge.
-                                let width = proxy.bounds(of: .scrollView)?.width ?? 1
-                                let d = max(-1, min(1, (proxy.frame(in: .scrollView).midX - width / 2) / (width / 2)))
-                                return content
-                                    .rotationEffect(.degrees(d * 18), anchor: .center)
-                                    .offset(y: d * d * 34)
-                                    .scaleEffect(1 - abs(d) * 0.18)
-                                    .opacity(1 - abs(d) * 0.55)
-                            }
+                            .drumEffect(centerX: centerX, radius: geo.size.width * 0.5)
                     }
                 }
                 .scrollTargetLayout()
@@ -252,6 +244,7 @@ private struct FilterWheel: View {
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $centered, anchor: .center)
             .scrollClipDisabled()
+            .drumRimFade()
         }
         .frame(height: 80)
         .onAppear { centered = selection }

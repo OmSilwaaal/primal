@@ -197,7 +197,7 @@ struct BentoRoundButtonStyle: ButtonStyle {
             .foregroundColor(Mono.text)
             .frame(width: size, height: size)
             .glassSheen(in: Circle(), strength: 0.7)
-            .glass(.clear, in: Circle())
+            .glass(.clear, in: Circle(), interactive: true)
             .contentShape(Circle())
             .dynamicTypeSize(...DynamicTypeSize.large)
             .scaleEffect(configuration.isPressed ? 0.92 : 1)
@@ -225,7 +225,7 @@ struct BentoCapsuleButtonStyle: ButtonStyle {
     private struct ClearCapsule: ViewModifier {
         let active: Bool
         func body(content: Content) -> some View {
-            if active { content.glass(.clear, in: Capsule()) } else { content }
+            if active { content.glass(.clear, in: Capsule(), interactive: true) } else { content }
         }
     }
 }

@@ -69,6 +69,7 @@ struct ProfileView: View {
                     .animation(.smooth, value: isEditing)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                .glassLightFollowsScroll()
             }
             .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
@@ -131,7 +132,7 @@ struct ProfileView: View {
                            startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .glass(.clear, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
         .shadow(color: .black.opacity(0.35), radius: 20, y: 20)
     }
 

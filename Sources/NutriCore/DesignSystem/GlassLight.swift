@@ -47,7 +47,7 @@ final class GlassLight: ObservableObject {
     func start() {
         users += 1
         guard users == 1, motion.isDeviceMotionAvailable else { return }
-        motion.deviceMotionUpdateInterval = 1 / 30
+        motion.deviceMotionUpdateInterval = Self.sampleInterval
         motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
             guard let gravity = data?.gravity else { return }
             MainActor.assumeIsolated { self?.follow(gravity) }
@@ -59,13 +59,52 @@ final class GlassLight: ObservableObject {
         if users == 0 { motion.stopDeviceMotionUpdates() }
     }
 
+    private static let sampleInterval = 1.0 / 60
+    /// How long the light takes to catch up with the phone (time constant). Long enough that it trails the hand a
+    /// little and glides, short enough that it still feels attached to the tilt.
+    private static let lag = 0.45
+    private static let easing = 1 - exp(-sampleInterval / lag)
+
+    /// Where the tilt alone puts the light, and how far scrolling nudges it; the light eases towards their sum.
+    private var tiltTarget = GlassLight.resting
+    private var scrollShift = 0.0
+    /// Eases the light when the motion sensor isn't driving it (no sensor, or Simulator).
+    private var settleTask: Task<Void, Never>?
+
     /// Gravity is (0, -1, 0) held upright, (0, 0, -1) lying flat. Tilt right and the light slides left, tip the top
-    /// away and it slides down, like a reflection of a fixed light. Eased so sensor jitter never shows.
+    /// away and it slides down, like a reflection of a fixed light. Eased with a ~0.45 s lag so it glides after
+    /// the hand rather than snapping, and sensor jitter never shows.
     private func follow(_ g: CMAcceleration) {
-        let x = Self.resting.x - g.x * 0.9
-        let y = Self.resting.y + (g.y + 0.75) * 1.1
-        let target = UnitPoint(x: min(1.2, max(-0.2, x)), y: min(1.2, max(-0.2, y)))
-        point = UnitPoint(x: point.x + (target.x - point.x) * 0.18, y: point.y + (target.y - point.y) * 0.18)
+        tiltTarget = UnitPoint(x: Self.resting.x - g.x * 1.1, y: Self.resting.y + (g.y + 0.75) * 1.2)
+        step()
+    }
+
+    /// A screen's vertical scroll offset, in points. The light drifts gently against the scroll — up to about a
+    /// tenth of the screen over a screen's worth of scrolling — so the rims shimmer as the page moves.
+    func scrolled(to offset: CGFloat) {
+        let screens = Double(offset / max(UIScreen.main.bounds.height, 1))
+        let shift = -0.1 * min(1.5, max(-0.3, screens))
+        guard abs(shift - scrollShift) > 0.0005 else { return }
+        scrollShift = shift
+        guard !motion.isDeviceMotionActive, settleTask == nil else { return }
+        settleTask = Task { [weak self] in
+            while let self, !Task.isCancelled, self.step() {
+                try? await Task.sleep(for: .seconds(Self.sampleInterval))
+            }
+            self?.settleTask = nil
+        }
+    }
+
+    /// Moves the light one frame towards its target. Returns false once it has arrived.
+    @discardableResult private func step() -> Bool {
+        let tx = min(1.25, max(-0.25, tiltTarget.x))
+        let ty = min(1.25, max(-0.25, tiltTarget.y + scrollShift))
+        let k = Self.easing
+        let next = UnitPoint(x: point.x + (tx - point.x) * k, y: point.y + (ty - point.y) * k)
+        // Skip invisible sub-pixel moves so resting glass doesn't redraw 60 times a second.
+        guard abs(next.x - point.x) > 0.0004 || abs(next.y - point.y) > 0.0004 else { return false }
+        point = next
+        return true
     }
 
     private func updateColors() {
@@ -107,8 +146,10 @@ final class GlassLight: ObservableObject {
     }
 }
 
-/// The light itself where it falls on one surface: a wide soft glow plus a brighter catch on the rim nearest it,
-/// clipped to the glass's shape. Placed behind a surface's content, on top of the glass material.
+/// The light itself where it falls on one surface. Directional, like a real lamp on a sheet of glass: the rim facing
+/// the light catches a bright, thin highlight that fades away within a short arc around the edge; the opposite inner
+/// rim gets a faint reflected catch; and a small soft bloom sits just inside the lit corner. The body of the glass is
+/// never lit, so it stays clear. Surfaces nearer the light catch more of it. Placed behind a surface's content.
 struct GlassSheen<S: InsettableShape>: View {
     let shape: S
     var strength: Double = 1
@@ -125,20 +166,29 @@ struct GlassSheen<S: InsettableShape>: View {
         if !reduceTransparency {
             let p = reduceMotion ? GlassLight.resting : light.point
             GeometryReader { geo in
-                // The light's screen position, expressed in this surface's own unit space.
                 let screen = UIScreen.main.bounds.size
                 let frame = geo.frame(in: .global)
                 let w = max(frame.width, 1), h = max(frame.height, 1)
-                let center = UnitPoint(x: (p.x * screen.width - frame.minX) / w, y: (p.y * screen.height - frame.minY) / h)
-                let reach = screen.height
+                // From this surface's centre towards the light, in screen points (y down, so angles run clockwise
+                // from the trailing edge, as SwiftUI's gradients expect).
+                let dx = p.x * screen.width - frame.midX, dy = p.y * screen.height - frame.midY
+                let angle = Angle.radians(atan2(dy, dx))
+                // Nearer the light, brighter catch: full within a third of the screen, down to 40% far away.
+                let distance = (dx * dx + dy * dy).squareRoot() / screen.height
+                let k = strength * min(1, max(0.4, 1.15 - distance))
+                // Where the bloom sits: the point on the surface's edge facing the light, pulled slightly inside.
+                let reachX = dx / max(abs(dx), abs(dy) * w / h, 1) * 0.42
+                let reachY = dy / max(abs(dy), abs(dx) * h / w, 1) * 0.42
+                let bloom = UnitPoint(x: 0.5 + reachX, y: 0.5 + reachY)
                 ZStack {
-                    // Kept faint so the glass stays clear; the rim carries most of the light.
-                    RadialGradient(colors: [light.color.opacity(0.16 * strength), light.fadeColor.opacity(0.05 * strength), .clear],
-                                   center: center, startRadius: 0, endRadius: reach * 0.9)
-                    shape.strokeBorder(
-                        RadialGradient(colors: [light.color.opacity(0.85 * strength), light.fadeColor.opacity(0.25 * strength), .clear],
-                                       center: center, startRadius: 0, endRadius: reach * 0.95),
-                        lineWidth: 1.2)
+                    // Soft light just inside the lit edge; small, so the rest of the glass stays clear.
+                    RadialGradient(colors: [light.color.opacity(0.10 * k), .clear],
+                                   center: bloom, startRadius: 0, endRadius: min(w, h) * 0.45)
+                    // A soft halo along the lit rim…
+                    shape.strokeBorder(rim(angle, main: 0.45 * k, back: 0.10 * k), lineWidth: 4)
+                        .blur(radius: 3)
+                    // …and the crisp catch itself.
+                    shape.strokeBorder(rim(angle, main: 0.95 * k, back: 0.28 * k), lineWidth: 1.1)
                 }
             }
             .clipShape(shape)
@@ -149,9 +199,36 @@ struct GlassSheen<S: InsettableShape>: View {
             .onDisappear { light.stop() }
         }
     }
+
+    /// Bright where the rim faces the light, gone within ~60° either side, and a faint reflected catch opposite.
+    private func rim(_ angle: Angle, main: Double, back: Double) -> AngularGradient {
+        let lit = light.color, far = light.fadeColor
+        return AngularGradient(stops: [
+            .init(color: lit.opacity(main), location: 0),
+            .init(color: lit.opacity(main * 0.35), location: 0.07),
+            .init(color: .clear, location: 0.17),
+            .init(color: .clear, location: 0.38),
+            .init(color: far.opacity(back), location: 0.5),
+            .init(color: .clear, location: 0.62),
+            .init(color: .clear, location: 0.83),
+            .init(color: lit.opacity(main * 0.35), location: 0.93),
+            .init(color: lit.opacity(main), location: 1),
+        ], center: .center, angle: angle)
+    }
 }
 
 extension View {
+    /// Lets this vertical ScrollView nudge the glass light as it scrolls (iOS 18+; the light just holds still on 17).
+    @ViewBuilder func glassLightFollowsScroll() -> some View {
+        if #available(iOS 18.0, *) {
+            onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, y in
+                GlassLight.shared.scrolled(to: y)
+            }
+        } else {
+            self
+        }
+    }
+
     /// Puts the moving light under this view's content, inside `shape`.
     func glassSheen<S: InsettableShape>(in shape: S, strength: Double = 1) -> some View {
         background { GlassSheen(shape: shape, strength: strength) }

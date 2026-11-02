@@ -156,7 +156,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .foregroundColor(.ncPrimary)
             .frame(maxWidth: .infinity)
             .frame(minHeight: height)
-            .glass(.clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .glass(.clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous), interactive: true)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, pressed in

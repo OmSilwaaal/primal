@@ -263,7 +263,8 @@ private struct GlassIsland: ViewModifier {
         } else if #available(iOS 26.0, *) {
             // Not .interactive(): interactive glass catches drags ~24 pt beyond its edge and scrubs between tabs,
             // which stole horizontal drags from content just above the bar (the map's filter wheel).
-            content.glassSheen(in: Capsule(), strength: 0.7).glassEffect(.regular, in: Capsule())
+            // .clear with a light ink tint: as see-through as the rest of the app, labels still legible.
+            content.glassSheen(in: Capsule(), strength: 0.7).glassEffect(.clear.tint(Mono.ink.opacity(0.18)), in: Capsule())
         } else {
             content
                 .glassSheen(in: Capsule(), strength: 0.7)

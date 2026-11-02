@@ -100,6 +100,7 @@ struct CameraView: View {
     // MARK: - Pieces
 
     private var topControls: some View {
+        GlassGroup(spacing: 12) {
         HStack(spacing: 12) {
             Button(action: onClose) { Image(systemName: "xmark") }
                 .buttonStyle(.bentoRound)
@@ -116,6 +117,7 @@ struct CameraView: View {
             .opacity(cameraManager.isAuthorized && cameraManager.hasTorch ? 1 : 0.4)
             .accessibilityLabel(cameraManager.torchOn ? "Flash on" : "Flash off")
             .accessibilityHint("Turns the light on or off")
+        }
         }
     }
 

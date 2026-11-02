@@ -45,16 +45,46 @@ enum GlassStyle {
     }
 }
 
+// On iOS 26 every weight is system Liquid Glass (navigation layer: controls, toasts, floating sheets):
+//   • clear  – .clear, the most see-through variant; .interactive() on buttons (shimmer and bounce on touch).
+//   • tinted – .clear with a light ink tint, so floating messages stay legible while the photo shows through.
+//   • thick  – .regular with a light ink tint, for sheets that hold a lot of text.
+// Glass can't sample glass, so anything inside a thick panel draws the see-through panel instead (`glassNested`).
+// Glass that sits on a rotating wheel stays drawn too: rotation makes system glass morph.
+
+extension EnvironmentValues {
+    /// Set inside a system-glass panel: nested glass draws the see-through panel instead of more system glass.
+    @Entry var glassNested = false
+    /// Off where interactive glass would steal horizontal drags from a wheel next to it (it reacts ~24 pt out).
+    @Entry var glassInteractive = true
+}
+
 private struct GlassModifier<S: InsettableShape>: ViewModifier {
     let style: GlassStyle
     let shape: S
+    var interactive = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.glassNested) private var nested
+    @Environment(\.glassInteractive) private var interactiveAllowed
 
     func body(content: Content) -> some View {
-        if style == .clear, !reduceTransparency, contrast != .increased, #available(iOS 26.0, *) {
-            // Clear controls are real, see-through Liquid Glass on iOS 26.
-            content.glassEffect(.clear, in: shape)
+        if !reduceTransparency, contrast != .increased, #available(iOS 26.0, *) {
+            let touch = interactive && interactiveAllowed
+            switch style {
+            case .clear:
+                if nested {
+                    content.liquidGlassPanel(in: shape)
+                } else {
+                    content.glassEffect(.clear.interactive(touch), in: shape)
+                }
+            case .tinted:
+                content.glassEffect(.clear.tint(Mono.ink.opacity(0.25)).interactive(touch), in: shape)
+            case .thick:
+                content
+                    .environment(\.glassNested, true)
+                    .glassEffect(.regular.tint(Mono.sheetInk.opacity(0.3)), in: shape)
+            }
         } else {
             drawn(content)
         }
@@ -93,11 +123,40 @@ private struct GlassModifier<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    func glass<S: InsettableShape>(_ style: GlassStyle = .clear, in shape: S) -> some View {
-        modifier(GlassModifier(style: style, shape: shape))
+    /// `interactive`: a tappable control; on iOS 26 its glass shimmers and bounces on touch.
+    func glass<S: InsettableShape>(_ style: GlassStyle = .clear, in shape: S, interactive: Bool = false) -> some View {
+        modifier(GlassModifier(style: style, shape: shape, interactive: interactive))
     }
-    func glass(_ style: GlassStyle = .clear) -> some View {
-        modifier(GlassModifier(style: style, shape: Rectangle()))
+    func glass(_ style: GlassStyle = .clear, interactive: Bool = false) -> some View {
+        modifier(GlassModifier(style: style, shape: Rectangle(), interactive: interactive))
+    }
+}
+
+/// Groups nearby glass so it samples the backdrop together and blends where pieces meet (GlassEffectContainer on
+/// iOS 26; a plain pass-through before).
+struct GlassGroup<Content: View>: View {
+    var spacing: CGFloat = 12
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content() }
+        } else {
+            content()
+        }
+    }
+}
+
+extension View {
+    /// Partial-height sheets: system Liquid Glass on iOS 26 (no custom background, per Apple); the thick ink before.
+    @ViewBuilder func glassSheetBackground() -> some View {
+        if #available(iOS 26.0, *) {
+            self.environment(\.glassNested, true)
+        } else {
+            self.presentationBackground {
+                Mono.sheetInk.opacity(0.66).background(.thinMaterial).environment(\.colorScheme, .dark)
+            }
+        }
     }
 }
 
@@ -119,14 +178,11 @@ private struct LiquidGlassPanel<S: InsettableShape>: ViewModifier {
                 .overlay(shape.strokeBorder(Color.white.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 1))
         } else {
             content
+                // Clear like a sheet of glass: a barely-there film and a faint hairline edge; the moving light draws
+                // the bright catch on whichever rim faces it.
                 .glassSheen(in: shape)
-                .background(shape.fill(Color.white.opacity(0.04)))
-                .overlay {
-                    shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-                    shape.strokeBorder(
-                        LinearGradient(colors: [.white.opacity(0.22), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.08)),
-                        lineWidth: 1)
-                }
+                .background(shape.fill(Color.white.opacity(0.015)))
+                .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
         }
     }
 }
@@ -148,7 +204,7 @@ struct GlassButtonStyle: ButtonStyle {
             .foregroundColor(.ncPrimary)
             .padding(.horizontal, 16)
             .frame(minHeight: height)
-            .glass(.clear)
+            .glass(.clear, interactive: true)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
     }
@@ -177,7 +233,7 @@ struct GlassDotButtonStyle: ButtonStyle {
             .foregroundColor(.ncPrimary)
             .frame(width: size, height: size)
             .glassSheen(in: Circle(), strength: 0.8)
-            .glass(.clear, in: Circle())
+            .glass(.clear, in: Circle(), interactive: true)
             .contentShape(Circle())
             .dynamicTypeSize(...DynamicTypeSize.large)
             .scaleEffect(configuration.isPressed ? 0.92 : 1)

@@ -277,11 +277,10 @@ private struct FilterWheel: View {
                     if on {
                         Capsule().fill(Color.ncPrimary)
                     } else {
-                        Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(Color.white.opacity(0.08)))
-                            .environment(\.colorScheme, .dark)
+                        // Drawn see-through glass: these ride a 3D drum, which makes system glass morph.
+                        Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule())
                     }
                 }
-                .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0 : 0.2), lineWidth: 1))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

@@ -256,7 +256,7 @@ struct HeaderIconButton: View {
             Image(systemName: systemName)
                 .font(.ui(size: 16, weight: .regular)).foregroundColor(.ncPrimary)
                 .frame(width: 44, height: 44)
-                .glass(.clear, in: Rectangle())
+                .glass(.clear, in: Rectangle(), interactive: true)
         }
         .smoothButton()
         .accessibilityLabel(label)

@@ -76,6 +76,7 @@ struct MicronutrientsView: View {
             .padding(.bottom, 120)
             .animation(.smooth(duration: 0.3), value: range)
         }
+        .glassLightFollowsScroll()
     }
 
     /// Tiles two to a row.

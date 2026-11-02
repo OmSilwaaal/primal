@@ -38,6 +38,7 @@ struct SearchView: View {
                     .padding(.bottom, 120)
                 }
                 .scrollDismissesKeyboard(.immediately)
+                .glassLightFollowsScroll()
             }
             .padding(.horizontal, Bento.margin)
 

@@ -107,7 +107,7 @@ struct DashboardView: View {
                                         Image(systemName: "plus")
                                             .font(.ui(size: 13, weight: .bold)).foregroundColor(Mono.text)
                                             .frame(width: 28, height: 28)
-                                            .glass(.clear, in: Circle())
+                                            .glass(.clear, in: Circle(), interactive: true)
                                             .padding(10)
                                             .accessibilityHidden(true)
                                     }
@@ -138,6 +138,7 @@ struct DashboardView: View {
                 .padding(.horizontal, Bento.margin)
                 .padding(.bottom, 120)
             }
+            .glassLightFollowsScroll()
             .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
             .navigationTitle("Home") // names the back button on pushed screens
@@ -292,6 +293,7 @@ private struct BentoHomeHeader<Card: View>: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
 
+            GlassGroup(spacing: 10) {
             HStack(spacing: 10) {
                 if let onToday {
                     Button("Today", action: onToday)
@@ -305,6 +307,9 @@ private struct BentoHomeHeader<Card: View>: View {
                     .buttonStyle(.bentoRound)
                     .accessibilityLabel("Profile")
             }
+            }
+            // Interactive glass reacts ~24 pt beyond its edge and would catch drags meant for the date wheel below.
+            .environment(\.glassInteractive, false)
             .fixedSize()
         }
         .frame(minHeight: 64)
@@ -373,13 +378,11 @@ private struct DateWheel: View {
             .frame(width: pillWidth)
             .padding(.top, 10).padding(.bottom, 9)
             .background {
-                // Drawn glass, not system Liquid Glass: the system glass ignores the drum's 3D turn and stretches.
+                // Drawn see-through glass, not system Liquid Glass: system glass morphs under the drum's 3D turn.
                 if on {
                     Capsule().fill(Mono.text)
                 } else {
-                    Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(Color.white.opacity(0.06)))
-                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
-                        .environment(\.colorScheme, .dark)
+                    Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule())
                 }
             }
             .contentShape(Capsule())
@@ -402,13 +405,16 @@ private struct DateWheel: View {
 
 // MARK: - Calories
 
-/// The large section: a 132 pt ring with the day's kcal inside, what's left (or how far under/over on a past day),
-/// and one row per macro with its bar.
+/// The centrepiece: a large ring with the app's rune, the day's kcal and what's left (or how far under/over on a past
+/// day) inside, then the three macros side by side, each with its bar. The rune lights up once the target is hit.
 private struct CalorieTile: View {
     let total: Double
     let goal: Double
     let isToday: Bool
     let macros: [(String, Double, Double)]
+
+    private let ringSize: CGFloat = 240
+    private let ringWidth: CGFloat = 16
 
     private var progress: Double { goal > 0 ? total / goal : 0 }
     private var reached: Bool { progress >= 1 }
@@ -419,60 +425,58 @@ private struct CalorieTile: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 18) {
+        VStack(spacing: 24) {
             ZStack {
-                Circle().stroke(Mono.track, lineWidth: 12)
+                Circle().stroke(Mono.track, lineWidth: ringWidth)
                 Circle()
                     .trim(from: 0, to: min(progress, 1))
-                    .stroke(Mono.text, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(Mono.text, style: StrokeStyle(lineWidth: ringWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.smooth(duration: 0.6), value: progress)
-                VStack(spacing: 0) {
-                    Text(Int(total).formatted()).font(.bentoNumber(30)).tracking(Font.bentoTracking(30))
+                VStack(spacing: 2) {
+                    AlgizMark().fill(Mono.text.opacity(reached ? 1 : 0.45))
+                        .frame(width: 14, height: 18)
+                        .padding(.bottom, 6)
+                        .animation(.smooth(duration: 0.4), value: reached)
+                    Text(Int(total).formatted()).font(.bentoNumber(56)).tracking(Font.bentoTracking(56))
                         .foregroundColor(Mono.text)
-                        .lineLimit(1).minimumScaleFactor(0.6)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                         .contentTransition(.numericText())
                         .animation(.smooth, value: Int(total))
-                    Text("kcal").font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label)
+                    Text("kcal").font(.ui(size: 14, weight: .medium)).foregroundColor(Mono.label)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(remaining.value).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                            .contentTransition(.numericText())
+                        Text("\(remaining.word) of \(Int(goal).formatted())").font(.ui(size: 13)).foregroundColor(Mono.label)
+                    }
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .padding(.top, 8)
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, ringWidth + 18)
             }
-            .frame(width: 132, height: 132)
+            .frame(width: ringSize, height: ringSize)
+            .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Calories")
-            .accessibilityValue("\(Int(total)) of \(Int(goal)) kcal")
+            .accessibilityValue("\(Int(total)) of \(Int(goal)) kcal, \(remaining.value) \(remaining.word)")
 
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
-                        Text(remaining.value).font(.bentoNumber(22)).tracking(Font.bentoTracking(22))
-                            .contentTransition(.numericText())
-                        Text(remaining.word).font(.bentoBody).foregroundColor(Mono.label)
-                    }
-                    .foregroundColor(Mono.text)
-                    Text("of \(Int(goal).formatted()) kcal").font(.ui(size: 12)).foregroundColor(Mono.label)
-                }
-                .accessibilityElement(children: .combine)
-
+            HStack(alignment: .top, spacing: 14) {
                 ForEach(macros, id: \.0) { name, cur, target in
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(name).font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
-                            Spacer(minLength: 4)
-                            (Text("\(Int(cur.rounded()))").foregroundColor(Mono.text)
-                             + Text(" / \(Int(target.rounded())) g").foregroundColor(Mono.label))
-                                .font(.ui(size: 13, weight: .semibold)).monospacedDigit()
-                                .lineLimit(1).minimumScaleFactor(0.8)
-                        }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(name).font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                        (Text("\(Int(cur.rounded()))").foregroundColor(Mono.text)
+                         + Text(" / \(Int(target.rounded())) g").foregroundColor(Mono.label))
+                            .font(.ui(size: 13, weight: .semibold)).monospacedDigit()
+                            .lineLimit(1).minimumScaleFactor(0.7)
                         BentoBar(value: target > 0 ? cur / target : 0)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
         .onChange(of: reached) { was, now in
             // Celebrate crossing the line today, once per day; not on opening the app already past it.
             guard isToday, !was, now else { return }
@@ -517,7 +521,7 @@ struct WaterSheet: View {
                     .foregroundColor(on ? Mono.onWhite : Mono.text)
                     .frame(maxWidth: .infinity).frame(height: 44)
                     .background {
-                        if on { Capsule().fill(Mono.text) } else { Capsule().fill(Color.clear).glass(.clear, in: Capsule()) }
+                        if on { Capsule().fill(Mono.text) } else { Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule()) }
                     }
                     .contentShape(Capsule())
                     .animation(.smooth(duration: 0.25), value: on)
@@ -531,9 +535,7 @@ struct WaterSheet: View {
         }
         .padding(20)
         .presentationDetents([.height(320)])
-        .presentationBackground {
-            Mono.sheetInk.opacity(0.66).background(.thinMaterial).environment(\.colorScheme, .dark)
-        }
+        .glassSheetBackground()
         .presentationCornerRadius(Bento.radius)
     }
 

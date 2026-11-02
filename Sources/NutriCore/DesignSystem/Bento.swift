@@ -146,9 +146,7 @@ struct BentoTile: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 if let symbol { Image(systemName: symbol).font(.ui(size: 13, weight: .semibold)) }
-                Text(title).font(.bentoLabel).lineLimit(1)
-                Spacer(minLength: 4)
-                if let status { BentoStatusPill(status: status) }
+                Text(title).font(.bentoLabel).lineLimit(1).minimumScaleFactor(0.85)
             }
             .foregroundColor(Mono.label)
 
@@ -158,6 +156,10 @@ struct BentoTile: View {
                     .contentTransition(.numericText())
                 if let detail {
                     Text(detail).font(.ui(size: 13)).foregroundColor(Mono.label).lineLimit(1).minimumScaleFactor(0.8)
+                }
+                if let status {
+                    Spacer(minLength: 4)
+                    BentoStatusPill(status: status).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
                 }
             }
 

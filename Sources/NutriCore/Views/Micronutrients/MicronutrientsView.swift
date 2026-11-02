@@ -1,117 +1,140 @@
 import SwiftUI
 import SwiftData
 
-/// The Data tab: every tracked vitamin and mineral against today's goal, lowest first.
+/// The Data tab: vitamins and minerals against the daily targets, for today or as a daily average over the last
+/// week. A large diet-score tile, then a two-column grid of nutrient tiles: percent, bar and a Low / On track / Done
+/// pill (Low is under 60% of the target).
 struct MicronutrientsView: View {
-    enum Filter: Hashable { case all, low, met }
+    enum Range: Hashable { case today, week }
 
     @Query private var meals: [MealEntry]
     @Query private var profiles: [UserProfile]
-    @State private var filter: Filter = .all
+    @State private var range: Range = .today
+
+    /// The key nutrients, shown first in this order; the rest follow, lowest first.
+    private static let featured = ["vd", "mg", "fe", "ca", "vc", "b12"]
 
     init() {
-        let start = Calendar.current.startOfDay(for: .now)
+        let cal = Calendar.current
+        let start = cal.date(byAdding: .day, value: -6, to: cal.startOfDay(for: .now)) ?? .now
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= start })
     }
 
     private var goals: NutrientGoals { profiles.first.map(NutrientGoals.from) ?? .default }
 
-    private var todaysMeals: [MealEntry] {
-        meals.filter { Calendar.current.isDateInToday($0.date) }
+    private var rangeMeals: [MealEntry] {
+        range == .today ? meals.filter { Calendar.current.isDateInToday($0.date) } : meals
     }
 
-    /// Vitamins and minerals, sorted low → on track → met, then by percentage.
+    /// Days with anything logged in the range, so a week average isn't dragged down by days before you started.
+    private var loggedDays: Double {
+        let cal = Calendar.current
+        return Double(max(1, Set(rangeMeals.map { cal.startOfDay(for: $0.date) }).count))
+    }
+
+    /// Vitamins and minerals: today's totals, or the daily average over the week's logged days.
     private var nutrients: [NutrientInfo] {
-        buildNutrientList(from: todaysMeals, goals: goals)
+        let days = range == .today ? 1 : loggedDays
+        return buildNutrientList(from: rangeMeals, goals: goals)
             .filter { $0.group != .macros }
-            .sorted {
-                let a = IntakeStatus(progress: $0.progress), b = IntakeStatus(progress: $1.progress)
-                return a != b ? a < b : $0.progress < $1.progress
-            }
-    }
-
-    private func keep(_ n: NutrientInfo) -> Bool {
-        switch filter {
-        case .all: true
-        case .low: n.isDeficient
-        case .met: n.isMet
-        }
+            .map { NutrientInfo(id: $0.id, name: $0.name, unit: $0.unit, icon: $0.icon, group: $0.group,
+                                current: $0.current / days, goal: $0.goal) }
     }
 
     var body: some View {
         let all = nutrients
-        let vitamins = all.filter { $0.group == .vitamins && keep($0) }
-        let minerals = all.filter { $0.group == .minerals && keep($0) }
+        let featured = Self.featured.compactMap { id in all.first { $0.id == id } }
+        let rest = all.filter { !Self.featured.contains($0.id) }.sorted { $0.progress < $1.progress }
 
-        ZStack {
-            // No backdrop here: ContentView draws one that stays still while tabs change.
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Today · \(all.count) tracked").monoLabel()
-                        Text("Micronutrients").font(.ui(size: 30, weight: .bold)).tracking(0.3).foregroundColor(.ncPrimary)
-                    }
-                    .padding(.horizontal, Space.margin)
-                    .padding(.top, 12)
-
-                    // Side by side when the labels fit on one line; stacked at large text sizes.
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 0) { counts(all) }
-                        VStack(alignment: .leading, spacing: 0) { counts(all) }
-                    }
-                    .padding(.top, 20)
-
-                    GlassSegmented(options: [(.all, "All"), (.low, "Low"), (.met, "Met")], selection: $filter, capsule: true)
-                        .padding(.horizontal, Space.margin)
-                        .padding(.top, 20).padding(.bottom, 8)
-
-                    if !vitamins.isEmpty { group("Vitamins", vitamins).padding(.top, 20) }
-                    if !minerals.isEmpty { group("Minerals", minerals).padding(.top, 28) }
-                    if vitamins.isEmpty && minerals.isEmpty {
-                        Text(filter == .met ? "Nothing at goal yet today." : "Nothing below half of goal.")
-                            .font(.ui(size: 15)).foregroundColor(.ncSecondary)
-                            .padding(.horizontal, Space.margin).padding(.top, 28)
-                    }
-
-                    Text("Daily goals follow NIH dietary reference intakes for your age and sex.")
-                        .font(.ui(size: 12)).lineSpacing(3).foregroundColor(.ncSecondary)
-                        .padding(Space.margin)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: Bento.gap) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Nutrients").font(.bentoTitle).foregroundColor(Mono.text)
+                        .accessibilityAddTraits(.isHeader)
+                    BentoSegmented(options: [(.today, "Today"), (.week, "Week")], selection: $range)
                 }
-                .padding(.bottom, 120)
-                .animation(.easeOut(duration: 0.25), value: filter)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
+                ScoreTile(nutrients: all, range: range, hasMeals: !rangeMeals.isEmpty)
+
+                grid(featured)
+
+                if !rest.isEmpty {
+                    Text("More nutrients").font(.bentoLabel).foregroundColor(Mono.label)
+                        .padding(.top, 12).padding(.leading, 4)
+                        .accessibilityAddTraits(.isHeader)
+                    grid(rest)
+                }
+
+                Text("Daily targets follow NIH dietary reference intakes for your age and sex."
+                     + (range == .week ? " Week shows the daily average over days you logged." : ""))
+                    .font(.ui(size: 12)).lineSpacing(3).foregroundColor(Mono.label)
+                    .padding(.top, 8).padding(.horizontal, 4)
+            }
+            .padding(.horizontal, Bento.margin)
+            .padding(.bottom, 120)
+            .animation(.smooth(duration: 0.3), value: range)
+        }
+    }
+
+    /// Tiles two to a row.
+    private func grid(_ items: [NutrientInfo]) -> some View {
+        VStack(spacing: Bento.gap) {
+            ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { i in
+                BentoPair {
+                    tile(items[i])
+                } right: {
+                    if i + 1 < items.count { tile(items[i + 1]) } else { Color.clear.frame(maxWidth: .infinity) }
+                }
             }
         }
     }
 
-    @ViewBuilder private func counts(_ all: [NutrientInfo]) -> some View {
-        count(all.filter(\.isMet).count, "Met ≥90%", .ncMoss)
-        count(all.filter { !$0.isMet && !$0.isDeficient }.count, "On track", .ncPrimary)
-        count(all.filter(\.isDeficient).count, "Low <50%", .ncEmber)
+    private func tile(_ n: NutrientInfo) -> some View {
+        let raw = n.goal > 0 ? n.current / n.goal : 0
+        return BentoTile(title: n.name, value: "\(Int((min(raw, 9.99) * 100).rounded()))%", progress: raw,
+                         status: BentoStatus(progress: raw))
+            .accessibilityLabel("\(n.name), \(Int((raw * 100).rounded())) percent of target")
+    }
+}
+
+/// The large tile: a 0–100 diet score (average share of each nutrient's target met, capped at 100% each) and one
+/// line on what's holding it back.
+private struct ScoreTile: View {
+    let nutrients: [NutrientInfo]
+    let range: MicronutrientsView.Range
+    let hasMeals: Bool
+
+    private var score: Int {
+        guard !nutrients.isEmpty else { return 0 }
+        return Int((nutrients.map(\.progress).reduce(0, +) / Double(nutrients.count) * 100).rounded())
     }
 
-    private func count(_ n: Int, _ label: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("\(n)").font(.display(48)).tracking(-1.92).foregroundColor(color)
-                .contentTransition(.numericText())
-            // fixedSize: never break inside a word; ViewThatFits stacks the counts instead.
-            Text(label.uppercased()).font(.mono(11)).tracking(1.32).foregroundColor(.ncSecondary)
-                .lineLimit(1).fixedSize()
+    private var note: String {
+        let when = range == .today ? "today" : "this week"
+        guard hasMeals else { return "Log a meal to see your score \(when)." }
+        let low = nutrients.filter { $0.goal > 0 && $0.current / $0.goal < 0.6 }
+        guard let lowest = nutrients.min(by: { $0.progress < $1.progress }), !low.isEmpty else {
+            return "Nothing is low \(when)."
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Space.margin).padding(.vertical, 14)
-        .accessibilityElement(children: .combine)
+        return "\(low.count) low \(when). Lowest is \(lowest.name) at \(lowest.percentage)%."
     }
 
-    private func group(_ title: String, _ items: [NutrientInfo]) -> some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).monoLabel().padding(.horizontal, Space.margin)
-            VStack(spacing: 0) {
-                Rule()
-                ForEach(items) { n in
-                    NutrientRow(name: n.name, current: n.current, goal: n.goal, unit: n.unit)
-                }
+            Text("Diet score").font(.bentoLabel).foregroundColor(Mono.label)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(score)").font(.bentoNumber(64)).tracking(Font.bentoTracking(64)).foregroundColor(Mono.text)
+                    .contentTransition(.numericText())
+                Text("/ 100").font(.ui(size: 17, weight: .medium)).foregroundColor(Mono.label)
             }
-            .padding(.horizontal, Space.margin)
+            BentoBar(value: Double(score) / 100)
+            Text(note).font(.bentoBody).foregroundColor(Mono.label)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
         }
+        .bentoTile(padding: 18)
+        .accessibilityElement(children: .combine)
     }
 }

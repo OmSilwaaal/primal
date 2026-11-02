@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Scan: the camera full screen, round glass controls along the top (close, Meal/Barcode, flash), white viewfinder
-/// corners, and a thick glass sheet when food is found. Monochrome.
+/// Scan: the camera full screen (opening on Meal), round glass controls along the top (close, Meal/Barcode, flash),
+/// rounded white viewfinder corners, and a thick glass sheet when food is found: what it is and its kcal side by side,
+/// three macro tiles, the serving, and Retake / Add. Monochrome.
 struct CameraView: View {
     /// Close: leaves Scan for Home.
     var onClose: () -> Void = {}
@@ -12,7 +13,7 @@ struct CameraView: View {
     @StateObject private var barcodeService = BarcodeLookupService()
     @StateObject private var aiService = AIService.shared
 
-    @State private var selectedMode = "Barcode"
+    @State private var selectedMode = "Image"
     @State private var servingSize: Double = 100.0
     @State private var currentZoomFactor: CGFloat = 1.0
     /// Bumped when a barcode or photo locks on; flashes the ᛉ in the frame.
@@ -46,7 +47,7 @@ struct CameraView: View {
                 // flash of it in the frame when something locks on.
                 AlgizMark().fill(Mono.text.opacity(0.55))
                     .frame(width: 12, height: 15)
-                    .offset(y: -25 + 125 + 22)
+                    .offset(y: -25 + ViewfinderCorners.size.height / 2 + 22)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
                 RuneFlash(trigger: lockFlash)
@@ -174,12 +175,12 @@ struct CameraView: View {
     @ViewBuilder
     private var quickLogSheet: some View {
         if selectedMode == "Barcode", case .found(let food) = barcodeService.state {
-            QuickLogSheet(title: food.subtitle.isEmpty ? "Found food" : "Found food · \(food.subtitle)", foodName: food.description,
+            QuickLogSheet(title: food.subtitle.isEmpty ? "Scanned" : "Scanned · \(food.subtitle)", foodName: food.description,
                           per100g: .init(food), servingSize: $servingSize,
                           onLog: { log(MealEntry(from: food, servingSize: servingSize)); resetBarcode() },
                           onCancel: { resetBarcode() })
         } else if let food = aiService.result {
-            QuickLogSheet(title: "AI identified", foodName: food.name, per100g: .init(food), servingSize: $servingSize,
+            QuickLogSheet(title: "Detected", foodName: food.name, per100g: .init(food), servingSize: $servingSize,
                           onLog: { log(MealEntry(from: food, servingSize: servingSize)); resetAI() },
                           onCancel: { resetAI() })
         }
@@ -215,26 +216,34 @@ private extension BarcodeLookupService.State {
 
 // MARK: - Scan pieces
 
-/// 250 pt frame with four white 30 pt corners; in barcode mode a white scan line runs across the middle.
+/// The viewfinder: four rounded white corner brackets around a 278 × 306 pt frame; in barcode mode a white scan line
+/// runs across the middle.
 struct ViewfinderCorners: View {
+    static let size = CGSize(width: 278, height: 306)
     var showsScanLine = false
 
     var body: some View {
         ZStack {
             Canvas { ctx, size in
-                let w = size.width, h = size.height, l: CGFloat = 30, t: CGFloat = 4, o = t / 2
+                let w = size.width, h = size.height, t: CGFloat = 2.5, o = t / 2
+                let l: CGFloat = 36, r: CGFloat = 18
                 var p = Path()
-                p.move(to: .init(x: o, y: l)); p.addLine(to: .init(x: o, y: o)); p.addLine(to: .init(x: l, y: o))
-                p.move(to: .init(x: w - l, y: o)); p.addLine(to: .init(x: w - o, y: o)); p.addLine(to: .init(x: w - o, y: l))
-                p.move(to: .init(x: w - o, y: h - l)); p.addLine(to: .init(x: w - o, y: h - o)); p.addLine(to: .init(x: w - l, y: h - o))
-                p.move(to: .init(x: l, y: h - o)); p.addLine(to: .init(x: o, y: h - o)); p.addLine(to: .init(x: o, y: h - l))
+                // Top left, top right, bottom right, bottom left: a straight run into a rounded corner and out.
+                p.move(to: .init(x: o, y: l)); p.addLine(to: .init(x: o, y: o + r))
+                p.addQuadCurve(to: .init(x: o + r, y: o), control: .init(x: o, y: o)); p.addLine(to: .init(x: l, y: o))
+                p.move(to: .init(x: w - l, y: o)); p.addLine(to: .init(x: w - o - r, y: o))
+                p.addQuadCurve(to: .init(x: w - o, y: o + r), control: .init(x: w - o, y: o)); p.addLine(to: .init(x: w - o, y: l))
+                p.move(to: .init(x: w - o, y: h - l)); p.addLine(to: .init(x: w - o, y: h - o - r))
+                p.addQuadCurve(to: .init(x: w - o - r, y: h - o), control: .init(x: w - o, y: h - o)); p.addLine(to: .init(x: w - l, y: h - o))
+                p.move(to: .init(x: l, y: h - o)); p.addLine(to: .init(x: o + r, y: h - o))
+                p.addQuadCurve(to: .init(x: o, y: h - o - r), control: .init(x: o, y: h - o)); p.addLine(to: .init(x: o, y: h - l))
                 ctx.stroke(p, with: .color(Mono.text), style: StrokeStyle(lineWidth: t, lineCap: .round, lineJoin: .round))
             }
             if showsScanLine {
-                Capsule().fill(Mono.text.opacity(0.7)).frame(height: 2).padding(.horizontal, 16)
+                Capsule().fill(Mono.text.opacity(0.7)).frame(height: 2).padding(.horizontal, 20)
             }
         }
-        .frame(width: 250, height: 250)
+        .frame(width: Self.size.width, height: Self.size.height)
     }
 }
 
@@ -333,23 +342,28 @@ struct QuickLogCard: View {
                 .padding(.top, -6)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
-                Text(foodName.capitalized).font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text).lineLimit(2)
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(Int(kcal).formatted()).font(.bentoNumber(34)).tracking(Font.bentoTracking(34))
-                        .contentTransition(.numericText())
-                    Text("kcal").font(.bentoBody).foregroundColor(Mono.label)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
+                    Text(foodName.capitalized).font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+                        .lineLimit(2).minimumScaleFactor(0.8)
                 }
-                .foregroundColor(Mono.text)
-                .padding(.top, 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(Int(kcal).formatted()).font(.bentoNumber(34)).tracking(Font.bentoTracking(34))
+                        .foregroundColor(Mono.text)
+                        .lineLimit(1).fixedSize()
+                        .contentTransition(.numericText())
+                    Text("kcal").font(.ui(size: 12)).foregroundColor(Mono.label)
+                }
                 .accessibilityElement(children: .combine)
             }
+            .accessibilityElement(children: .combine)
 
             HStack(spacing: 10) {
-                macro("Protein", per100g.protein * k, kcalPerGram: 4)
-                macro("Carbs", per100g.carbs * k, kcalPerGram: 4)
-                macro("Fat", per100g.fat * k, kcalPerGram: 9)
+                macro("Protein", per100g.protein * k)
+                macro("Carbs", per100g.carbs * k)
+                macro("Fat", per100g.fat * k)
             }
 
             HStack {
@@ -381,21 +395,17 @@ struct QuickLogCard: View {
         .glass(.thick, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
-    /// A small tile: grams, the macro's name, and a bar for its share of this food's energy.
-    private func macro(_ name: String, _ grams: Double, kcalPerGram: Double) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    /// A small tile: the macro's name over its grams for this serving.
+    private func macro(_ name: String, _ grams: Double) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text(name).font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(NutrientRow.dec(grams)).font(.bentoNumber(22)).tracking(Font.bentoTracking(22))
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                    .contentTransition(.numericText())
-                Text("g").font(.ui(size: 12)).foregroundColor(Mono.label)
-            }
-            .foregroundColor(Mono.text)
-            BentoBar(value: kcal > 0 ? grams * kcalPerGram / kcal : 0, height: 4)
+            Text("\(grams >= 1 ? Int(grams.rounded()).formatted() : NutrientRow.dec(grams)) g").font(.bentoNumber(20)).tracking(Font.bentoTracking(20))
+                .foregroundColor(Mono.text)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .contentTransition(.numericText())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(.horizontal, 14).padding(.vertical, 12)
         .glass(.clear, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
     }

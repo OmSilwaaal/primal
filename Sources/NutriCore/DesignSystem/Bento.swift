@@ -306,6 +306,7 @@ struct BentoSegmented<T: Hashable>: View {
             }
         }
         .padding(4)
-        .glass(.clear, in: Capsule())
+        // See-through glass rather than system glass, which dims the white pill over dark scenes (the camera).
+        .liquidGlassPanel(in: Capsule())
     }
 }

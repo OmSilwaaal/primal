@@ -415,7 +415,7 @@ private struct CalorieTile: View {
     let macros: [(String, Double, Double)]
 
     private let ringSize: CGFloat = 240
-    private let ringWidth: CGFloat = 26
+    private let ringWidth: CGFloat = 16
 
     private var progress: Double { goal > 0 ? total / goal : 0 }
     private var reached: Bool { progress >= 1 }
@@ -428,12 +428,11 @@ private struct CalorieTile: View {
     var body: some View {
         VStack(spacing: 24) {
             ZStack {
-                GlassRing(width: ringWidth)
+                Circle().stroke(Mono.track, lineWidth: ringWidth)
                 Circle()
                     .trim(from: 0, to: min(progress, 1))
-                    .stroke(Mono.text, style: StrokeStyle(lineWidth: ringWidth - 10, lineCap: .round))
+                    .stroke(Mono.text, style: StrokeStyle(lineWidth: ringWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .padding(ringWidth / 2)   // same centre line as the glass tube
                     .animation(.smooth(duration: 0.6), value: progress)
                 VStack(spacing: 2) {
                     AlgizMark().fill(Mono.text.opacity(reached ? 1 : 0.45))
@@ -488,47 +487,6 @@ private struct CalorieTile: View {
             Haptics.success()
             ToastCenter.shared.show("Target hit", branded: true)
         }
-    }
-}
-
-// MARK: - Glass ring
-
-/// The ring's track as a tube of the clearest Liquid Glass in the app: system .clear glass with no tint (iOS 26),
-/// hairline inner and outer edges so the tube reads, and the moving light along it. Before iOS 26 it's a barely
-/// there film with the same edges; Reduce Transparency and Increase Contrast get a solid track.
-private struct GlassRing: View {
-    let width: CGFloat
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-
-    var body: some View {
-        let ring = RingShape(width: width)
-        if reduceTransparency || contrast == .increased {
-            ring.fill(Color.white.opacity(contrast == .increased ? 0.3 : 0.18))
-        } else {
-            Group {
-                if #available(iOS 26.0, *) {
-                    Color.clear.glassEffect(.clear, in: ring)
-                } else {
-                    ring.fill(Color.white.opacity(0.03))
-                }
-            }
-            .overlay(ring.stroke(Color.white.opacity(0.22), lineWidth: 0.8))
-            .overlay(GlassSheen(shape: ring, strength: 1.1))
-            .allowsHitTesting(false)
-        }
-    }
-}
-
-/// A ring `width` wide, centred on the circle that fits the rect inset by half the width (the same circle a stroke
-/// of that width would follow).
-private struct RingShape: Shape {
-    let width: CGFloat
-    func path(in rect: CGRect) -> Path {
-        let side = min(rect.width, rect.height)
-        let circle = CGRect(x: rect.midX - side / 2, y: rect.midY - side / 2, width: side, height: side)
-            .insetBy(dx: width / 2, dy: width / 2)
-        return Path(ellipseIn: circle).strokedPath(StrokeStyle(lineWidth: width))
     }
 }
 

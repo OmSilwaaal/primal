@@ -327,36 +327,53 @@ private struct DateWheel: View {
     let selected: Date
     let onSelect: (Date) -> Void
     @State private var centered: Date?
+    /// How far the drop leans and stretches (−1 … 1, signed by scroll direction); springs back to 0 at rest.
+    @State private var stretch: CGFloat = 0
+    @State private var tracker = ScrollVelocity()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let pillWidth: CGFloat = 50
+    private let pillHeight: CGFloat = 68
 
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
             let centerX = geo.frame(in: .global).midX
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(days) { day in
-                        pill(day)
-                            .drumEffect(centerX: centerX, radius: width * 0.36)
+            ZStack {
+                // The selection is one white drop behind the centre; the days scroll over it.
+                WaterDrop(stretch: stretch, pill: CGSize(width: pillWidth, height: pillHeight))
+                    .frame(width: pillWidth * 3.4, height: pillHeight + 16)
+                    .accessibilityHidden(true)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(days) { day in
+                            pill(day)
+                                .drumEffect(centerX: centerX, radius: width * 0.36)
+                        }
                     }
+                    .scrollTargetLayout()
                 }
-                .scrollTargetLayout()
+                .frame(height: pillHeight)
+                // Room on both sides so the first and last pills can reach the centre.
+                .safeAreaPadding(.horizontal, max(0, (geo.size.width - pillWidth) / 2))
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $centered, anchor: .center)
+                .scrollClipDisabled()
+                .modifier(TrackScrollVelocity(onVelocity: lean))
+                .drumRimFade()
             }
-            // Room on both sides so the first and last pills can reach the centre.
-            .safeAreaPadding(.horizontal, max(0, (geo.size.width - pillWidth) / 2))
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $centered, anchor: .center)
-            .scrollClipDisabled()
-            .drumRimFade()
+            .frame(height: pillHeight + 16)
         }
         .frame(height: 88)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .onAppear { centered = selected }
-        .onChange(of: centered) { _, new in
+        .onChange(of: centered) { old, new in
             guard let new, new != selected else { return }
             Haptics.selection()
             onSelect(new)
+            // iOS 17 has no scroll geometry to read speed from: give each step a small drip instead.
+            if #unavailable(iOS 18.0), let old { lean(new > old ? 900 : -900) }
         }
         .onChange(of: selected) { _, new in
             if centered != new { withAnimation(.smooth(duration: 0.45)) { centered = new } }
@@ -376,13 +393,11 @@ private struct DateWheel: View {
                 markDot(day.mark, on: on).frame(width: 6, height: 6)
             }
             .foregroundColor(on ? Mono.onWhite : Mono.text)
-            .frame(width: pillWidth)
-            .padding(.top, 10).padding(.bottom, 9)
+            .frame(width: pillWidth, height: pillHeight)
             .background {
-                // Drawn see-through glass, not system Liquid Glass: system glass morphs under the drum's 3D turn.
-                if on {
-                    Capsule().fill(Mono.text)
-                } else {
+                // The selected day sits on the drop behind the wheel; the others are drawn see-through glass (system
+                // glass morphs under the drum's 3D turn).
+                if !on {
                     Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule())
                 }
             }
@@ -394,6 +409,21 @@ private struct DateWheel: View {
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
+    /// Leans the drop with the scroll speed (points per second), then lets it spring back like a settling drop.
+    private func lean(_ velocity: CGFloat) {
+        guard !reduceMotion else { return }
+        let target = max(-1, min(1, velocity / 1400))
+        if abs(target - stretch) > 0.04 {
+            withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.72)) { stretch = target }
+        }
+        tracker.settle?.cancel()
+        tracker.settle = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(90))
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.45)) { stretch = 0 }
+        }
+    }
+
     @ViewBuilder private func markDot(_ m: EatingCycle.Mark, on: Bool) -> some View {
         let ink = on ? Mono.onWhite : Mono.text
         switch m {
@@ -401,6 +431,69 @@ private struct DateWheel: View {
         case .offTarget: Circle().strokeBorder(ink, lineWidth: 1.5)
         case .upcoming, .empty: Circle().fill(ink.opacity(0.25))
         }
+    }
+}
+
+/// Holds the pending settle so a burst of scroll updates restarts it without re-rendering the wheel.
+private final class ScrollVelocity {
+    var settle: Task<Void, Never>?
+}
+
+/// Reports a horizontal ScrollView's speed in points per second (iOS 18+).
+private struct TrackScrollVelocity: ViewModifier {
+    let onVelocity: (CGFloat) -> Void
+    @State private var last: (x: CGFloat, t: CFTimeInterval)?
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x } action: { _, x in
+                let now = CACurrentMediaTime()
+                if let last, now - last.t > 0.001 {
+                    onVelocity((x - last.x) / CGFloat(now - last.t))
+                }
+                last = (x, now)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// The selection drop: a white capsule the size of a day, drawn liquid (blur, then a hard alpha threshold, so shapes
+/// that come close merge with a soft neck). Scrolling leans and stretches it towards the next day while a small
+/// droplet pulls away behind it; at rest it's just the capsule. Animatable, so springs drive it frame by frame.
+private struct WaterDrop: View, Animatable {
+    var stretch: CGFloat
+    let pill: CGSize
+
+    var animatableData: CGFloat {
+        get { stretch }
+        set { stretch = newValue }
+    }
+
+    var body: some View {
+        Canvas { ctx, size in
+            let s = min(1, abs(stretch)), dir: CGFloat = stretch >= 0 ? 1 : -1
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            // A little larger than the pill: the threshold eats about 2 pt off each edge.
+            let w = (pill.width + 4) * (1 + 0.34 * s)
+            let h = (pill.height + 4) * (1 - 0.1 * s)
+            ctx.addFilter(.alphaThreshold(min: 0.5, color: Mono.text))
+            ctx.addFilter(.blur(radius: 5))
+            ctx.drawLayer { layer in
+                let main = CGRect(x: c.x - w / 2 + dir * s * 9, y: c.y - h / 2, width: w, height: h)
+                layer.fill(Capsule().path(in: main), with: .color(.white))
+                if s > 0.06 {
+                    // The droplet trails behind, slightly low, as if dripping off the drop.
+                    let r = 5 + 7 * s
+                    let x = main.midX - dir * (w / 2 + 2 + 16 * s)
+                    let y = c.y + h * 0.16
+                    layer.fill(Circle().path(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                               with: .color(.white))
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 

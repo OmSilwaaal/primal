@@ -342,7 +342,7 @@ private struct DateWheel: View {
             ZStack {
                 // The selection is one white drop behind the centre; the days scroll over it.
                 WaterDrop(stretch: stretch, pill: CGSize(width: pillWidth, height: pillHeight))
-                    .frame(width: pillWidth * 3.4, height: pillHeight + 16)
+                    .frame(width: pillWidth * 5, height: pillHeight + 24)
                     .accessibilityHidden(true)
 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -363,9 +363,9 @@ private struct DateWheel: View {
                 .modifier(TrackScrollVelocity(onVelocity: lean))
                 .drumRimFade()
             }
-            .frame(height: pillHeight + 16)
+            .frame(height: pillHeight + 24)
         }
-        .frame(height: 88)
+        .frame(height: 92)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .onAppear { centered = selected }
         .onChange(of: centered) { old, new in
@@ -410,19 +410,24 @@ private struct DateWheel: View {
     }
 
     /// Leans the drop with the scroll speed (points per second), then lets it spring back like a settling drop.
+    /// The speed is averaged over recent frames so the drop eases with the scroll instead of twitching with each
+    /// uneven update, and it only animates when the change is visible.
     private func lean(_ velocity: CGFloat) {
         guard !reduceMotion else { return }
-        let target = max(-1, min(1, velocity / 1400))
-        if abs(target - stretch) > 0.04 {
-            withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.72)) { stretch = target }
+        tracker.smoothed += (velocity - tracker.smoothed) * 0.3
+        let target = max(-1, min(1, tracker.smoothed / 650))
+        if abs(target - stretch) > 0.03 {
+            withAnimation(.smooth(duration: 0.22)) { stretch = target }
         }
         tracker.settle?.cancel()
         tracker.settle = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(90))
+            try? await Task.sleep(for: .milliseconds(140))
             guard !Task.isCancelled else { return }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.45)) { stretch = 0 }
+            tracker.smoothed = 0
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.5)) { stretch = 0 }
         }
     }
+
 
     @ViewBuilder private func markDot(_ m: EatingCycle.Mark, on: Bool) -> some View {
         let ink = on ? Mono.onWhite : Mono.text
@@ -437,6 +442,8 @@ private struct DateWheel: View {
 /// Holds the pending settle so a burst of scroll updates restarts it without re-rendering the wheel.
 private final class ScrollVelocity {
     var settle: Task<Void, Never>?
+    /// Scroll speed averaged over recent updates (points per second).
+    var smoothed: CGFloat = 0
 }
 
 /// Reports a horizontal ScrollView's speed in points per second (iOS 18+).
@@ -475,21 +482,26 @@ private struct WaterDrop: View, Animatable {
         Canvas { ctx, size in
             let s = min(1, abs(stretch)), dir: CGFloat = stretch >= 0 ? 1 : -1
             let c = CGPoint(x: size.width / 2, y: size.height / 2)
-            // A little larger than the pill: the threshold eats about 2 pt off each edge.
-            let w = (pill.width + 4) * (1 + 0.34 * s)
-            let h = (pill.height + 4) * (1 - 0.1 * s)
+            // A little larger than the pill: the threshold eats a few points off each edge.
+            let w = (pill.width + 6) * (1 + 0.55 * s)
+            let h = (pill.height + 6) * (1 - 0.18 * s)
             ctx.addFilter(.alphaThreshold(min: 0.5, color: Mono.text))
-            ctx.addFilter(.blur(radius: 5))
+            ctx.addFilter(.blur(radius: 7))
             ctx.drawLayer { layer in
-                let main = CGRect(x: c.x - w / 2 + dir * s * 9, y: c.y - h / 2, width: w, height: h)
+                let main = CGRect(x: c.x - w / 2 + dir * s * 16, y: c.y - h / 2, width: w, height: h)
                 layer.fill(Capsule().path(in: main), with: .color(.white))
-                if s > 0.06 {
-                    // The droplet trails behind, slightly low, as if dripping off the drop.
-                    let r = 5 + 7 * s
-                    let x = main.midX - dir * (w / 2 + 2 + 16 * s)
-                    let y = c.y + h * 0.16
+                func drop(_ r: CGFloat, _ x: CGFloat, _ y: CGFloat) {
                     layer.fill(Circle().path(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
                                with: .color(.white))
+                }
+                if s > 0.05 {
+                    // The droplet trails behind, slightly low, as if dripping off the drop…
+                    drop(8 + 11 * s, main.midX - dir * (w / 2 + 2 + 14 * s), c.y + h * 0.16)
+                }
+                if s > 0.45 {
+                    // …and a smaller one breaks away further back when scrolling fast.
+                    let t = (s - 0.45) / 0.55
+                    drop(6 + 5 * t, main.midX - dir * (w / 2 + 30 + 22 * t), c.y + h * 0.24)
                 }
             }
         }

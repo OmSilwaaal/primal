@@ -87,7 +87,7 @@ struct ContentView: View {
             SearchView(onClose: { showSearch = false })
                 .presentationBackground(Color.ncBg)
         }
-        .tint(.ncPrimary)
+        .tint(Mono.text)
         .background(Color.ncBg.ignoresSafeArea())
     }
 
@@ -105,8 +105,8 @@ struct ContentView: View {
 
 // MARK: - Tab bar
 /// Floating glass island 14 pt from the edges: Liquid Glass on iOS 26, blurred material before that.
-/// Five equal tabs, each an SF Symbol over its label; the selected one fills its symbol and sits on a soft
-/// translucent highlight that slides between tabs. Scan, in the middle, is a moss-green tile.
+/// Five equal tabs, each an SF Symbol over an 11 pt label; the selected one is a solid white pill with dark text and
+/// icon that slides between tabs. Monochrome.
 ///
 /// Like the system Liquid Glass tab bar, it can be scrubbed: press anywhere on it and a clear glass lens appears
 /// under your finger, the island swells slightly, and the tab under the lens grows. Slide along the bar to move the
@@ -145,17 +145,14 @@ struct VitalisTabBar: View {
                 let lifted = hovered == item.tab
                 // Buttons stay for VoiceOver, Switch Control and keyboards; touch goes through the scrub gesture.
                 Button { onSelect(item.tab) } label: {
-                    Group {
-                        if item.tab == .scan { scanTile } else { tabLabel(item, on: on) }
-                    }
+                    tabLabel(item, on: on)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .scaleEffect(lifted && !reduceMotion ? 1.22 : 1)
                     .animation(.spring(response: 0.3, dampingFraction: 0.62), value: lifted)
                     .background {
-                        if on && touchX == nil && item.tab != .scan {
-                            Capsule().fill(Color.white.opacity(0.16))
-                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5))
+                        if on && touchX == nil {
+                            Capsule().fill(Mono.text)
                                 .matchedGeometryEffect(id: "tab", in: indicator)
                         }
                     }
@@ -185,32 +182,18 @@ struct VitalisTabBar: View {
     }
 
     private func tabLabel(_ item: (tab: AppTab, label: String, icon: String, selectedIcon: String), on: Bool) -> some View {
-        VStack(spacing: 3) {
+        // The active pill hides while scrubbing (the lens takes over), so its dark ink switches back to white too.
+        let solid = on && touchX == nil
+        return VStack(spacing: 3) {
             Image(systemName: on ? item.selectedIcon : item.icon)
                 .font(.system(size: 19, weight: on ? .semibold : .regular))
                 .symbolEffect(.bounce, value: on)
                 .frame(height: 24)
-            Text(item.label.uppercased())
-                .font(.system(size: 10, weight: on ? .bold : .semibold)).tracking(0.6)
+            Text(item.label)
+                .font(.system(size: 11, weight: on ? .semibold : .medium))
                 .lineLimit(1).minimumScaleFactor(0.8)
         }
-        .foregroundColor(on ? .ncPrimary : .ncPrimary.opacity(0.6))
-    }
-
-    /// Scan: a clean moss tile with a soft glow of its own colour, so the camera reads as the bar's main action.
-    private var scanTile: some View {
-        let shape = RoundedRectangle(cornerRadius: 15, style: .continuous)
-        return Image(systemName: "viewfinder")
-            .font(.system(size: 19, weight: .semibold))
-            .foregroundColor(.ncOnPrimary)
-            .frame(width: 48, height: 46)
-            .background {
-                shape.fill(LinearGradient(colors: [Color.ncMoss, Color(hex: "#6F9A5C")],
-                                          startPoint: .top, endPoint: .bottom))
-                    .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.05)],
-                                                               startPoint: .top, endPoint: .bottom), lineWidth: 1))
-            }
-            .shadow(color: Color.ncMoss.opacity(0.5), radius: 12, y: 2)
+        .foregroundColor(solid ? Mono.onWhite : on ? Mono.text : Mono.label)
     }
 
     /// The clear glass bubble that follows the finger, a little taller than the island like the system's.

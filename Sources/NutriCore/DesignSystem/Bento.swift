@@ -33,6 +33,19 @@ enum Bento {
     static var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
 }
 
+/// Which meal a time of day belongs to, for meal rows and "Add to Lunch". There's no stored meal type, so it's by
+/// the clock: breakfast before 11, lunch before 4 pm, dinner before 9 pm, then snack.
+enum MealSlot {
+    static func name(for date: Date = .now) -> String {
+        switch Calendar.current.component(.hour, from: date) {
+        case 4..<11: "Breakfast"
+        case 11..<16: "Lunch"
+        case 16..<21: "Dinner"
+        default: "Snack"
+        }
+    }
+}
+
 extension Font {
     /// Screen titles: 34 pt bold SF.
     static var bentoTitle: Font { .ui(size: 34, weight: .bold) }
@@ -198,6 +211,7 @@ struct BentoCapsuleButtonStyle: ButtonStyle {
         configuration.label
             .font(.ui(size: 16, weight: .semibold))
             .foregroundColor(solid ? Mono.onWhite : Mono.text)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity).frame(minHeight: height)
             .background { if solid { Capsule().fill(Mono.text) } }
             .modifier(ClearCapsule(active: !solid))

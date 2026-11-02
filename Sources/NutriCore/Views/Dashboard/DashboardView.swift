@@ -16,16 +16,16 @@ struct DashboardView: View {
     @StateObject private var healthManager = HealthKitManager.shared
 
     var onSearch: () -> Void = {}
-    var onOpenData: () -> Void = {}
-    @State private var showRawLog = false
+    var onOpenProfile: () -> Void = {}
     @State private var pushed: SecondaryScreen?
+    @State private var showWater = false
     /// The day Home shows. Past days are view-only.
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @AppStorage(HealthPrimingView.pendingKey) private var healthPrimingPending = false
 
-    init(onSearch: @escaping () -> Void = {}, onOpenData: @escaping () -> Void = {}) {
+    init(onSearch: @escaping () -> Void = {}, onOpenProfile: @escaping () -> Void = {}) {
         self.onSearch = onSearch
-        self.onOpenData = onOpenData
+        self.onOpenProfile = onOpenProfile
         // Rows back to the start of the month (eating cycle) or the date wheel's history, whichever is earlier.
         // Days are filtered in memory so the view survives midnight.
         let cal = Calendar.current, today = cal.startOfDay(for: .now)
@@ -48,10 +48,6 @@ struct DashboardView: View {
     private var dayMeals: [MealEntry] {
         let cal = Calendar.current; return meals.filter { cal.isDate($0.date, inSameDayAs: selectedDay) }
     }
-    /// The day's vitamins and minerals against the base targets.
-    private var dayMicros: [NutrientInfo] {
-        buildNutrientList(from: dayMeals, goals: baseGoals).filter { $0.group != .macros }
-    }
     /// Minutes outside: manual sessions or Apple Watch daylight, whichever is larger (they can overlap).
     private var daySunMinutes: Double {
         let cal = Calendar.current
@@ -64,10 +60,6 @@ struct DashboardView: View {
     private var todaysMeals: [MealEntry] {
         let cal = Calendar.current; return meals.filter { cal.isDateInToday($0.date) }
     }
-    private var weekMeals: [MealEntry] {
-        let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
-        return meals.filter { $0.date >= start }
-    }
     private var todaysHydration: DailyHydration? {
         hydrations.first(where: { Calendar.current.isDateInToday($0.date) })
     }
@@ -78,90 +70,78 @@ struct DashboardView: View {
         try? modelContext.save()
     }
 
+    private var drinksMl: Double { (dayHydration?.waterOunces ?? 0) * WaterSheet.mlPerOunce }
+    private var foodWaterMl: Double { FoodWater.millilitres(in: dayMeals) }
+
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                // No backdrop here: ContentView draws one that stays still while tabs change.
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HomeHeader(day: selectedDay, onToday: isToday ? nil : { select(Calendar.current.startOfDay(for: .now)) },
-                                   onSearch: onSearch, onWeather: { pushed = .sun })
-                            .padding(.horizontal, Space.margin)
-                            .padding(.top, 12)
-
-                        CycleSection(cycle: EatingCycle(meals: meals, calorieGoal: baseGoals.calories),
-                                     selected: selectedDay, onSelect: select)
-                            .padding(.top, 20)
-
-                        CalorieRing(total: dayMeals.totalCalories, goal: goals.calories, isToday: isToday)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 28)
-
-                        ShareCardButton(title: "Share day") {
-                            DaySummaryCard(day: selectedDay, calories: dayMeals.totalCalories, goal: goals.calories,
-                                           protein: dayMeals.totalProtein, carbs: dayMeals.totalCarbs, fat: dayMeals.totalFat,
-                                           waterLitres: ((dayHydration?.waterOunces ?? 0) * HydrationSection.mlPerOunce
-                                                         + FoodWater.millilitres(in: dayMeals)) / 1000,
-                                           sunMinutes: daySunMinutes)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.bottom, 16)
-
-                        MacroGrid(items: [
-                            ("Protein", dayMeals.totalProtein, goals.protein),
-                            ("Carbs", dayMeals.totalCarbs, goals.carbohydrates),
-                            ("Fat", dayMeals.totalFat, goals.fat),
-                        ])
-
-                        MicrosSunSection(micros: dayMicros, sunMinutes: daySunMinutes, sunGoal: Double(sunGoal),
-                                         onMicros: isToday ? onOpenData : nil, onSun: { pushed = .sun })
-                            .padding(.horizontal, 18).padding(.vertical, 18)
-                            .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                            .padding(.horizontal, Space.margin)
-                            .padding(.top, 14)
-
-                        MealsSection(meals: dayMeals, readOnly: !isToday, onAdd: onSearch) { meal in
-                            Haptics.success()
-                            let name = meal.foodName.components(separatedBy: ",").first ?? meal.foodName
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { MealLogger.delete(meal, in: modelContext) }
-                            ToastCenter.shared.show("Removed — \(name)")
-                        }
-                        .padding(.top, 32)
-                        // Each day's list fades in rather than snapping when the date changes.
-                        .id(selectedDay)
-                        .transition(.opacity.combined(with: .offset(y: 10)))
-
-                        VStack(alignment: .leading, spacing: Space.section) {
-                            HydrationSection(drinksMl: (dayHydration?.waterOunces ?? 0) * HydrationSection.mlPerOunce,
-                                             foodMl: FoodWater.millilitres(in: dayMeals),
-                                             readOnly: !isToday) { ml in
-                                guard let hydration = todaysHydration else { return }
-                                let ounces = ml / HydrationSection.mlPerOunce
-                                withAnimation(.smooth(duration: 0.45)) { hydration.waterOunces += ounces }
-                                try? modelContext.save()
-                                healthManager.saveDietaryWater(ounces: ounces)
-                                Haptics.success()
-                                ToastCenter.shared.show("Added \(Int(ml)) ml water", branded: true)
-                            }
-
-                            // A today-only summary (it covers the last 7 days and has a log button).
-                            if isToday {
-                                RawSnapshotSection(meals: todaysMeals, weekMeals: weekMeals, onOpen: { pushed = .raw },
-                                                   onLogRaw: { showRawLog = true })
-                                    .transition(.opacity)
-                            }
-                        }
-                        .padding(.horizontal, Space.margin)
-                        .padding(.top, 20)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: Bento.gap) {
+                    BentoHomeHeader(day: selectedDay, onToday: isToday ? nil : { select(Calendar.current.startOfDay(for: .now)) },
+                                    onProfile: onOpenProfile) {
+                        DaySummaryCard(day: selectedDay, calories: dayMeals.totalCalories, goal: goals.calories,
+                                       protein: dayMeals.totalProtein, carbs: dayMeals.totalCarbs, fat: dayMeals.totalFat,
+                                       waterLitres: (drinksMl + foodWaterMl) / 1000, sunMinutes: daySunMinutes)
                     }
-                    .padding(.bottom, 120)
+                    .padding(.top, 8)
+
+                    // Past days: scroll the drum back; the tiles below follow the day it lands on (view-only).
+                    DateWheel(days: EatingCycle(meals: meals, calorieGoal: baseGoals.calories).history,
+                              selected: selectedDay, onSelect: select)
+                        .padding(.horizontal, -Bento.margin)
+
+                    CalorieTile(total: dayMeals.totalCalories, goal: goals.calories, isToday: isToday, macros: [
+                        ("Protein", dayMeals.totalProtein, goals.protein),
+                        ("Carbs", dayMeals.totalCarbs, goals.carbohydrates),
+                        ("Fat", dayMeals.totalFat, goals.fat),
+                    ])
+
+                    BentoPair {
+                        Button { showWater = true } label: {
+                            BentoTile(title: "Water", value: String(format: "%.1f", (drinksMl + foodWaterMl) / 1000),
+                                      detail: "of \(String(format: "%.1f", WaterSheet.goalMl / 1000)) L",
+                                      progress: (drinksMl + foodWaterMl) / WaterSheet.goalMl, symbol: "drop")
+                        }
+                        .buttonStyle(PressScaleStyle())
+                        .disabled(!isToday)
+                        .accessibilityHint(isToday ? "Adds water" : "")
+                    } right: {
+                        Button { pushed = .sun } label: {
+                            BentoTile(title: "Sun", value: "\(Int(daySunMinutes))", detail: "of \(sunGoal) min",
+                                      progress: sunGoal > 0 ? daySunMinutes / Double(sunGoal) : 0, symbol: "sun.max")
+                        }
+                        .buttonStyle(PressScaleStyle())
+                        .accessibilityHint("Opens Sun")
+                    }
+
+                    MealsTile(meals: dayMeals, readOnly: !isToday, onAdd: onSearch) { meal in
+                        Haptics.success()
+                        let name = meal.foodName.components(separatedBy: ",").first ?? meal.foodName
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { MealLogger.delete(meal, in: modelContext) }
+                        ToastCenter.shared.show("Removed — \(name)")
+                    }
+                    // Each day's list fades in rather than snapping when the date changes.
+                    .id(selectedDay)
+                    .transition(.opacity.combined(with: .offset(y: 10)))
                 }
+                .padding(.horizontal, Bento.margin)
+                .padding(.bottom, 120)
             }
             .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
             .navigationTitle("Home") // names the back button on pushed screens
             .navigationDestination(item: $pushed) { $0.destination }
-            .sheet(isPresented: $showRawLog) { NavigationStack { RawLogView() } }
+            .sheet(isPresented: $showWater) {
+                WaterSheet(drinksMl: drinksMl, foodMl: foodWaterMl) { ml in
+                    guard let hydration = todaysHydration else { return }
+                    let ounces = ml / WaterSheet.mlPerOunce
+                    withAnimation(.smooth(duration: 0.45)) { hydration.waterOunces += ounces }
+                    try? modelContext.save()
+                    healthManager.saveDietaryWater(ounces: ounces)
+                    Haptics.success()
+                    ToastCenter.shared.show("Added \(Int(ml)) ml water", branded: true)
+                }
+            }
             // Offered once after profile setup, explaining what's read and written before the system prompt.
             .sheet(isPresented: $healthPrimingPending) {
                 HealthPrimingView { healthPrimingPending = false }
@@ -190,10 +170,10 @@ struct DashboardView: View {
         let cal = Calendar.current
         var calorieGoal = baseGoals.calories
         if profiles.first != nil, healthManager.todayActiveEnergy > 0 { calorieGoal += healthManager.todayActiveEnergy }
-        let drinksMl = (todaysHydration?.waterOunces ?? 0) * HydrationSection.mlPerOunce
+        let drinksMl = (todaysHydration?.waterOunces ?? 0) * WaterSheet.mlPerOunce
         let manualSun = sunSessions.filter { cal.isDateInToday($0.start) }.reduce(0) { $0 + $1.minutes }
         return WidgetSnapshot(day: cal.startOfDay(for: .now), calories: todaysMeals.totalCalories, calorieGoal: calorieGoal,
-                              waterLitres: (drinksMl + FoodWater.millilitres(in: todaysMeals)) / 1000, waterGoalLitres: 3.5,
+                              waterLitres: (drinksMl + FoodWater.millilitres(in: todaysMeals)) / 1000, waterGoalLitres: WaterSheet.goalMl / 1000,
                               sunMinutes: max(manualSun, daylight[cal.startOfDay(for: .now)] ?? 0),
                               sunGoalMinutes: Double(sunGoal))
     }
@@ -207,129 +187,6 @@ struct DashboardView: View {
         let day = Calendar.current.startOfDay(for: day)
         guard day != selectedDay else { return }
         withAnimation(.smooth(duration: 0.45)) { selectedDay = day }
-    }
-}
-
-
-
-
-
-// MARK: - Header
-private struct HomeHeader: View {
-    let day: Date
-    /// Set when a past day is showing.
-    let onToday: (() -> Void)?
-    let onSearch: () -> Void
-    let onWeather: () -> Void
-    @Environment(\.dynamicTypeSize) private var typeSize
-    private var dateText: String {
-        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"; return f.string(from: day).uppercased()
-    }
-    var body: some View {
-        // One row, always the same height, so Home doesn't jump when "Today" appears on a past day or the date
-        // gets longer; the date shrinks to make room instead. Buttons drop below the date only at accessibility sizes.
-        if typeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 12) {
-                date
-                actions
-            }
-        } else {
-            HStack(alignment: .center, spacing: 12) {
-                date.frame(maxWidth: .infinity, alignment: .leading)
-                actions.fixedSize()
-            }
-            .frame(height: 64)
-        }
-    }
-    private var date: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
-                .lineLimit(1).minimumScaleFactor(0.6)
-                .contentTransition(.numericText())
-        }
-    }
-    private var actions: some View {
-        HStack(spacing: 10) {
-            if let onToday {
-                Button(action: onToday) {
-                    Text("Today").font(.mono(12, .semibold)).tracking(1.2).textCase(.uppercase)
-                        .foregroundColor(.ncPrimary)
-                        .padding(.horizontal, 16).frame(height: 44)
-                        .glass(.clear, in: Capsule())
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .fixedSize()
-                .accessibilityHint("Shows today")
-                .transition(.scale(scale: 0.8).combined(with: .opacity))
-            }
-            WeatherChip(onOpen: onWeather)
-            Button(action: onSearch) {
-                Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium))
-            }
-            .buttonStyle(.glassDot)
-            .accessibilityLabel("Search foods")
-            .accessibilityShowsLargeContentViewer { Image(systemName: "magnifyingglass"); Text("Search") }
-        }
-    }
-}
-
-/// Current conditions as a glass dot beside Search: the SF Symbol over the temperature. Tapping opens the
-/// Sun screen. Location is only requested when the user taps the dot, never on launch.
-private struct WeatherChip: View {
-    let onOpen: () -> Void
-    @StateObject private var location = LocationManager(continuous: false)
-    @ObservedObject private var weather = WeatherService.shared
-
-    private var authorized: Bool {
-        location.authorizationStatus == .authorizedWhenInUse || location.authorizationStatus == .authorizedAlways
-    }
-
-    var body: some View {
-        Group {
-            if authorized, let now = weather.current {
-                Button(action: onOpen) {
-                    dot(now.symbol, now.temperature)
-                }
-                .accessibilityShowsLargeContentViewer { Image(systemName: now.symbol); Text(now.temperature) }
-                .accessibilityLabel("Weather: \(now.summary), \(now.temperature)")
-                .accessibilityHint("Opens Sun")
-            } else if authorized {
-                // Loading. Always draw something: the fetch below is attached to this view, and SwiftUI
-                // doesn't run tasks on an empty one.
-                Button(action: onOpen) {
-                    dot("cloud", "--°").opacity(0.5)
-                }
-                .accessibilityLabel("Weather loading")
-            } else if location.authorizationStatus == .notDetermined {
-                Button { location.requestPermission() } label: {
-                    Image(systemName: "cloud.sun").font(.system(size: 17, weight: .regular))
-                }
-                .accessibilityLabel("Weather")
-                .accessibilityHint("Asks for your location to show local weather")
-            }
-            // Denied or restricted: no chip.
-        }
-        .buttonStyle(.glassDot)
-        .task(id: location.location?.coordinate.latitude) {
-            if let loc = location.location { await weather.refresh(location: loc) }
-        }
-        // A fresh coarse fix each time Home appears; WeatherService skips the network if nothing changed.
-        .onAppear { if authorized { location.requestOnce() } }
-    }
-
-    /// Symbol over temperature, sized to sit inside the 44 pt dot.
-    private func dot(_ symbol: String, _ temperature: String) -> some View {
-        VStack(spacing: 0) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .regular))
-                .symbolRenderingMode(.hierarchical)
-                .contentTransition(.symbolEffect(.replace))
-                .frame(height: 17)
-            Text(temperature)
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                .lineLimit(1).minimumScaleFactor(0.7)
-        }
     }
 }
 
@@ -380,61 +237,10 @@ struct EatingCycle {
     }
 }
 
-private struct CycleSection: View {
-    let cycle: EatingCycle
-    let selected: Date
-    let onSelect: (Date) -> Void
-
-    /// The selected day's place in this month's cycle (today's when the selection is in an earlier month).
-    private var dayNumber: Int {
-        let cal = Calendar.current
-        return cal.isDate(selected, equalTo: .now, toGranularity: .month) ? cal.component(.day, from: selected) : cycle.day
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Group {
-                (Text("DAY \(dayNumber) ") + Text("OF \(cycle.length)").foregroundColor(.ncSecondary))
-                    .font(.mono(12, .semibold)).tracking(0.96).foregroundColor(.ncPrimary)
-                    .contentTransition(.numericText())
-                HStack(alignment: .bottom, spacing: 3) {
-                    ForEach(Array(cycle.ticks.enumerated()), id: \.offset) { _, tick in
-                        let isSelected = tick.date == selected
-                        Capsule().fill(isSelected ? Color.ncPrimary : tickColor(tick.mark))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: isSelected || tick.mark == .today ? 22 : 14)
-                            .opacity(isSelected || tick.mark != .today ? 1 : 0.5)
-                    }
-                }
-                .frame(height: 22)
-                .accessibilityElement()
-                .accessibilityLabel("Day \(dayNumber) of \(cycle.length)")
-            }
-            .padding(.horizontal, Space.margin)
-
-            DateWheel(days: cycle.history, selected: selected, onSelect: onSelect, describe: markDescription)
-                .padding(.top, 4)
-        }
-    }
-
-    private func tickColor(_ m: EatingCycle.Mark) -> Color {
-        switch m {
-        case .onTarget: .ncMoss
-        case .offTarget: .ncEmber
-        case .today: .ncPrimary
-        case .upcoming, .empty: .ncPrimary.opacity(0.16)
-        }
-    }
-    private func dotColor(_ m: EatingCycle.Mark) -> Color {
-        switch m {
-        case .onTarget: .ncMoss
-        case .offTarget: .ncEmber
-        case .today: .ncOnPrimary
-        case .upcoming, .empty: .ncPrimary.opacity(0.25)
-        }
-    }
-    private func markDescription(_ m: EatingCycle.Mark) -> String {
-        switch m {
+extension EatingCycle.Mark {
+    /// How VoiceOver describes a day on the wheel.
+    var spoken: String {
+        switch self {
         case .onTarget: "on target"
         case .offTarget: "under or over target"
         case .today: "today"
@@ -444,398 +250,65 @@ private struct CycleSection: View {
     }
 }
 
-// MARK: - Calories
-private struct CalorieRing: View {
-    let total: Double
-    let goal: Double
-    var isToday = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var progress: Double { goal > 0 ? total / goal : 0 }
-    private var reached: Bool { progress >= 1 }
-    /// "Left" for today; for a finished day, how far under or over the target it ended.
-    private var remaining: String {
-        let diff = Int((goal - total).rounded())
-        if isToday { return "\(max(0, diff).formatted()) KCAL LEFT" }
-        return diff >= 0 ? "\(diff.formatted()) KCAL UNDER" : "\((-diff).formatted()) KCAL OVER"
+// MARK: - Header
+
+/// "Sunday, Nov 1" over the big title (Today, Yesterday or the weekday), with round glass Share and Profile buttons.
+/// A "Today" capsule appears on past days. One fixed row, so nothing below jumps when it appears.
+private struct BentoHomeHeader<Card: View>: View {
+    let day: Date
+    /// Set when a past day is showing.
+    let onToday: (() -> Void)?
+    let onProfile: () -> Void
+    @ViewBuilder let shareCard: () -> Card
+
+    private var label: String { day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()) }
+    private var title: String {
+        let cal = Calendar.current
+        if cal.isDateInToday(day) { return "Today" }
+        if cal.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.wide))
     }
 
     var body: some View {
-        VStack(spacing: 18) {
-            ZStack {
-                Circle().strokeBorder(Color.ncPrimary.opacity(0.12), lineWidth: 14)
-                Circle()
-                    .inset(by: 7)
-                    .trim(from: 0, to: min(progress, 1))
-                    .stroke(Color.ncPrimary, style: StrokeStyle(lineWidth: 14, lineCap: .butt))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.smooth(duration: 0.6), value: progress)
-                // Target reached: the rune settles in behind the number. Decorative, so hidden from VoiceOver.
-                if reached {
-                    AlgizMark().fill(Color.ncPrimary.opacity(0.08))
-                        .frame(width: 104, height: 136)
-                        .transition(reduceMotion ? .opacity : .scale(scale: 0.6).combined(with: .opacity))
-                        .accessibilityHidden(true)
-                }
-                VStack(spacing: 6) {
-                    Text(Int(total).formatted()).font(.display(52)).tracking(-2.08).foregroundColor(.ncPrimary)
-                        .contentTransition(.numericText())
-                        .animation(.smooth, value: Int(total))
-                    Text("OF \(Int(goal).formatted()) KCAL").font(.mono(12)).tracking(1.92).foregroundColor(.ncSecondary)
-                }
-            }
-            .frame(width: 240, height: 240)
-            .animation(.spring(response: 0.6, dampingFraction: 0.75), value: reached)
-            .accessibilityElement(children: .combine)
-            .onChange(of: reached) { was, now in
-                // Celebrate crossing the line today, once per day; not on opening the app already past it.
-                guard isToday, !was, now else { return }
-                let key = "targetHitDay", day = Date.now.formatted(.iso8601.year().month().day())
-                guard UserDefaults.standard.string(forKey: key) != day else { return }
-                UserDefaults.standard.set(day, forKey: key)
-                Haptics.success()
-                ToastCenter.shared.show("Target hit", branded: true)
-            }
-
-            Text(remaining)
-                .font(.mono(13)).tracking(1.04).foregroundColor(.ncSecondary)
-                .contentTransition(.numericText())
-        }
-    }
-}
-
-private struct MacroGrid: View {
-    let items: [(String, Double, Double)]
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 0) {
-                ForEach(items, id: \.0) { label, cur, goal in
-                    let p = goal > 0 ? cur / goal : 0
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(label).font(.ui(size: 13, weight: .bold)).foregroundColor(.ncPrimary)
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(Int(cur.rounded()).formatted()).font(.ui(size: 26)).foregroundColor(.ncPrimary)
-                                .contentTransition(.numericText())
-                            Text("/\(Int(goal.rounded()).formatted()) G").font(.mono(11)).foregroundColor(.ncSecondary)
-                        }
-                        LineGauge(value: p, height: 4).padding(.top, 4)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.top, 16).padding(.bottom, 18)
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(.horizontal, 4)
-        }
-        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .padding(.horizontal, Space.margin)
-    }
-}
-
-// MARK: - Micronutrients and sunlight
-/// The day's vitamins and minerals (how many are met and the three lowest) beside minutes of sunlight against
-/// the goal. Side by side when they fit; stacked at large text sizes.
-private struct MicrosSunSection: View {
-    let micros: [NutrientInfo]
-    let sunMinutes: Double
-    let sunGoal: Double
-    /// nil on past days (the Data tab shows today).
-    let onMicros: (() -> Void)?
-    let onSun: () -> Void
-
-    private var met: Int { micros.filter(\.isMet).count }
-    private var lowest: [NutrientInfo] { Array(micros.sorted { $0.progress < $1.progress }.prefix(3)) }
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 0) {
-                microsBlock.frame(maxWidth: .infinity, alignment: .leading)
-                Rectangle().fill(Color.ncPrimary.opacity(0.14)).frame(width: 1).padding(.horizontal, 16)
-                sunBlock.frame(maxWidth: .infinity, alignment: .leading)
-            }
-            VStack(alignment: .leading, spacing: 24) {
-                microsBlock
-                sunBlock
-            }
-        }
-    }
-
-    private var microsBlock: some View {
-        Button { onMicros?() } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Micronutrients").monoLabel().lineLimit(1).fixedSize()
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(met)").font(.metric(26)).foregroundColor(.ncPrimary).contentTransition(.numericText())
-                    Text("/\(micros.count) MET").font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1).fixedSize()
-                }
-                ForEach(lowest) { n in
-                    let status = IntakeStatus(progress: n.progress)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(n.name).font(.ui(size: 12)).foregroundColor(.ncPrimary).lineLimit(1)
-                        LineGauge(value: n.progress, tint: status.bar, height: 3)
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(onMicros == nil)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Micronutrients: \(met) of \(micros.count) met. Lowest: \(lowest.map { "\($0.name) \($0.percentage)%" }.joined(separator: ", "))")
-        .accessibilityHint(onMicros == nil ? "" : "Opens Data")
-    }
-
-    private var sunBlock: some View {
-        Button(action: onSun) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Sunlight").monoLabel().lineLimit(1).fixedSize()
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(Int(sunMinutes))").font(.metric(26)).foregroundColor(.ncPrimary).contentTransition(.numericText())
-                    Text("/\(Int(sunGoal)) MIN").font(.mono(11)).foregroundColor(.ncSecondary).lineLimit(1).fixedSize()
-                }
-                LineGauge(value: sunGoal > 0 ? sunMinutes / sunGoal : 0, tint: sunMinutes >= sunGoal ? .ncMoss : .ncPrimary, height: 3)
-                Image(systemName: sunMinutes >= sunGoal ? "sun.max.fill" : "sun.max")
-                    .font(.system(size: 22, weight: .regular)).foregroundColor(.ncPrimary.opacity(0.85))
-                    .symbolEffect(.bounce, value: sunMinutes >= sunGoal)
-                    .padding(.top, 2)
-                    .accessibilityHidden(true)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Sunlight: \(Int(sunMinutes)) of \(Int(sunGoal)) minutes")
-        .accessibilityHint("Opens Sun")
-    }
-}
-
-// MARK: - Hydration
-/// Water for the day, from drinks and from food, against the goal. Water can only be added (pick an amount on the
-/// wheel, tap the centred one); it never goes down. Past days show the bar only.
-struct HydrationSection: View {
-    static let mlPerOunce = 29.5735
-
-    let drinksMl: Double
-    let foodMl: Double
-    let readOnly: Bool
-    let onAdd: (Double) -> Void
-
-    private let goalMl = 3500.0
-    private static let amounts: [Double] = [150, 250, 330, 500, 750, 1000]
-    @State private var amount = 250.0
-
-    private var totalMl: Double { drinksMl + foodMl }
-    private func litres(_ ml: Double) -> String { String(format: "%.1f", ml / 1000) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Hydration").monoLabel()
-                Spacer()
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(litres(totalMl)).font(.metric(28)).foregroundColor(.ncPrimary)
-                        .contentTransition(.numericText(value: totalMl))
-                    Text("/ \(litres(goalMl)) L").font(.mono(12)).foregroundColor(.ncSecondary)
-                }
-            }
-
-            // Drinks (solid) then food water (lighter) along one track; full width is the goal.
-            GeometryReader { geo in
-                let w = geo.size.width
-                let drinksW = min(1, drinksMl / goalMl) * w
-                let foodW = min(max(0, 1 - drinksMl / goalMl), foodMl / goalMl) * w
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.clear).glass(.clear, in: Capsule())
-                    HStack(spacing: 0) {
-                        Rectangle().fill(Color.ncPrimary).frame(width: drinksW)
-                        Rectangle().fill(Color.ncPrimary.opacity(0.45)).frame(width: foodW)
-                    }
-                    .clipShape(Capsule())
-                    .padding(3)
-                }
-            }
-            .frame(height: 16)
-            .accessibilityElement()
-            .accessibilityLabel("Hydration")
-            .accessibilityValue("\(litres(totalMl)) of \(litres(goalMl)) litres, \(litres(foodMl)) from food")
-
-            Text("DRINKS \(litres(drinksMl)) L · FOOD \(litres(foodMl)) L")
-                .font(.mono(11)).tracking(0.9).foregroundColor(.ncSecondary)
-                .contentTransition(.numericText())
-
-            if !readOnly {
-                ArcWheel(items: Self.amounts, selection: $amount, onTapSelected: { onAdd(amount) }) { ml, on in
-                    Text(on ? "+ \(label(ml))" : label(ml))
-                        .font(.mono(12, .semibold)).tracking(1.1)
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background {
-                            if on { Capsule().fill(Color.ncPrimary) } else { Capsule().fill(Color.clear).glass(.clear, in: Capsule()) }
-                        }
-                        .contentShape(Capsule())
-                        .animation(.smooth(duration: 0.25), value: on)
-                }
-                .accessibilityRepresentation {
-                    Button("Add \(label(amount)) water") { onAdd(amount) }
-                    Picker("Amount", selection: $amount) {
-                        ForEach(Self.amounts, id: \.self) { Text(label($0)).tag($0) }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func label(_ ml: Double) -> String { ml >= 1000 ? "1 L" : "\(Int(ml)) ML" }
-}
-
-// MARK: - Raw snapshot
-struct RawSnapshotSection: View {
-    let meals: [MealEntry]
-    let weekMeals: [MealEntry]
-    let onOpen: () -> Void
-    let onLogRaw: () -> Void
-
-    var body: some View {
-        let rating = DietRater.rate(meals: weekMeals, days: 7)
-        let budget = NutrientAnalyzer.liverBudget(weekMeals)
-        let fat = NutrientAnalyzer.fatCaloriePct(meals)
-        RawCard(title: "Raw & carnivore") {
-            VStack(alignment: .leading, spacing: 24) {
-                Button(action: onOpen) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(rating.tier.title).font(.serif(28)).foregroundColor(.ncPrimary)
-                            .multilineTextAlignment(.leading)
-                        Spacer()
-                        Image(systemName: "arrow.up.right").font(.ui(size: 14)).foregroundColor(.ncSecondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                SpectrumBar(position: rating.position, active: rating.tier != .insufficient)
-                StatStrip(items: [
-                    .init(label: "Fat share", value: fat.map { "\(Int($0))%" } ?? "—"),
-                    .init(label: "Vitamin A", value: "\(Int(budget.vitaminAPct * 100))%"),
-                    .init(label: "Raw", value: "\(Int(rating.rawPct))%"),
-                ])
-                Button(action: onLogRaw) { Label("Log raw", systemImage: "plus") }.buttonStyle(.vitalis)
-            }
-        }
-    }
-}
-
-// MARK: - Meals
-struct MealsSection: View {
-    let meals: [MealEntry]
-    /// Past days: no removing and no logging.
-    var readOnly = false
-    let onAdd: () -> Void
-    let onDelete: (MealEntry) -> Void
-    /// Removing a meal is confirmed first: it also deletes it from Apple Health sharing and friends' feeds.
-    @State private var pendingDelete: MealEntry?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // With nothing logged there's no list to title; the Log food button below says what to do.
-            if !meals.isEmpty {
-                Text("Meals · \(meals.count)").monoLabel()
-                    .padding(.horizontal, Space.margin)
-                    .frame(minHeight: 44, alignment: .bottom)
-            }
-
-            VStack(spacing: 0) {
-                if !meals.isEmpty {
-                    Rule()
-                    ForEach(meals.reversed()) { meal in
-                        if readOnly {
-                            MealRow(meal: meal, onDelete: nil)
-                        } else {
-                            MealRow(meal: meal) { pendingDelete = meal }
-                                .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
-                                .contextMenu {
-                                    Button(role: .destructive) { pendingDelete = meal } label: {
-                                        Label("Remove", systemImage: "trash")
-                                    }
-                                }
-                        }
-                    }
-                } else if readOnly {
-                    BrandEmptyState(message: "No meals logged this day")
-                }
-            }
-            .padding(.horizontal, Space.margin)
-
-            if !readOnly {
-                Button("Log food", action: onAdd)
-                    .buttonStyle(.whiteGlass)
-                    .padding(Space.margin)
-            }
-        }
-        .confirmationDialog(
-            "Remove \(pendingDelete.map { $0.foodName.components(separatedBy: ",").first ?? $0.foodName } ?? "meal")?",
-            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
-            titleVisibility: .visible,
-            presenting: pendingDelete
-        ) { meal in
-            Button("Remove", role: .destructive) { onDelete(meal) }
-            Button("Cancel", role: .cancel) {}
-        } message: { _ in
-            Text("It's removed from today's totals and from anything you've shared.")
-        }
-    }
-}
-
-/// Time · name + portion · kcal · a visible 44 pt remove target (no hidden swipe).
-struct MealRow: View {
-    let meal: MealEntry
-    /// nil on past days: the row is view-only.
-    let onDelete: (() -> Void)?
-
-    private var timeStr: String { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: meal.date) }
-    private var meta: String {
-        var parts = ["\(Int(meal.servingSize)) g"]
-        if !meal.source.isEmpty { parts.append(meal.source) }
-        if meal.riskScore > 0 { parts.append("risk \(Int(meal.riskScore))") }
-        return parts.joined(separator: " · ")
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Text(timeStr).font(.mono(12)).foregroundColor(.ncSecondary)
-                .frame(width: 44, alignment: .leading)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(meal.foodName.capitalized).font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(1)
-                Text(meta).font(.ui(size: 12)).foregroundColor(meal.riskScore >= 65 ? .ncEmber : .ncSecondary).lineLimit(1)
+        HStack(alignment: .bottom, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.bentoBody).foregroundColor(Mono.label).lineLimit(1)
+                Text(title).font(.bentoTitle).foregroundColor(Mono.text)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .contentTransition(.opacity)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            (Text("\(Int(meal.calories).formatted())") + Text(" KCAL").foregroundColor(.ncSecondary))
-                .font(.mono(13)).foregroundColor(.ncPrimary)
-            if let onDelete {
-                Button(action: onDelete) {
-                    Text("×").font(.ui(size: 22)).foregroundColor(.ncSecondary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            HStack(spacing: 10) {
+                if let onToday {
+                    Button("Today", action: onToday)
+                        .buttonStyle(BentoCapsuleButtonStyle(solid: false, height: 44))
+                        .fixedSize()
+                        .accessibilityHint("Shows today")
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(meal.foodName)")
-                .accessibilityHint("Asks before removing")
+                ShareCardButton(title: "Share day", round: true, card: shareCard)
+                Button(action: onProfile) { Image(systemName: "person") }
+                    .buttonStyle(.bentoRound)
+                    .accessibilityLabel("Profile")
             }
+            .fixedSize()
         }
         .frame(minHeight: 64)
-        .overlay(alignment: .bottom) { Hairline(opacity: 0.28) }
-        .accessibilityElement(children: .contain)
     }
 }
 
 // MARK: - Date wheel
 
-/// The last 30 days as pills on a dial, like the map's category wheel: scroll back through past days and the one
-/// that snaps to the centre is the day Home shows. Tapping a pill spins it there. Today sits at the right end.
+/// The last 30 days as pills on a drum: scroll back through past days and the one that snaps to the centre is the
+/// day Home shows. Tapping a pill spins it there. Today sits at the right end. Each pill's dot tells the day by shape:
+/// filled on target, a ring under or over, faint with nothing logged.
 private struct DateWheel: View {
     let days: [EatingCycle.Day]
     let selected: Date
     let onSelect: (Date) -> Void
-    let describe: (EatingCycle.Mark) -> String
     @State private var centered: Date?
 
     private let pillWidth: CGFloat = 50
@@ -860,7 +333,7 @@ private struct DateWheel: View {
             .scrollClipDisabled()
             .drumRimFade()
         }
-        .frame(height: 92)
+        .frame(height: 88)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .onAppear { centered = selected }
         .onChange(of: centered) { _, new in
@@ -879,38 +352,251 @@ private struct DateWheel: View {
             withAnimation(.smooth(duration: 0.45)) { centered = day.id }
         } label: {
             VStack(spacing: 6) {
-                Text(day.weekday).font(.mono(11, .semibold)).tracking(0.8).opacity(0.8)
+                Text(day.weekday.capitalized).font(.ui(size: 12, weight: .medium)).opacity(0.8)
                     .lineLimit(1).minimumScaleFactor(0.6)
-                Text("\(day.number)").font(.display(17))
+                Text("\(day.number)").font(.bentoNumber(18)).tracking(Font.bentoTracking(18))
                     .lineLimit(1).minimumScaleFactor(0.6)
-                Circle().fill(dotColor(day.mark, on: on)).frame(width: 6, height: 6)
+                markDot(day.mark, on: on).frame(width: 6, height: 6)
             }
-            .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
+            .foregroundColor(on ? Mono.onWhite : Mono.text)
             .frame(width: pillWidth)
             .padding(.top, 10).padding(.bottom, 9)
             .background {
-                if on {
-                    Capsule().fill(Color.ncPrimary)
-                } else {
-                    Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(Color.white.opacity(0.06)))
-                        .environment(\.colorScheme, .dark)
-                }
+                if on { Capsule().fill(Mono.text) } else { Capsule().fill(Color.clear).glass(.clear, in: Capsule()) }
             }
-            .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0 : 0.16), lineWidth: 1))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .animation(.smooth(duration: 0.3), value: on)
-        .accessibilityLabel("\(day.id.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(describe(day.mark))")
+        .accessibilityLabel("\(day.id.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(day.mark.spoken)")
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    private func dotColor(_ m: EatingCycle.Mark, on: Bool) -> Color {
+    @ViewBuilder private func markDot(_ m: EatingCycle.Mark, on: Bool) -> some View {
+        let ink = on ? Mono.onWhite : Mono.text
         switch m {
-        case .onTarget: .ncMoss
-        case .offTarget: .ncEmber
-        case .today: on ? .ncOnPrimary : .ncPrimary
-        case .upcoming, .empty: on ? .ncOnPrimary.opacity(0.3) : .ncPrimary.opacity(0.25)
+        case .onTarget, .today: Circle().fill(ink)
+        case .offTarget: Circle().strokeBorder(ink, lineWidth: 1.5)
+        case .upcoming, .empty: Circle().fill(ink.opacity(0.25))
         }
+    }
+}
+
+// MARK: - Calories
+
+/// The large tile: a 132 pt ring with the day's kcal inside, what's left (or how far under/over on a past day),
+/// and one row per macro with its bar.
+private struct CalorieTile: View {
+    let total: Double
+    let goal: Double
+    let isToday: Bool
+    let macros: [(String, Double, Double)]
+
+    private var progress: Double { goal > 0 ? total / goal : 0 }
+    private var reached: Bool { progress >= 1 }
+    private var remaining: (value: String, word: String) {
+        let diff = Int((goal - total).rounded())
+        if isToday { return (max(0, diff).formatted(), "left") }
+        return diff >= 0 ? (diff.formatted(), "under") : ((-diff).formatted(), "over")
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 18) {
+            ZStack {
+                Circle().stroke(Mono.track, lineWidth: 12)
+                Circle()
+                    .trim(from: 0, to: min(progress, 1))
+                    .stroke(Mono.text, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.smooth(duration: 0.6), value: progress)
+                VStack(spacing: 0) {
+                    Text(Int(total).formatted()).font(.bentoNumber(30)).tracking(Font.bentoTracking(30))
+                        .foregroundColor(Mono.text)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                        .contentTransition(.numericText())
+                        .animation(.smooth, value: Int(total))
+                    Text("kcal").font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label)
+                }
+                .padding(.horizontal, 18)
+            }
+            .frame(width: 132, height: 132)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Calories")
+            .accessibilityValue("\(Int(total)) of \(Int(goal)) kcal")
+
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text(remaining.value).font(.bentoNumber(22)).tracking(Font.bentoTracking(22))
+                            .contentTransition(.numericText())
+                        Text(remaining.word).font(.bentoBody).foregroundColor(Mono.label)
+                    }
+                    .foregroundColor(Mono.text)
+                    Text("of \(Int(goal).formatted()) kcal").font(.ui(size: 12)).foregroundColor(Mono.label)
+                }
+                .accessibilityElement(children: .combine)
+
+                ForEach(macros, id: \.0) { name, cur, target in
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(name).font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                            Spacer(minLength: 4)
+                            (Text("\(Int(cur.rounded()))").foregroundColor(Mono.text)
+                             + Text(" / \(Int(target.rounded())) g").foregroundColor(Mono.label))
+                                .font(.ui(size: 13, weight: .semibold)).monospacedDigit()
+                                .lineLimit(1).minimumScaleFactor(0.8)
+                        }
+                        BentoBar(value: target > 0 ? cur / target : 0)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .bentoTile(padding: 18)
+        .onChange(of: reached) { was, now in
+            // Celebrate crossing the line today, once per day; not on opening the app already past it.
+            guard isToday, !was, now else { return }
+            let key = "targetHitDay", day = Date.now.formatted(.iso8601.year().month().day())
+            guard UserDefaults.standard.string(forKey: key) != day else { return }
+            UserDefaults.standard.set(day, forKey: key)
+            Haptics.success()
+            ToastCenter.shared.show("Target hit", branded: true)
+        }
+    }
+}
+
+// MARK: - Water
+
+/// Adding water, from the Water tile: pick an amount on the wheel and add it. Water only goes up; food water counts
+/// toward the total automatically.
+struct WaterSheet: View {
+    static let mlPerOunce = 29.5735
+    static let goalMl = 3500.0
+    private static let amounts: [Double] = [150, 250, 330, 500, 750, 1000]
+
+    let drinksMl: Double
+    let foodMl: Double
+    let onAdd: (Double) -> Void
+    @State private var amount = 250.0
+    @Environment(\.dismiss) private var dismiss
+
+    private func litres(_ ml: Double) -> String { String(format: "%.1f", ml / 1000) }
+    private func label(_ ml: Double) -> String { ml >= 1000 ? "1 L" : "\(Int(ml)) ml" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Add water").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+                Text("\(litres(drinksMl + foodMl)) of \(litres(Self.goalMl)) L today · \(litres(foodMl)) L from food")
+                    .font(.bentoBody).foregroundColor(Mono.label)
+            }
+            ArcWheel(items: Self.amounts, selection: $amount, onTapSelected: add) { ml, on in
+                Text(label(ml))
+                    .font(.ui(size: 15, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .foregroundColor(on ? Mono.onWhite : Mono.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background {
+                        if on { Capsule().fill(Mono.text) } else { Capsule().fill(Color.clear).glass(.clear, in: Capsule()) }
+                    }
+                    .contentShape(Capsule())
+                    .animation(.smooth(duration: 0.25), value: on)
+            }
+            .accessibilityRepresentation {
+                Picker("Amount", selection: $amount) {
+                    ForEach(Self.amounts, id: \.self) { Text(label($0)).tag($0) }
+                }
+            }
+            Button("Add \(label(amount))", action: add).buttonStyle(.bentoPrimary)
+        }
+        .padding(20)
+        .presentationDetents([.height(320)])
+        .presentationBackground {
+            Mono.sheetInk.opacity(0.66).background(.thinMaterial).environment(\.colorScheme, .dark)
+        }
+        .presentationCornerRadius(Bento.radius)
+    }
+
+    private func add() {
+        onAdd(amount)
+        dismiss()
+    }
+}
+
+// MARK: - Meals
+
+/// The day's meals, newest first: meal (by time of day), food, kcal. Long-press to remove (confirmed first, since it
+/// also leaves Apple Health and friends' feeds). Past days are view-only.
+private struct MealsTile: View {
+    let meals: [MealEntry]
+    let readOnly: Bool
+    let onAdd: () -> Void
+    let onDelete: (MealEntry) -> Void
+    @State private var pendingDelete: MealEntry?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(meals.isEmpty ? "Meals" : "Meals · \(meals.count)").font(.bentoLabel).foregroundColor(Mono.label)
+                Spacer()
+                if !readOnly {
+                    Button(action: onAdd) { Label("Add", systemImage: "plus").padding(.horizontal, 4) }
+                        .buttonStyle(BentoCapsuleButtonStyle(solid: false, height: 36))
+                        .fixedSize()
+                        .accessibilityLabel("Log food")
+                }
+            }
+            .padding(.bottom, 4)
+
+            if meals.isEmpty {
+                Text(readOnly ? "Nothing logged this day" : "Nothing logged yet. Add a meal or scan one.")
+                    .font(.bentoBody).foregroundColor(Mono.label)
+                    .padding(.vertical, 14)
+            } else {
+                ForEach(Array(meals.reversed().enumerated()), id: \.element.id) { i, meal in
+                    row(meal)
+                        .overlay(alignment: .top) {
+                            if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
+                        }
+                        .contextMenu {
+                            if !readOnly {
+                                Button(role: .destructive) { pendingDelete = meal } label: { Label("Remove", systemImage: "trash") }
+                            }
+                        }
+                }
+            }
+        }
+        .bentoTile()
+        .confirmationDialog(
+            "Remove \(pendingDelete.map { $0.foodName.components(separatedBy: ",").first ?? $0.foodName } ?? "meal")?",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingDelete
+        ) { meal in
+            Button("Remove", role: .destructive) { onDelete(meal) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("It's removed from today's totals and from anything you've shared.")
+        }
+    }
+
+    private func row(_ meal: MealEntry) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(MealSlot.name(for: meal.date)).font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label)
+                Text(meal.foodName.components(separatedBy: ",").first?.capitalized ?? meal.foodName)
+                    .font(.bentoBody).foregroundColor(Mono.text).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(Int(meal.calories).formatted()).font(.ui(size: 17, weight: .semibold)).foregroundColor(Mono.text)
+                Text("kcal").font(.ui(size: 12)).foregroundColor(Mono.label)
+            }
+        }
+        .padding(.vertical, 11)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(readOnly ? "" : "Touch and hold to remove")
     }
 }

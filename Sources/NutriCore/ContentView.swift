@@ -57,7 +57,7 @@ struct ContentView: View {
 
             Group {
                 switch tab {
-                case .home: DashboardView(onSearch: { showSearch = true }, onOpenData: { select(.data) })
+                case .home: DashboardView(onSearch: { showSearch = true }, onOpenProfile: { select(.profile) })
                 case .map: PlacesMapView()
                 case .scan: CameraView()
                 case .data: MicronutrientsView()

@@ -108,6 +108,8 @@ struct DietTierCard: View {
 /// A "Share" button that renders the card to an image and opens the share sheet.
 struct ShareCardButton<Card: View>: View {
     var title = "Share"
+    /// A round glass icon button (bento header) instead of the text button.
+    var round = false
     @ViewBuilder let card: () -> Card
     @State private var image: UIImage?
 
@@ -118,12 +120,27 @@ struct ShareCardButton<Card: View>: View {
             image = renderer.uiImage
             Haptics.tap()
         } label: {
-            Label(title, systemImage: "square.and.arrow.up")
+            if round {
+                Image(systemName: "square.and.arrow.up").accessibilityLabel(title)
+            } else {
+                Label(title, systemImage: "square.and.arrow.up")
+            }
         }
-        .buttonStyle(TextButtonStyle(color: .ncPrimary))
+        .buttonStyle(ShareButtonStyle(round: round))
         .sheet(isPresented: Binding(get: { image != nil }, set: { if !$0 { image = nil } })) {
             if let image { ShareSheet(items: [image]).presentationDetents([.medium, .large]) }
         }
         .accessibilityHint("Shares an image of these stats")
+    }
+}
+
+private struct ShareButtonStyle: ButtonStyle {
+    let round: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        if round {
+            BentoRoundButtonStyle().makeBody(configuration: configuration)
+        } else {
+            TextButtonStyle(color: .ncPrimary).makeBody(configuration: configuration)
+        }
     }
 }

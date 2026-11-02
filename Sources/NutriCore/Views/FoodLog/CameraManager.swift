@@ -7,6 +7,7 @@ class CameraManager: NSObject, ObservableObject {
     @Published var isAuthorized = false
     @Published var scannedBarcode: String? = nil
     @Published var capturedPhotoData: Data? = nil
+    @Published private(set) var torchOn = false
     
     private let output = AVCaptureMetadataOutput()
     private let photoOutput = AVCapturePhotoOutput()
@@ -81,9 +82,27 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     func stopSession() {
+        torchOn = false
         sessionQueue.async {
             if self.session.isRunning {
                 self.session.stopRunning()
+            }
+        }
+    }
+
+    var hasTorch: Bool { videoDevice?.hasTorch ?? false }
+
+    /// The flash as a steady light, for scanning in the dark. It goes off with the session.
+    func setTorch(_ on: Bool) {
+        guard let device = videoDevice, device.hasTorch else { return }
+        torchOn = on
+        sessionQueue.async {
+            do {
+                try device.lockForConfiguration()
+                device.torchMode = on ? .on : .off
+                device.unlockForConfiguration()
+            } catch {
+                print("Failed to set torch: \(error.localizedDescription)")
             }
         }
     }

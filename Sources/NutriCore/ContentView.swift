@@ -59,7 +59,7 @@ struct ContentView: View {
                 switch tab {
                 case .home: DashboardView(onSearch: { showSearch = true }, onOpenProfile: { select(.profile) })
                 case .map: PlacesMapView()
-                case .scan: CameraView()
+                case .scan: CameraView(onClose: { select(.home) })
                 case .data: MicronutrientsView()
                 case .profile: ProfileView()
                 }

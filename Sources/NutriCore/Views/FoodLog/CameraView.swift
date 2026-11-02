@@ -1,7 +1,11 @@
 import SwiftUI
 import SwiftData
 
+/// Scan: the camera full screen, round glass controls along the top (close, Meal/Barcode, flash), white viewfinder
+/// corners, and a thick glass sheet when food is found. Monochrome.
 struct CameraView: View {
+    /// Close: leaves Scan for Home.
+    var onClose: () -> Void = {}
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var cameraManager = CameraManager()
@@ -21,7 +25,7 @@ struct CameraView: View {
 
     var body: some View {
         ZStack {
-            Color.ncBg.ignoresSafeArea()
+            Mono.base.ignoresSafeArea()
 
             if cameraManager.isAuthorized {
                 CameraPreviewView(cameraManager: cameraManager)
@@ -40,7 +44,7 @@ struct CameraView: View {
                     .allowsHitTesting(false)
                 // The tool's signature: a small ᛉ under the frame (outside what the camera reads), and a brief
                 // flash of it in the frame when something locks on.
-                AlgizMark().fill(Color.ncPrimary.opacity(0.55))
+                AlgizMark().fill(Mono.text.opacity(0.55))
                     .frame(width: 12, height: 15)
                     .offset(y: -25 + 125 + 22)
                     .allowsHitTesting(false)
@@ -52,9 +56,8 @@ struct CameraView: View {
             }
 
             VStack(spacing: 0) {
-                GlassSegmented(options: [("Barcode", "Barcode"), ("Image", "Food image")],
-                               selection: $selectedMode, height: 44)
-                    .padding(.horizontal, Space.margin)
+                topControls
+                    .padding(.horizontal, Bento.margin)
                     .padding(.top, 4)
                 Spacer()
                 bottomControls
@@ -71,6 +74,7 @@ struct CameraView: View {
             cameraManager.setBarcodeScanning(selectedMode == "Barcode")
         }
         .onDisappear { cameraManager.stopSession() }
+        .onChange(of: sheetShown) { _, shown in if shown && cameraManager.torchOn { cameraManager.setTorch(false) } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { cameraManager.checkPermissions() }
         }
@@ -95,18 +99,39 @@ struct CameraView: View {
 
     // MARK: - Pieces
 
+    private var topControls: some View {
+        HStack(spacing: 12) {
+            Button(action: onClose) { Image(systemName: "xmark") }
+                .buttonStyle(.bentoRound)
+                .accessibilityLabel("Close")
+            BentoSegmented(options: [("Image", "Meal"), ("Barcode", "Barcode")], selection: $selectedMode)
+                .frame(maxWidth: 220)
+                .frame(maxWidth: .infinity)
+            Button { cameraManager.setTorch(!cameraManager.torchOn) } label: {
+                Image(systemName: cameraManager.torchOn ? "bolt.fill" : "bolt.slash")
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.bentoRound)
+            .disabled(!cameraManager.isAuthorized || !cameraManager.hasTorch)
+            .opacity(cameraManager.isAuthorized && cameraManager.hasTorch ? 1 : 0.4)
+            .accessibilityLabel(cameraManager.torchOn ? "Flash on" : "Flash off")
+            .accessibilityHint("Turns the light on or off")
+        }
+    }
+
     private var permissionPrompt: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Camera access needed").monoLabel()
+            Text("Camera access needed").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
             Text("Allow camera access to scan barcodes and photograph meals.")
-                .font(.ui(size: 15)).foregroundColor(.ncPrimary)
+                .font(.bentoBody).foregroundColor(Mono.label)
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             }
-            .buttonStyle(.vitalis)
+            .buttonStyle(.bentoPrimary)
             .padding(.top, 6)
         }
-        .padding(.horizontal, Space.margin)
+        .bentoTile(padding: 20)
+        .padding(.horizontal, Bento.margin)
     }
 
     @ViewBuilder
@@ -132,11 +157,10 @@ struct CameraView: View {
             } else if let err = aiService.errorMessage {
                 ErrorCard(text: err, actionTitle: "Try again") { resetAI() }
             } else if cameraManager.isAuthorized {
-                Text("Place the whole plate in frame").font(.mono(12)).tracking(1.2).foregroundColor(.ncSoft)
-                    .textCase(.uppercase)
+                Text("Place the whole plate in frame").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
                 Button { cameraManager.capturePhoto() } label: {
-                    Circle().fill(Color.ncPrimary).padding(5)
-                        .overlay(Circle().strokeBorder(Color.ncPrimary, lineWidth: 3))
+                    Circle().fill(Mono.text).padding(5)
+                        .overlay(Circle().strokeBorder(Mono.text, lineWidth: 3))
                         .frame(width: 76, height: 76)
                 }
                 .buttonStyle(PressScaleStyle(scale: 0.94))
@@ -189,7 +213,7 @@ private extension BarcodeLookupService.State {
 
 // MARK: - Scan pieces
 
-/// 250 pt frame with four 30 pt corners; in barcode mode a Moss scan line runs across the middle.
+/// 250 pt frame with four white 30 pt corners; in barcode mode a white scan line runs across the middle.
 struct ViewfinderCorners: View {
     var showsScanLine = false
 
@@ -202,27 +226,26 @@ struct ViewfinderCorners: View {
                 p.move(to: .init(x: w - l, y: o)); p.addLine(to: .init(x: w - o, y: o)); p.addLine(to: .init(x: w - o, y: l))
                 p.move(to: .init(x: w - o, y: h - l)); p.addLine(to: .init(x: w - o, y: h - o)); p.addLine(to: .init(x: w - l, y: h - o))
                 p.move(to: .init(x: l, y: h - o)); p.addLine(to: .init(x: o, y: h - o)); p.addLine(to: .init(x: o, y: h - l))
-                ctx.stroke(p, with: .color(.ncPrimary), style: StrokeStyle(lineWidth: t, lineCap: .butt, lineJoin: .miter))
+                ctx.stroke(p, with: .color(Mono.text), style: StrokeStyle(lineWidth: t, lineCap: .round, lineJoin: .round))
             }
             if showsScanLine {
-                Rectangle().fill(Color.ncMoss).frame(height: 2).padding(.horizontal, 16)
+                Capsule().fill(Mono.text.opacity(0.7)).frame(height: 2).padding(.horizontal, 16)
             }
         }
         .frame(width: 250, height: 250)
     }
 }
 
-/// Clear-glass status message ("ALIGN BARCODE WITHIN FRAME", "ANALYZING IMAGE WITH AI…").
+/// Tinted-glass status message ("Align barcode within frame", "Analyzing image with AI…").
 struct StatusPill: View {
     let text: String
     var body: some View {
-        Text(text.uppercased())
-            .font(.mono(12, .semibold)).tracking(1.44)
-            .foregroundColor(.ncPrimary)
+        Text(text)
+            .font(.ui(size: 14, weight: .semibold))
+            .foregroundColor(Mono.text)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 20).padding(.vertical, 14)
-            .background(Rectangle().fill(.ultraThinMaterial).overlay(Color(red: 20 / 255, green: 22 / 255, blue: 20 / 255).opacity(0.5)))
-            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+            .padding(.horizontal, 20).padding(.vertical, 13)
+            .glass(.tinted, in: Capsule())
     }
 }
 
@@ -233,7 +256,9 @@ struct ErrorCard: View {
     var body: some View {
         VStack(spacing: 12) {
             StatusPill(text: text)
-            Button(actionTitle, action: onRescan).buttonStyle(.glass)
+            Button(actionTitle, action: onRescan)
+                .buttonStyle(BentoCapsuleButtonStyle(solid: false, height: 44))
+                .fixedSize()
         }
         .frame(maxWidth: 320)
     }
@@ -297,76 +322,89 @@ struct QuickLogCard: View {
 
     private var k: Double { servingSize / 100 }
 
+    private var kcal: Double { per100g.kcal * k }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5)
                 .frame(maxWidth: .infinity)
-                .padding(.top, -8)
+                .padding(.top, -6)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).monoLabel().lineLimit(1)
-                Text(foodName.capitalized).font(.ui(size: 20, weight: .bold)).foregroundColor(.ncPrimary).lineLimit(2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
+                Text(foodName.capitalized).font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text).lineLimit(2)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(Int(kcal).formatted()).font(.bentoNumber(34)).tracking(Font.bentoTracking(34))
+                        .contentTransition(.numericText())
+                    Text("kcal").font(.bentoBody).foregroundColor(Mono.label)
+                }
+                .foregroundColor(Mono.text)
+                .padding(.top, 2)
+                .accessibilityElement(children: .combine)
             }
 
-            HStack(spacing: 0) {
-                cell(Int(per100g.kcal * k).formatted(), "Kcal", first: true)
-                cell(NutrientRow.dec(per100g.protein * k), "Protein g")
-                cell(NutrientRow.dec(per100g.carbs * k), "Carbs g")
-                cell(NutrientRow.dec(per100g.fat * k), "Fat g")
+            HStack(spacing: 10) {
+                macro("Protein", per100g.protein * k, kcalPerGram: 4)
+                macro("Carbs", per100g.carbs * k, kcalPerGram: 4)
+                macro("Fat", per100g.fat * k, kcalPerGram: 9)
             }
-            .overlay(alignment: .top) { Rule() }
-            .overlay(alignment: .bottom) { Rule() }
 
             HStack {
-                Text("Serving").monoLabel()
+                Text("Serving").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
                 Spacer()
                 HStack(spacing: 4) {
-                    step("−", "Less") { servingSize = max(25, servingSize - 25) }
-                    Text("\(Int(servingSize)) G").font(.mono(16, .semibold)).foregroundColor(.ncPrimary)
+                    step("minus", "Less") { servingSize = max(25, servingSize - 25) }
+                    Text("\(Int(servingSize)) g").font(.ui(size: 16, weight: .semibold)).monospacedDigit()
+                        .foregroundColor(Mono.text)
                         .contentTransition(.numericText())
-                        .frame(minWidth: 84)
-                    step("+", "More") { servingSize = min(2000, servingSize + 25) }
+                        .frame(minWidth: 72)
+                    step("plus", "More") { servingSize = min(2000, servingSize + 25) }
                 }
                 .padding(4)
-                .background(Color.white.opacity(0.08))
-                .overlay(Rectangle().strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
+                .glass(.clear, in: Capsule())
                 .animation(.smooth, value: Int(servingSize))
             }
 
-            Button("Log food") {
-                Haptics.success()
-                onLog()
+            HStack(spacing: 10) {
+                Button("Retake", action: onCancel).buttonStyle(.bentoSecondary)
+                Button("Add to \(MealSlot.name())") {
+                    Haptics.success()
+                    onLog()
+                }
+                .buttonStyle(.bentoPrimary)
             }
-            .buttonStyle(.vitalis)
-
-            Button("Cancel", action: onCancel)
-                .buttonStyle(TextButtonStyle(height: 40))
-                .frame(maxWidth: .infinity)
-                .padding(.top, -6)
         }
-        .padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 18)
-        .glass(.thick)
+        .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 18)
+        .glass(.thick, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
-    private func cell(_ value: String, _ label: String, first: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.ui(size: 20)).foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
-                .contentTransition(.numericText())
-            Text(label.uppercased()).font(.mono(11)).tracking(1).foregroundColor(.ncSecondary).lineLimit(1)
+    /// A small tile: grams, the macro's name, and a bar for its share of this food's energy.
+    private func macro(_ name: String, _ grams: Double, kcalPerGram: Double) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(name).font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(NutrientRow.dec(grams)).font(.bentoNumber(22)).tracking(Font.bentoTracking(22))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                Text("g").font(.ui(size: 12)).foregroundColor(Mono.label)
+            }
+            .foregroundColor(Mono.text)
+            BentoBar(value: kcal > 0 ? grams * kcalPerGram / kcal : 0, height: 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 10)
-        .padding(.leading, first ? 0 : 12)
-        .overlay(alignment: .leading) { if !first { Rectangle().fill(Color.ncPrimary).frame(width: 2) } }
+        .padding(12)
+        .glass(.clear, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 
-    private func step(_ glyph: String, _ label: String, _ action: @escaping () -> Void) -> some View {
+    private func step(_ symbol: String, _ label: String, _ action: @escaping () -> Void) -> some View {
         Button {
             Haptics.selection()
             action()
         } label: {
-            Text(glyph).font(.ui(size: 22)).foregroundColor(.ncPrimary)
-                .frame(width: 44, height: 44)
+            Image(systemName: symbol).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                .frame(width: 40, height: 40)
                 .background(Circle().fill(Color.white.opacity(0.1)))
         }
         .buttonStyle(PressScaleStyle(scale: 0.92))
@@ -386,7 +424,7 @@ private struct RuneFlash: View {
     @State private var visible = false
 
     var body: some View {
-        AlgizMark().fill(Color.ncPrimary)
+        AlgizMark().fill(Mono.text)
             .frame(width: 76, height: 98)
             .scaleEffect(visible || reduceMotion ? 1 : 0.7)
             .opacity(visible ? 0.85 : 0)

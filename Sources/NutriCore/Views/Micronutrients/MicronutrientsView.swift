@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// The Data tab, Nutrients list view: every tracked nutrient against its daily target, for today or as a daily
-/// average over the last week. A header with a Today / Week switch, a row of datasets, a summary tile (diet score,
+/// average over the last week, on the app's shared photo backdrop. A header with a Today / Week switch, a row of datasets, a summary tile (diet score,
 /// a status bar, a legend and what needs attention), All / Low / Met filters, then one glass card per group
 /// (Macros, Vitamins, Minerals) with a row per nutrient. Low is under 50% of the target, Met is 90% or more
 /// (`NutrientInfo.isDeficient` / `isMet`); status always shows as a word, never colour alone.
@@ -91,7 +91,6 @@ struct MicronutrientsView: View {
             .animation(.smooth(duration: 0.25), value: dataset)
         }
         .glassLightFollowsScroll()
-        .background { DataBackdrop().ignoresSafeArea() }
     }
 
     // MARK: Header
@@ -167,39 +166,6 @@ private extension View {
     func dataGlass(radius: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return self.glassSheen(in: shape, strength: 0.8).glass(.tinted, in: shape)
-    }
-}
-
-// MARK: - Background
-
-/// Ink, soft gray light and two large gray orbs, so the glass has something to blur, with the line-art plants,
-/// sun and water drawn over it (already Paper at 16%, so not tinted here).
-private struct DataBackdrop: View {
-    var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            ZStack {
-                Color.ncBg
-                RadialGradient(colors: [Color(hex: "#8B8C88").opacity(0.20), .clear],
-                               center: UnitPoint(x: 0.15, y: 0.08), startRadius: 0, endRadius: w * 1.1)
-                RadialGradient(colors: [Color(hex: "#8B8C88").opacity(0.12), .clear],
-                               center: UnitPoint(x: 0.95, y: 0.8), startRadius: 0, endRadius: w)
-                orb(w * 0.85).position(x: w * 0.92, y: h * 0.2)
-                orb(w * 0.7).position(x: w * 0.02, y: h * 0.62)
-                Image("bg-data").resizable().scaledToFill()
-                    .frame(width: w, height: h).clipped()
-            }
-        }
-        .accessibilityHidden(true)
-    }
-
-    private func orb(_ size: CGFloat) -> some View {
-        Circle()
-            .fill(LinearGradient(colors: [Color(hex: "#8B8C88"), Color(hex: "#383936")],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing))
-            .frame(width: size, height: size)
-            // Soft edges, so the orbs read as light behind the glass rather than shapes cutting across it.
-            .blur(radius: 28)
     }
 }
 
@@ -342,6 +308,8 @@ private struct SummaryTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 16).padding(.horizontal, 20)
+        .lineArt(.sprig, placement: .init(alignment: .bottomTrailing, size: 150, offset: CGSize(width: 30, height: 40)),
+                 radius: 30)
         .dataGlass(radius: 30)
     }
 
@@ -389,6 +357,15 @@ private struct GroupCard: View {
     let rows: [NutrientInfo]
     let filter: MicronutrientsView.Filter
 
+    /// Each group gets its own drawing, tucked into the top-right corner.
+    private var art: LineArt {
+        switch group {
+        case .macros: .leaf
+        case .vitamins: .sun
+        case .minerals: .water
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
@@ -413,6 +390,8 @@ private struct GroupCard: View {
             }
         }
         .padding(.top, 14).padding(.horizontal, 18).padding(.bottom, 6)
+        .lineArt(art, placement: .init(alignment: .topTrailing, size: 150, offset: CGSize(width: 36, height: -30)),
+                 radius: 28)
         .dataGlass(radius: 28)
     }
 

@@ -100,7 +100,8 @@ struct DashboardView: View {
                         Button { showWater = true } label: {
                             BentoTile(title: "Water", value: String(format: "%.1f", (drinksMl + foodWaterMl) / 1000),
                                       detail: "of \(String(format: "%.1f", WaterSheet.goalMl / 1000)) L",
-                                      progress: (drinksMl + foodWaterMl) / WaterSheet.goalMl, symbol: "drop")
+                                      progress: (drinksMl + foodWaterMl) / WaterSheet.goalMl, symbol: "drop",
+                                      art: .water, artPlacement: .band)
                                 // The add cue, top right; the whole tile is the button.
                                 .overlay(alignment: .topTrailing) {
                                     if isToday {
@@ -119,7 +120,7 @@ struct DashboardView: View {
                     } right: {
                         Button { pushed = .sun } label: {
                             BentoTile(title: "Sun", value: "\(Int(daySunMinutes))", detail: "of \(sunGoal) min",
-                                      progress: sunGoal > 0 ? daySunMinutes / Double(sunGoal) : 0, symbol: "sun.max")
+                                      progress: sunGoal > 0 ? daySunMinutes / Double(sunGoal) : 0, symbol: "sun.max", art: .sun)
                         }
                         .buttonStyle(PressScaleStyle())
                         .accessibilityHint("Opens Sun")

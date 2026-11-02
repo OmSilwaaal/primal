@@ -62,11 +62,45 @@ extension Font {
 extension View {
     /// A bento tile: content padded inside see-through glass with 28 pt corners, so the photo shows through, and the
     /// moving light (coloured from the photo) on its rim. Solid under Reduce Transparency / Increase Contrast.
-    func bentoTile(padding: CGFloat = 16) -> some View {
+    func bentoTile(padding: CGFloat = 16, art: LineArt? = nil, artPlacement: LineArt.Placement = .corner) -> some View {
         self
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
+            .lineArt(art, placement: artPlacement)
             .liquidGlassPanel(in: Bento.shape)
+    }
+
+    /// Faint line art inside a tile, behind its content, anchored to an edge and cropped by the tile's corners.
+    @ViewBuilder func lineArt(_ art: LineArt?, placement: LineArt.Placement = .corner,
+                              radius: CGFloat = Bento.radius) -> some View {
+        if let art {
+            self
+                .background(alignment: placement.alignment) {
+                    Image(art.rawValue).resizable().scaledToFit()
+                        .frame(width: placement.size, height: placement.size)
+                        .opacity(0.2)
+                        .offset(placement.offset)
+                        .accessibilityHidden(true)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        } else {
+            self
+        }
+    }
+}
+
+/// The app's line drawings (Paper strokes), used faintly inside tiles: a little of the outdoors in each one.
+enum LineArt: String {
+    case leaf = "lines-leaf", sprig = "lines-sprig", sun = "lines-sun", water = "lines-water"
+
+    struct Placement {
+        var alignment: Alignment
+        var size: CGFloat
+        var offset: CGSize
+        /// Bottom-right, partly off the tile (the sun rising out of the corner).
+        static let corner = Placement(alignment: .bottomTrailing, size: 140, offset: CGSize(width: 34, height: 44))
+        /// Across the right side, behind the number (water running through the tile).
+        static let band = Placement(alignment: .trailing, size: 160, offset: CGSize(width: 44, height: 14))
     }
 }
 
@@ -141,6 +175,8 @@ struct BentoTile: View {
     let progress: Double
     var status: BentoStatus? = nil
     var symbol: String? = nil
+    var art: LineArt? = nil
+    var artPlacement: LineArt.Placement = .corner
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -165,7 +201,7 @@ struct BentoTile: View {
 
             BentoBar(value: progress)
         }
-        .bentoTile()
+        .bentoTile(art: art, artPlacement: artPlacement)
         .accessibilityElement(children: .combine)
         .accessibilityValue(status.map { $0.title } ?? "")
     }

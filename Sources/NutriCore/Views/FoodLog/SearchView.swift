@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Search sheet over Home (swipe down or Cancel to close): a glass search field, USDA results per 100 g,
-/// then the quick-log card.
+/// Add food, a sheet over Home (swipe down or the close button): a glass capsule search field, then matching foods
+/// in one bento tile (kcal per 100 g), then the quick-log sheet.
 struct SearchView: View {
     var onClose: () -> Void = {}
 
@@ -18,79 +18,93 @@ struct SearchView: View {
         ZStack {
             AppBackdrop()
 
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 10) {
-                    Button("Cancel", action: close).buttonStyle(GlassButtonStyle(height: 48))
-
-                    HStack(spacing: 6) {
-                        TextField("", text: $query)
-                            .font(.ui(size: 16)).foregroundColor(.ncPrimary)
-                            .focused($isSearchFocused)
-                            .submitLabel(.search)
-                            .autocorrectionDisabled()
-                            .placeholder(when: query.isEmpty) {
-                                Text("Search USDA foods").font(.ui(size: 16)).foregroundColor(.ncSecondary)
-                            }
-                            .onChange(of: query) { _, newValue in usdaService.search(newValue) }
-                        if !query.isEmpty {
-                            Button { query = ""; usdaService.clearResults() } label: {
-                                Text("CLEAR").font(.mono(11, .semibold)).foregroundColor(.ncPrimary)
-                                    .padding(.horizontal, 12).frame(minHeight: 44)
-                                    .background(Color.white.opacity(0.12))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.leading, 18).padding(.trailing, 6)
-                    .frame(minHeight: 48)
-                    .glass(.clear)
+            VStack(alignment: .leading, spacing: Bento.gap) {
+                HStack(alignment: .center) {
+                    Text("Add food").font(.bentoTitle).foregroundColor(Mono.text)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    Button(action: close) { Image(systemName: "xmark") }
+                        .buttonStyle(.bentoRound)
+                        .accessibilityLabel("Close")
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 14)
+                .padding(.top, 16)
 
-                Text(usdaService.isLoading ? "Searching USDA…" : "Results · values per 100 g")
-                    .monoLabel()
-                    .padding(.horizontal, Space.margin)
-                    .padding(.bottom, 8)
+                searchField
 
                 ScrollView(showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        Rule()
-                        if let error = usdaService.errorMessage {
-                            Text(error).font(.ui(size: 15)).foregroundColor(.ncEmber)
-                                .padding(.vertical, 28)
-                        } else if query.isEmpty {
-                            Text("Search the USDA FoodData Central database, including organ cuts.")
-                                .font(.ui(size: 15)).foregroundColor(.ncSecondary)
-                                .padding(.vertical, 28)
-                        } else if usdaService.results.isEmpty && !usdaService.isLoading {
-                            Text("No results found").monoLabel(12)
-                                .padding(.vertical, 40)
-                        } else {
-                            ForEach(usdaService.results) { food in
-                                SearchResultRow(food: food) {
-                                    isSearchFocused = false
-                                    servingSize = food.defaultServingGrams
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { selectedFood = food }
-                                }
-                            }
-                        }
+                    VStack(alignment: .leading, spacing: Bento.gap) {
+                        results
                     }
-                    .padding(.horizontal, Space.margin)
                     .padding(.bottom, 120)
                 }
                 .scrollDismissesKeyboard(.immediately)
             }
+            .padding(.horizontal, Bento.margin)
 
             if let food = selectedFood {
-                QuickLogSheet(title: "Selected food · USDA", foodName: food.description, per100g: .init(food),
+                QuickLogSheet(title: food.brandOwner ?? "Per serving", foodName: food.description, per100g: .init(food),
                               servingSize: $servingSize,
                               onLog: { log(food) },
                               onCancel: { withAnimation(.easeOut(duration: 0.2)) { selectedFood = nil } })
             }
         }
         .onAppear { isSearchFocused = true }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").font(.ui(size: 16, weight: .semibold)).foregroundColor(Mono.label)
+                .accessibilityHidden(true)
+            TextField("", text: $query)
+                .font(.ui(size: 16)).foregroundColor(Mono.text)
+                .focused($isSearchFocused)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .placeholder(when: query.isEmpty) {
+                    Text("Search foods").font(.ui(size: 16)).foregroundColor(Mono.label)
+                }
+                .accessibilityLabel("Search foods")
+                .onChange(of: query) { _, newValue in usdaService.search(newValue) }
+            if usdaService.isLoading {
+                ProgressView().tint(Mono.text)
+            } else if !query.isEmpty {
+                Button { query = ""; usdaService.clearResults() } label: {
+                    Image(systemName: "xmark.circle.fill").font(.ui(size: 18)).foregroundColor(Mono.label)
+                        .frame(width: 36, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.leading, 18).padding(.trailing, 8)
+        .frame(minHeight: 52)
+        .glass(.clear, in: Capsule())
+    }
+
+    @ViewBuilder private var results: some View {
+        if let error = usdaService.errorMessage {
+            Text(error).font(.bentoBody).foregroundColor(Mono.label)
+                .bentoTile()
+        } else if !query.isEmpty && usdaService.results.isEmpty && !usdaService.isLoading {
+            Text("No foods match \u{201C}\(query)\u{201D}.").font(.bentoBody).foregroundColor(Mono.label)
+                .bentoTile()
+        } else if !usdaService.results.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Per 100 g").font(.bentoLabel).foregroundColor(Mono.label)
+                    .padding(.bottom, 4)
+                ForEach(Array(usdaService.results.enumerated()), id: \.element.id) { i, food in
+                    SearchResultRow(food: food) {
+                        isSearchFocused = false
+                        servingSize = food.defaultServingGrams
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { selectedFood = food }
+                    }
+                    .overlay(alignment: .top) {
+                        if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
+                    }
+                }
+            }
+            .bentoTile()
+        }
     }
 
     private func log(_ food: FoodSearchResult) {
@@ -110,6 +124,7 @@ struct SearchView: View {
 }
 
 // MARK: - Search Result Row
+/// Food name, brand (when there is one), kcal per 100 g.
 private struct SearchResultRow: View {
     let food: FoodSearchResult
     let onTap: () -> Void
@@ -117,23 +132,27 @@ private struct SearchResultRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(food.description.capitalized)
-                        .font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                        .font(.bentoBody).foregroundColor(Mono.text)
                         .multilineTextAlignment(.leading).lineLimit(2)
-                    Text("\(food.brandOwner ?? food.dataType ?? "USDA") · per 100 g")
-                        .font(.ui(size: 12)).foregroundColor(.ncSecondary).lineLimit(1)
+                    if let brand = food.brandOwner, !brand.isEmpty {
+                        Text(brand.capitalized).font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
+                    }
                 }
                 Spacer(minLength: 8)
-                Text("\(Int(food.caloriesPer100g)) kcal").font(.mono(13)).foregroundColor(.ncPrimary)
-                    .fixedSize()
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(Int(food.caloriesPer100g).formatted()).font(.ui(size: 17, weight: .semibold)).foregroundColor(Mono.text)
+                    Text("kcal").font(.ui(size: 12)).foregroundColor(Mono.label)
+                }
+                .fixedSize()
             }
-            .padding(.vertical, 10)
-            .frame(minHeight: 64)
-            .overlay(alignment: .bottom) { Hairline(opacity: 0.28) }
+            .padding(.vertical, 11)
+            .frame(minHeight: 56)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 }
 

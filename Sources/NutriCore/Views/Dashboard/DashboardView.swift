@@ -101,6 +101,17 @@ struct DashboardView: View {
                             BentoTile(title: "Water", value: String(format: "%.1f", (drinksMl + foodWaterMl) / 1000),
                                       detail: "of \(String(format: "%.1f", WaterSheet.goalMl / 1000)) L",
                                       progress: (drinksMl + foodWaterMl) / WaterSheet.goalMl, symbol: "drop")
+                                // The add cue, top right; the whole tile is the button.
+                                .overlay(alignment: .topTrailing) {
+                                    if isToday {
+                                        Image(systemName: "plus")
+                                            .font(.ui(size: 13, weight: .bold)).foregroundColor(Mono.text)
+                                            .frame(width: 28, height: 28)
+                                            .glass(.clear, in: Circle())
+                                            .padding(10)
+                                            .accessibilityHidden(true)
+                                    }
+                                }
                         }
                         .buttonStyle(PressScaleStyle())
                         .disabled(!isToday)
@@ -384,7 +395,7 @@ private struct DateWheel: View {
 
 // MARK: - Calories
 
-/// The large tile: a 132 pt ring with the day's kcal inside, what's left (or how far under/over on a past day),
+/// The large tile: a 152 pt ring (progress arc only, no track) with the day's kcal inside, what's left (or how far under/over on a past day),
 /// and one row per macro with its bar.
 private struct CalorieTile: View {
     let total: Double
@@ -403,14 +414,13 @@ private struct CalorieTile: View {
     var body: some View {
         HStack(alignment: .center, spacing: 18) {
             ZStack {
-                Circle().stroke(Mono.track, lineWidth: 12)
                 Circle()
                     .trim(from: 0, to: min(progress, 1))
                     .stroke(Mono.text, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.smooth(duration: 0.6), value: progress)
                 VStack(spacing: 0) {
-                    Text(Int(total).formatted()).font(.bentoNumber(30)).tracking(Font.bentoTracking(30))
+                    Text(Int(total).formatted()).font(.bentoNumber(34)).tracking(Font.bentoTracking(34))
                         .foregroundColor(Mono.text)
                         .lineLimit(1).minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
@@ -419,7 +429,8 @@ private struct CalorieTile: View {
                 }
                 .padding(.horizontal, 18)
             }
-            .frame(width: 132, height: 132)
+            .padding(6)
+            .frame(width: 152, height: 152)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Calories")
             .accessibilityValue("\(Int(total)) of \(Int(goal)) kcal")

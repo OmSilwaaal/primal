@@ -2,17 +2,13 @@ import SwiftUI
 import SwiftData
 
 /// The Data tab, Nutrients grouped view, on the app's shared photo backdrop. A title with a Today / Week switch,
-/// a row of datasets, then bento tiles: what's low (lowest first), the met / on track / low counts, and one card
+/// then bento tiles: what's low (lowest first), the met / on track / low counts, and one card
 /// per group (Macros full width; Vitamins and Minerals side by side) with a small vial per nutrient filled to its
 /// share of the target. Tapping any tile grows it into a full page with every nutrient's amount, bar and status.
 /// Low is under 50% of the target, Met is 90% or more (`NutrientInfo.isDeficient` / `isMet`); status always shows
 /// as a word somewhere on screen and to VoiceOver, never colour alone.
 struct MicronutrientsView: View {
     enum Range: Hashable { case today, week }
-    enum Dataset: String, CaseIterable, Identifiable {
-        case nutrients = "Nutrients", biomarkers = "Biomarkers", diet = "Diet", sun = "Sun", timing = "Timing"
-        var id: Self { self }
-    }
     /// A tile that can grow into its full page.
     enum Panel: Hashable {
         case low, status, group(NutrientGroup)
@@ -21,7 +17,6 @@ struct MicronutrientsView: View {
     @Query private var meals: [MealEntry]
     @Query private var profiles: [UserProfile]
     @State private var range: Range = .today
-    @State private var dataset: Dataset = .nutrients
     @State private var open: Panel?
     @Namespace private var hero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -61,36 +56,32 @@ struct MicronutrientsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 12) {
                     header.padding(.top, 8)
-                    datasetChips
 
-                    if dataset == .nutrients {
+                    Group {
                         pair {
                             tile(.low, radius: 30) { LowTile(nutrients: all, range: range) }
                         } right: {
                             tile(.status, radius: 30) { StatusTile(nutrients: all) }
                         }
-                        tile(.group(.macros)) { GroupTile(group: .macros, rows: all.filter { $0.group == .macros }) }
+                        tile(.group(.macros)) { GroupTile(group: .macros, rows: all.filter { $0.group == .macros }, hasMeals: !rangeMeals.isEmpty) }
                         pair {
                             tile(.group(.vitamins)) {
-                                GroupTile(group: .vitamins, rows: all.filter { $0.group == .vitamins })
+                                GroupTile(group: .vitamins, rows: all.filter { $0.group == .vitamins }, hasMeals: !rangeMeals.isEmpty)
                             }
                         } right: {
                             tile(.group(.minerals)) {
-                                GroupTile(group: .minerals, rows: all.filter { $0.group == .minerals })
+                                GroupTile(group: .minerals, rows: all.filter { $0.group == .minerals }, hasMeals: !rangeMeals.isEmpty)
                             }
                         }
                         Text("Daily targets follow NIH dietary reference intakes for your age and sex."
                              + (range == .week ? " Week shows the daily average over days you logged." : ""))
                             .font(.ui(size: 12)).lineSpacing(3).foregroundColor(Color.ncPrimary.opacity(0.6))
                             .padding(.top, 4).padding(.horizontal, 4)
-                    } else {
-                        comingSoon
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 120)
                 .animation(.smooth(duration: 0.35), value: range)
-                .animation(.smooth(duration: 0.3), value: dataset)
             }
             .glassLightFollowsScroll()
             .scrollDisabled(open != nil)
@@ -166,40 +157,6 @@ struct MicronutrientsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
-
-    // MARK: Chips
-
-    /// Datasets, scrolling sideways out to the screen edges so it reads as a row that continues.
-    private var datasetChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Dataset.allCases) { set in
-                    DataChip(selected: dataset == set) {
-                        Text(set.rawValue)
-                    } action: {
-                        dataset = set
-                    }
-                }
-            }
-        }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
-        .padding(.horizontal, -16)
-    }
-
-    /// The other datasets aren't on this tab yet.
-    private var comingSoon: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(dataset.rawValue).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                .foregroundColor(.ncPrimary)
-            Text("\(dataset.rawValue) isn't shown here yet. Nutrients has today's full breakdown.")
-                .font(.ui(size: 15)).foregroundColor(Color.ncPrimary.opacity(0.78))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 16).padding(.horizontal, 20)
-        .glassSheen(in: RoundedRectangle(cornerRadius: 30, style: .continuous), strength: 0.8)
-        .glass(.tinted, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-    }
 }
 
 // MARK: - Status
@@ -227,6 +184,38 @@ private enum Status {
 private extension NutrientInfo {
     /// Share of the target, uncapped (can pass 100%).
     var share: Double { goal > 0 ? current / goal : 0 }
+
+    /// The label under a vial: the macro's name, or the vitamin letter / mineral symbol.
+    var short: String {
+        switch id {
+        case "cal": "Kcal"
+        case "pro": "Protein"
+        case "carb": "Carbs"
+        case "fat": "Fat"
+        case "fib": "Fiber"
+        case "va": "A"
+        case "vc": "C"
+        case "vd": "D"
+        case "ve": "E"
+        case "vk": "K"
+        case "b1": "B1"
+        case "b2": "B2"
+        case "b3": "B3"
+        case "b6": "B6"
+        case "fol": "B9"
+        case "b12": "B12"
+        case "ca": "Ca"
+        case "fe": "Fe"
+        case "mg": "Mg"
+        case "ph": "P"
+        case "k": "K"
+        case "zn": "Zn"
+        case "se": "Se"
+        case "cu": "Cu"
+        case "mn": "Mn"
+        default: String(name.prefix(3))
+        }
+    }
 }
 
 /// Status counts for a set of nutrients.
@@ -322,6 +311,7 @@ private struct StatusTile: View {
 private struct GroupTile: View {
     let group: NutrientGroup
     let rows: [NutrientInfo]
+    let hasMeals: Bool
 
     private var large: Bool { group == .macros }
 
@@ -338,33 +328,70 @@ private struct GroupTile: View {
             }
 
             if large {
-                HStack(spacing: 10) {
-                    ForEach(rows) { Vial(n: $0, radius: 14).frame(width: 36, height: 58) }
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(rows) { n in
+                        VStack(spacing: 6) {
+                            Vial(n: n, radius: 14).frame(width: 36, height: 58)
+                            Text(n.short).font(.mono(9, .semibold)).tracking(0.5).textCase(.uppercase)
+                                .foregroundColor(Color.ncPrimary.opacity(0.78))
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                        .frame(width: 48)
+                    }
                 }
             } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 14, maximum: 24), spacing: 6), count: 5),
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 14, maximum: 26), spacing: 6), count: 5),
                           alignment: .leading, spacing: 8) {
-                    ForEach(rows) { Vial(n: $0, radius: 9).aspectRatio(22 / 34, contentMode: .fit) }
+                    ForEach(rows) { n in
+                        VStack(spacing: 4) {
+                            Vial(n: n, radius: 9).aspectRatio(22 / 34, contentMode: .fit)
+                            Text(n.short).font(.mono(9, .semibold))
+                                .foregroundColor(Color.ncPrimary.opacity(0.78))
+                                .lineLimit(1).minimumScaleFactor(0.6)
+                        }
+                    }
                 }
             }
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 10) {
-                // Words when they fit; dots and numbers in the narrow cards (VoiceOver always gets the words).
-                ViewThatFits(in: .horizontal) {
-                    legend(c, words: true)
-                    legend(c, words: false)
+            // Words when they fit; then dots and numbers; then without the item count, so the narrow cards never
+            // overflow (VoiceOver always gets the words).
+            Group {
+                if hasMeals {
+                    ViewThatFits(in: .horizontal) {
+                        footer { legend(c, words: true) }
+                        footer { legend(c, words: false) }
+                        legend(c, words: false).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        footer { emptyNote }
+                        emptyNote.frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
-                Spacer(minLength: 4)
-                Text("\(rows.count) items").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                    .foregroundColor(Color.ncPrimary.opacity(0.78)).fixedSize()
             }
         }
         .padding(18)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(group.rawValue.capitalized)
         .accessibilityValue("\(rows.count) items, \(c.spoken)")
+    }
+
+    private var emptyNote: some View {
+        Text("Nothing logged yet").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+            .foregroundColor(Color.ncPrimary.opacity(0.6))
+            .lineLimit(1).fixedSize()
+    }
+
+    /// A legend (or note) with the item count on the right.
+    private func footer<L: View>(@ViewBuilder _ leading: () -> L) -> some View {
+        HStack(spacing: 10) {
+            leading()
+            Spacer(minLength: 4)
+            Text("\(rows.count) items").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                .foregroundColor(Color.ncPrimary.opacity(0.78)).fixedSize()
+        }
     }
 
     private func legend(_ c: Counts, words: Bool) -> some View {
@@ -614,36 +641,6 @@ private struct RangeSwitch: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
-    }
-}
-
-/// Mono caps capsule. Unselected: white 8% with a white 16% hairline; selected: Paper with dark text. The visible
-/// capsule is 34 pt tall inside a 44 pt tap target.
-private struct DataChip<Label: View>: View {
-    let selected: Bool
-    @ViewBuilder let label: () -> Label
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            Haptics.selection()
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { action() }
-        } label: {
-            label()
-                .font(.mono(11, .medium)).tracking(0.88).textCase(.uppercase)
-                .foregroundColor(selected ? .ncOnPrimary : .ncPrimary)
-                .lineLimit(1)
-                .padding(.horizontal, 16)
-                .frame(minHeight: 34)
-                .background {
-                    Capsule().fill(selected ? Color.ncPrimary : Color.white.opacity(0.08))
-                        .overlay(Capsule().strokeBorder(Color.white.opacity(selected ? 0 : 0.16), lineWidth: 1))
-                }
-                .padding(.vertical, 5)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(PressScaleStyle(scale: 0.96))
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

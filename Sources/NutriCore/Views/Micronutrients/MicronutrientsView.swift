@@ -3,8 +3,8 @@ import SwiftData
 
 /// The Data tab, Nutrients grouped view, on the app's shared photo backdrop. A title with a Today / Week switch,
 /// then bento tiles: what's low (lowest first), the met / on track / low counts, and one card
-/// per group (Macros full width; Vitamins and Minerals side by side) with a small vial per nutrient filled to its
-/// share of the target. Tapping any tile grows it into a full page with every nutrient's amount, bar and status.
+/// per group (Macros, Vitamins, Minerals) as a bar chart: a rounded bar per nutrient, as tall as its share of the
+/// target. Tapping any tile grows it into a full page with every nutrient's amount, bar and status.
 /// Low is under 50% of the target, Met is 90% or more (`NutrientInfo.isDeficient` / `isMet`); status always shows
 /// as a word somewhere on screen and to VoiceOver, never colour alone.
 struct MicronutrientsView: View {
@@ -64,14 +64,11 @@ struct MicronutrientsView: View {
                             tile(.status, radius: 30) { StatusTile(nutrients: all) }
                         }
                         tile(.group(.macros)) { GroupTile(group: .macros, rows: all.filter { $0.group == .macros }, hasMeals: !rangeMeals.isEmpty) }
-                        pair {
-                            tile(.group(.vitamins)) {
-                                GroupTile(group: .vitamins, rows: all.filter { $0.group == .vitamins }, hasMeals: !rangeMeals.isEmpty)
-                            }
-                        } right: {
-                            tile(.group(.minerals)) {
-                                GroupTile(group: .minerals, rows: all.filter { $0.group == .minerals }, hasMeals: !rangeMeals.isEmpty)
-                            }
+                        tile(.group(.vitamins)) {
+                            GroupTile(group: .vitamins, rows: all.filter { $0.group == .vitamins }, hasMeals: !rangeMeals.isEmpty)
+                        }
+                        tile(.group(.minerals)) {
+                            GroupTile(group: .minerals, rows: all.filter { $0.group == .minerals }, hasMeals: !rangeMeals.isEmpty)
                         }
                         Text("Daily targets follow NIH dietary reference intakes for your age and sex."
                              + (range == .week ? " Week shows the daily average over days you logged." : ""))
@@ -306,8 +303,8 @@ private struct StatusTile: View {
 
 // MARK: - Group tile
 
-/// A group's vials (one per nutrient), its counts and size. Macros gets large vials in a row; Vitamins and
-/// Minerals get small ones, five to a row.
+/// A group as a bar chart (one rounded bar per nutrient, labelled underneath), its counts and size. Macros gets
+/// wide bars; Vitamins and Minerals narrower ones across the full width.
 private struct GroupTile: View {
     let group: NutrientGroup
     let rows: [NutrientInfo]
@@ -327,30 +324,19 @@ private struct GroupTile: View {
                     .accessibilityHidden(true)
             }
 
-            if large {
-                HStack(alignment: .top, spacing: 10) {
-                    ForEach(rows) { n in
-                        VStack(spacing: 6) {
-                            Vial(n: n, radius: 14).frame(width: 36, height: 58)
-                            Text(n.short).font(.mono(9, .semibold)).tracking(0.5).textCase(.uppercase)
-                                .foregroundColor(Color.ncPrimary.opacity(0.78))
-                                .lineLimit(1).minimumScaleFactor(0.7)
-                        }
-                        .frame(width: 48)
+            // One rounded bar per nutrient, bottom-aligned, as tall as its share of the target.
+            HStack(alignment: .bottom, spacing: large ? 12 : 6) {
+                ForEach(rows) { n in
+                    VStack(spacing: 8) {
+                        NutrientBar(n: n, maxWidth: large ? 46 : 26)
+                            .frame(height: large ? 96 : 84)
+                        Text(n.short).font(.mono(large ? 10 : 9, .semibold)).tracking(0.5).textCase(.uppercase)
+                            .foregroundColor(Color.ncPrimary.opacity(0.78))
+                            .lineLimit(1).minimumScaleFactor(0.6)
                     }
+                    .frame(maxWidth: large ? 58 : .infinity)
                 }
-            } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 14, maximum: 26), spacing: 6), count: 5),
-                          alignment: .leading, spacing: 8) {
-                    ForEach(rows) { n in
-                        VStack(spacing: 4) {
-                            Vial(n: n, radius: 9).aspectRatio(22 / 34, contentMode: .fit)
-                            Text(n.short).font(.mono(9, .semibold))
-                                .foregroundColor(Color.ncPrimary.opacity(0.78))
-                                .lineLimit(1).minimumScaleFactor(0.6)
-                        }
-                    }
-                }
+                if large { Spacer(minLength: 0) }
             }
 
             Spacer(minLength: 0)
@@ -408,44 +394,36 @@ private struct GroupTile: View {
     }
 }
 
-/// A small glass vial filled from the bottom to the nutrient's share of its target (capped at full): Moss when
-/// met, Ember when low, Paper otherwise.
-private struct Vial: View {
+/// A fully rounded bar, bottom-aligned in its slot, as tall as the nutrient's share of its target (capped at the
+/// slot). Never shorter than a flattened circle, so even an empty nutrient reads. Moss when met, Ember when low,
+/// warm gray otherwise.
+private struct NutrientBar: View {
     let n: NutrientInfo
-    let radius: CGFloat
+    var maxWidth: CGFloat = 46
 
     var body: some View {
         let share = min(max(n.share, 0), 1)
         let status = Status(n)
-        let outer = RoundedRectangle(cornerRadius: radius, style: .continuous)
         GeometryReader { geo in
-            let inset: CGFloat = 2.5
-            let inner = max(0, radius - inset)
-            let room = geo.size.height - inset * 2
-            ZStack(alignment: .bottom) {
-                Color.clear
-                if share > 0 {
-                    UnevenRoundedRectangle(topLeadingRadius: inner * 0.7, bottomLeadingRadius: inner,
-                                           bottomTrailingRadius: inner, topTrailingRadius: inner * 0.7,
-                                           style: .continuous)
-                        .fill(fill(status))
-                        .frame(height: max(inner * 1.2, room * share))
-                }
+            let w = min(geo.size.width, maxWidth)
+            let floor = w * 0.74
+            let h = floor + (geo.size.height - floor) * share
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Capsule().fill(fill(status))
+                    .frame(width: w, height: h)
             }
-            .padding(inset)
+            .frame(maxWidth: .infinity)
         }
-        .background(outer.fill(Color.white.opacity(0.05)))
-        .overlay(outer.strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
-        .clipShape(outer)
-        .animation(.smooth(duration: 0.55), value: share)
+        .animation(.spring(response: 0.5, dampingFraction: 0.86), value: share)
         .accessibilityHidden(true)
     }
 
     private func fill(_ s: Status) -> LinearGradient {
         let colors: [Color] = switch s {
-        case .met: [Color(hex: "#A2CD8B"), Color(hex: "#7FA96B")]
-        case .low: [Color(hex: "#F37E61"), Color(hex: "#D9644A")]
-        case .onTrack: [Color(hex: "#F2F1EC"), Color(hex: "#B9B8B2")]
+        case .met: [Color(hex: "#A9D293"), Color(hex: "#8FBA79")]
+        case .low: [Color(hex: "#EC8D70"), Color(hex: "#E07C5F")]
+        case .onTrack: [Color(hex: "#A4A39E"), Color(hex: "#8D8C87")]
         }
         return LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
     }
@@ -556,7 +534,7 @@ private struct DetailPanel: View {
                         HStack(alignment: .bottom, spacing: 10) {
                             ForEach(rows) { n in
                                 VStack(spacing: 6) {
-                                    Vial(n: n, radius: 13).frame(width: 34, height: 56)
+                                    NutrientBar(n: n, maxWidth: 34).frame(width: 34, height: 72)
                                     Text("\(Int((n.share * 100).rounded()))%").font(.display(11))
                                         .foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
                                 }

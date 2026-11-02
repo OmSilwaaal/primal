@@ -439,7 +439,7 @@ struct NutrientRow: View {
 
 // MARK: - Toast
 
-/// App-wide confirmation shown at the top in tinted glass ("LOGGED — RIBEYE 250 G").
+/// App-wide confirmation shown at the top in a tinted glass capsule ("LOGGED — RIBEYE 250 G").
 @MainActor
 final class ToastCenter: ObservableObject {
     static let shared = ToastCenter()
@@ -478,7 +478,8 @@ struct ToastOverlay: View {
                 }
                     .foregroundColor(.ncPrimary)
                     .padding(.horizontal, 20).padding(.vertical, 12)
-                    .glass(.tinted)
+                    .glassSheen(in: Capsule(), strength: 0.8)
+                    .glass(.tinted, in: Capsule())
                     .padding(.top, 4)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .accessibilityAddTraits(.updatesFrequently)

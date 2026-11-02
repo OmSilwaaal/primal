@@ -123,13 +123,24 @@ struct PlacesMapView: View {
         .padding(.top, 4)
     }
 
+    /// Asks for location in a glass card centred on the screen, kept clear of the floating tab bar.
     private func permissionPrompt(label: String, text: String, button: String, action: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(label).monoLabel()
-            Text(text).font(.ui(size: 15)).foregroundColor(.ncPrimary)
-            Button(button, action: action).buttonStyle(.vitalis).padding(.top, 6)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "location").font(.ui(size: 13, weight: .semibold))
+                Text(label).font(.bentoLabel)
+            }
+            .foregroundColor(Mono.label)
+            Text(text).font(.bentoBody).foregroundColor(Mono.text)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(button, action: action)
+                .buttonStyle(.bentoPrimary)
+                .padding(.top, 6)
         }
-        .padding(.horizontal, Space.margin)
+        .bentoTile(padding: 20, art: .leaf)
+        .padding(.horizontal, Bento.margin)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.bottom, 100) // clears the floating tab bar
     }
 
     /// "0.8 km" under 10 km, whole kilometres beyond.

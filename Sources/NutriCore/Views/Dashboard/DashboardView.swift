@@ -497,7 +497,6 @@ private struct CalorieTile: View {
 struct WaterSheet: View {
     static let mlPerOunce = 29.5735
     static let goalMl = 3500.0
-    private static let amounts: [Double] = [150, 250, 330, 500, 750, 1000]
 
     let drinksMl: Double
     let foodMl: Double
@@ -506,36 +505,38 @@ struct WaterSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private func litres(_ ml: Double) -> String { String(format: "%.1f", ml / 1000) }
-    private func label(_ ml: Double) -> String { ml >= 1000 ? "1 L" : "\(Int(ml)) ml" }
+    private func label(_ ml: Double) -> String {
+        ml >= 1000 ? "\(String(format: ml.truncatingRemainder(dividingBy: 1000) == 0 ? "%.0f" : "%.2g", ml / 1000)) L"
+                   : "\(Int(ml)) ml"
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Add water").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
                 Text("\(litres(drinksMl + foodMl)) of \(litres(Self.goalMl)) L today · \(litres(foodMl)) L from food")
                     .font(.bentoBody).foregroundColor(Mono.label)
             }
-            ArcWheel(items: Self.amounts, selection: $amount, onTapSelected: add) { ml, on in
-                Text(label(ml))
-                    .font(.ui(size: 15, weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                    .foregroundColor(on ? Mono.onWhite : Mono.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background {
-                        if on { Capsule().fill(Mono.text) } else { Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule()) }
-                    }
-                    .contentShape(Capsule())
-                    .animation(.smooth(duration: 0.25), value: on)
+
+            // The amount, large, over the ruler that sets it.
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(amount >= 1000 ? String(format: "%.2g", amount / 1000) : "\(Int(amount))")
+                    .font(.bentoNumber(44)).tracking(Font.bentoTracking(44))
+                    .contentTransition(.numericText())
+                    .animation(.snappy(duration: 0.2), value: amount)
+                Text(amount >= 1000 ? "L" : "ml").font(.ui(size: 15, weight: .medium)).foregroundColor(Mono.label)
             }
-            .accessibilityRepresentation {
-                Picker("Amount", selection: $amount) {
-                    ForEach(Self.amounts, id: \.self) { Text(label($0)).tag($0) }
-                }
-            }
+            .foregroundColor(Mono.text)
+            .frame(maxWidth: .infinity)
+            .accessibilityHidden(true)
+
+            WaterRuler(amount: $amount)
+                .padding(.horizontal, -20)
+
             Button("Add \(label(amount))", action: add).buttonStyle(.bentoPrimary)
         }
         .padding(20)
-        .presentationDetents([.height(320)])
+        .presentationDetents([.height(380)])
         .glassSheetBackground()
         .presentationCornerRadius(Bento.radius)
     }
@@ -543,6 +544,84 @@ struct WaterSheet: View {
     private func add() {
         onAdd(amount)
         dismiss()
+    }
+}
+
+/// A slider made of lines, like a measuring tape: a tick every 50 ml from 50 ml to 1.5 L, a longer labelled line
+/// every 250 ml. Drag it sideways; the line under the fixed centre marker is the amount, and it snaps line to line
+/// with a light tick. Lines grow and brighten towards the centre. VoiceOver adjusts it in 50 ml steps.
+private struct WaterRuler: View {
+    @Binding var amount: Double
+    @State private var centred: Int?
+
+    private static let step = 50.0
+    private static let values: [Int] = Array(stride(from: 50, through: 1500, by: 50))
+    private let spacing: CGFloat = 12
+
+    var body: some View {
+        GeometryReader { geo in
+            let centreX = geo.frame(in: .global).midX
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .bottom, spacing: spacing) {
+                    ForEach(Self.values, id: \.self) { ml in
+                        tick(ml)
+                            .visualEffect { content, proxy in
+                                // Taller and brighter near the centre, like light catching the water line.
+                                let d = abs(proxy.frame(in: .global).midX - centreX)
+                                let near = max(0, 1 - d / 140)
+                                return content
+                                    .scaleEffect(x: 1, y: 0.75 + 0.35 * near, anchor: .bottom)
+                                    .opacity(0.35 + 0.65 * near)
+                            }
+                    }
+                }
+                .scrollTargetLayout()
+                .frame(height: 74, alignment: .bottom)
+            }
+            .safeAreaPadding(.horizontal, geo.size.width / 2 - 1)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $centred, anchor: .center)
+            .overlay(alignment: .bottom) {
+                // The fixed marker.
+                Capsule().fill(Mono.text).frame(width: 3, height: 52).padding(.bottom, 22)
+                    .shadow(color: .white.opacity(0.35), radius: 6)
+                    .allowsHitTesting(false)
+            }
+            .drumRimFade()
+        }
+        .frame(height: 74)
+        .onAppear { centred = Int(amount) }
+        .onChange(of: centred) { _, new in
+            guard let new, Double(new) != amount else { return }
+            Haptics.selection()
+            amount = Double(new)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Amount")
+        .accessibilityValue("\(Int(amount)) millilitres")
+        .accessibilityAdjustableAction { direction in
+            let next: Double = switch direction {
+            case .increment: min(1500, amount + Self.step)
+            case .decrement: max(50, amount - Self.step)
+            @unknown default: amount
+            }
+            amount = next
+            centred = Int(next)
+        }
+    }
+
+    private func tick(_ ml: Int) -> some View {
+        let major = ml % 250 == 0
+        return VStack(spacing: 6) {
+            Capsule().fill(Mono.text)
+                .frame(width: major ? 2.5 : 1.5, height: major ? 40 : 24)
+            Text(major ? (ml >= 1000 ? String(format: "%.2g L", Double(ml) / 1000) : "\(ml)") : " ")
+                .font(.mono(9, .semibold)).foregroundColor(Mono.label)
+                .fixedSize()
+                .frame(width: 2)   // labels overflow their 2 pt slot so spacing stays even
+        }
+        .frame(width: 2)
+        .id(ml)
     }
 }
 

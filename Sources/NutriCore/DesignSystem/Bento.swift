@@ -91,7 +91,7 @@ extension View {
 
 /// The app's line drawings (Paper strokes), used faintly inside tiles: a little of the outdoors in each one.
 enum LineArt: String {
-    case leaf = "lines-leaf", sprig = "lines-sprig", sun = "lines-sun", water = "lines-water"
+    case leaf = "lines-leaf", sprig = "lines-sprig", sun = "lines-sun", water = "lines-water", meat = "lines-meat"
 
     struct Placement {
         var alignment: Alignment

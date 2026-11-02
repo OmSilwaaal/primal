@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// The Profile tab, in bento glass tiles on the shared backdrop: who you are (avatar, name, handle), your body
-/// (weight, height, age) and the daily energy it works out to, then the screens that live here (Raw, Sun,
+/// The Profile tab, in bento glass tiles on the shared backdrop: one box for who you are (avatar, name, handle,
+/// weight, height, age, activity), the daily energy it works out to, then the screens that live here (Raw, Sun,
 /// Friends, Settings) and signing out. Edit opens the same fields in place. Today's intake and the macro targets
 /// live on Home and Data, and the legal documents in Settings, so they aren't repeated here.
 struct ProfileView: View {
@@ -90,8 +90,11 @@ struct ProfileView: View {
 
     // MARK: - Identity
 
-    /// Avatar, name and handle (or diet), with the rune large and faint in the corner.
+    /// One box for who you are: avatar, name and handle (or diet), then weight, height and age and your activity,
+    /// with the rune large and faint in the corner.
     private func identity(_ profile: UserProfile) -> some View {
+        let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1 ?? profile.activityLevel
+        return VStack(alignment: .leading, spacing: 16) {
         HStack(spacing: 14) {
             AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -104,7 +107,21 @@ struct ProfileView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+
+        if !isEditing {
+            // Side by side when they fit; stacked at large text sizes.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 0) { stats(profile, divided: true) }
+                VStack(alignment: .leading, spacing: 10) { stats(profile, divided: false) }
+            }
+            .padding(.top, 14)
+            .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1) }
+            .transition(.opacity)
+
+            Text("\(activity) activity · \(profile.isMale ? "Male" : "Female")")
+                .font(.mono(11)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+        }
+        }
         .background(alignment: .bottomTrailing) {
             AlgizMark().fill(Mono.text.opacity(0.07))
                 .frame(width: 96, height: 124)
@@ -117,16 +134,9 @@ struct ProfileView: View {
 
     // MARK: - Body
 
-    /// Weight, height and age side by side, then the daily energy they work out to.
+    /// The daily energy your body and activity work out to.
     private func bodyTiles(_ profile: UserProfile) -> some View {
-        let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1 ?? profile.activityLevel
-        return VStack(spacing: Bento.gap) {
-            // Three equal tiles in a row; stacked when large text no longer fits.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: Bento.gap) { stats(profile) }.fixedSize(horizontal: false, vertical: true)
-                VStack(spacing: Bento.gap) { stats(profile) }
-            }
-
+        VStack(spacing: Bento.gap) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Daily energy").font(.bentoLabel).foregroundColor(Mono.label)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -135,30 +145,37 @@ struct ProfileView: View {
                         .contentTransition(.numericText())
                     Text("kcal").font(.ui(size: 15, weight: .medium)).foregroundColor(Mono.label)
                 }
-                Text("\(activity) activity · \(profile.isMale ? "Male" : "Female")")
-                    .font(.mono(11)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                Text("From your weight, height, age and activity")
+                    .font(.ui(size: 12)).foregroundColor(Mono.label)
             }
             .bentoTile(padding: 18, art: .sun)
             .accessibilityElement(children: .combine)
         }
     }
 
-    @ViewBuilder private func stats(_ profile: UserProfile) -> some View {
+    @ViewBuilder private func stats(_ profile: UserProfile, divided: Bool) -> some View {
         stat("Weight", "\(Int(profile.weightKg))", unit: "kg")
+        if divided { divider }
         stat("Height", "\(Int(profile.heightCm))", unit: "cm")
+        if divided { divider }
         stat("Age", "\(profile.age)", unit: nil)
     }
 
+    private var divider: some View {
+        Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 36).padding(.horizontal, 14)
+    }
+
     private func stat(_ label: String, _ value: String, unit: String?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(label).font(.bentoLabel).foregroundColor(Mono.label).lineLimit(1).fixedSize()
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value).font(.bentoNumber(24)).tracking(Font.bentoTracking(24)).foregroundColor(Mono.text)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                if let unit { Text(unit).font(.ui(size: 12)).foregroundColor(Mono.label) }
+                    .lineLimit(1).fixedSize()
+                    .contentTransition(.numericText())
+                if let unit { Text(unit).font(.ui(size: 12)).foregroundColor(Mono.label).fixedSize() }
             }
         }
-        .bentoTile(padding: 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 

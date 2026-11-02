@@ -1,37 +1,57 @@
 import SwiftUI
+import UIKit
 import CoreMotion
 
-// MARK: - Light behind the glass
+// MARK: - Light on the glass
 //
-// One soft light shines down the screen, under every Liquid Glass surface (tab bar, Home panels, glass dots), and
-// slides as the phone tilts, as if a lamp in the room were catching the glass. It lives in screen space, so each surface
-// shows the part of the same light that falls on it: the ones nearer the light glow more. One motion manager drives
-// all of them, and it only runs while at least one glass surface is on screen.
+// One soft light shines on every glass surface (tiles, buttons, the tab bar, the calorie ring) and moves as the phone
+// tilts and the page scrolls, as if a lamp in the room were catching the glass. It lives in screen space, so each
+// surface shows the part of the same light that falls on it: the rim facing the light catches a thin bright line with
+// a soft halo, the opposite rim a faint reflection, and a small bloom sits just inside the lit edge.
 //
-// The light takes its colour from the session's background photo (green in the forest, sand in the desert, blue at
-// night). The photo is sampled in three strips, left to right; as the light slides across with the tilt it blends
-// between them, so the colour shifts slightly as the phone moves, and each glow fades towards the opposite strip's
-// colour for a gentle gradient.
+// Built for smoothness and to stay off SwiftUI's update path:
+//   • Core Motion and scrolling only set where the light should be (its target).
+//   • One CADisplayLink, at the screen's refresh rate (up to 120 Hz), moves the light towards the target with a
+//     critically damped spring — it glides and settles without overshoot or the stepping of per-sample easing.
+//   • Each surface is a small stack of Core Animation layers; every frame the display link updates their gradients
+//     directly. No SwiftUI view is invalidated by the light, so scrolling and taps aren't slowed by it.
+//   • The light breathes: its brightness swells and eases over about five seconds.
+//
+// Colour comes from the session's background photo (green in the forest, sand in the desert, blue at night), sampled
+// in three strips and blended as the light slides across. Reduce Motion holds the light still and stops the breathing;
+// Reduce Transparency removes it.
 
 @MainActor
-final class GlassLight: ObservableObject {
+final class GlassLight {
     static let shared = GlassLight()
 
-    /// Where the light rests with the phone held upright, and always under Reduce Motion: upper left of the screen.
-    nonisolated static let resting = UnitPoint(x: 0.3, y: 0.22)
+    /// Where the light rests with the phone held upright: upper left of the screen.
+    nonisolated static let resting = CGPoint(x: 0.3, y: 0.2)
 
-    /// The light's position on screen in unit space; may sit a little outside 0…1 so it can slide off an edge.
-    @Published private(set) var point = GlassLight.resting {
-        didSet { updateColors() }
-    }
-    /// The light's colour where it is now, and the colour its glow fades towards.
-    @Published private(set) var color = Color.white
-    @Published private(set) var fadeColor = Color.white
+    /// Spring stiffness (rad/s): higher follows the hand more tightly. ~0.35 s to settle, never overshoots.
+    private static let stiffness = 11.0
+    /// One breath, in seconds, and how much the brightness swells (± fraction).
+    private static let breathPeriod = 5.0
+    private static let breathDepth = 0.16
+
+    /// Unit-space screen position and velocity of the light; where tilt and scroll want it.
+    private(set) var point = GlassLight.resting
+    private var velocity = CGPoint.zero
+    private var tiltTarget = GlassLight.resting
+    private var scrollShift = 0.0
+    /// Brightness multiplier from the breathing (1 = rest).
+    private(set) var breath = 1.0
+    private(set) var color = UIColor.white
+    private(set) var fadeColor = UIColor.white
 
     private let motion = CMMotionManager()
-    private var users = 0
+    private var link: CADisplayLink?
+    private var lastTime: CFTimeInterval = 0
+    private let surfaces = NSHashTable<SheenSurfaceView>.weakObjects()
     /// Left, centre and right strips of the background photo, lifted to light-like colours. White until sampled.
     private var palette: [SIMD3<Double>] = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+
+    var reduceMotion: Bool { UIAccessibility.isReduceMotionEnabled }
 
     private init() {
         let asset = Backdrop.current.assetName
@@ -40,84 +60,108 @@ final class GlassLight: ObservableObject {
             await MainActor.run {
                 GlassLight.shared.palette = sampled
                 GlassLight.shared.updateColors()
+                GlassLight.shared.redrawAll()
             }
         }
+        updateColors()
     }
 
-    func start() {
-        users += 1
-        guard users == 1, motion.isDeviceMotionAvailable else { return }
-        motion.deviceMotionUpdateInterval = Self.sampleInterval
-        motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
-            guard let gravity = data?.gravity else { return }
-            MainActor.assumeIsolated { self?.follow(gravity) }
+    // MARK: Surfaces
+
+    func register(_ surface: SheenSurfaceView) {
+        surfaces.add(surface)
+        surface.redraw(light: self)
+        startIfNeeded()
+    }
+
+    func unregister(_ surface: SheenSurfaceView) {
+        surfaces.remove(surface)
+        if surfaces.allObjects.isEmpty { stop() }
+    }
+
+    private func startIfNeeded() {
+        guard link == nil else { return }
+        if motion.isDeviceMotionAvailable, !reduceMotion {
+            motion.deviceMotionUpdateInterval = 1.0 / 60
+            motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
+                guard let g = data?.gravity else { return }
+                MainActor.assumeIsolated { self?.setTilt(g) }
+            }
         }
+        let link = CADisplayLink(target: DisplayLinkProxy(self), selector: #selector(DisplayLinkProxy.tick(_:)))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 120, preferred: 60)
+        link.add(to: .main, forMode: .common)
+        self.link = link
+        lastTime = 0
     }
 
-    func stop() {
-        users = max(0, users - 1)
-        if users == 0 { motion.stopDeviceMotionUpdates() }
+    private func stop() {
+        link?.invalidate()
+        link = nil
+        motion.stopDeviceMotionUpdates()
     }
 
-    private static let sampleInterval = 1.0 / 60
-    /// How long the light takes to catch up with the phone (time constant). Long enough that it trails the hand a
-    /// little and glides, short enough that it still feels attached to the tilt.
-    private static let lag = 0.45
-    private static let easing = 1 - exp(-sampleInterval / lag)
-
-    /// Where the tilt alone puts the light, and how far scrolling nudges it; the light eases towards their sum.
-    private var tiltTarget = GlassLight.resting
-    private var scrollShift = 0.0
-    /// Eases the light when the motion sensor isn't driving it (no sensor, or Simulator).
-    private var settleTask: Task<Void, Never>?
+    // MARK: Inputs
 
     /// Gravity is (0, -1, 0) held upright, (0, 0, -1) lying flat. Tilt right and the light slides left, tip the top
-    /// away and it slides down, like a reflection of a fixed light. Eased with a ~0.45 s lag so it glides after
-    /// the hand rather than snapping, and sensor jitter never shows.
-    private func follow(_ g: CMAcceleration) {
-        tiltTarget = UnitPoint(x: Self.resting.x - g.x * 1.1, y: Self.resting.y + (g.y + 0.75) * 1.2)
-        step()
+    /// away and it slides down, like a reflection of a fixed light.
+    private func setTilt(_ g: CMAcceleration) {
+        tiltTarget = CGPoint(x: Self.resting.x - g.x * 1.25, y: Self.resting.y + (g.y + 0.75) * 1.3)
     }
 
-    /// A screen's vertical scroll offset, in points. The light drifts gently against the scroll — up to about a
-    /// tenth of the screen over a screen's worth of scrolling — so the rims shimmer as the page moves.
+    /// A screen's vertical scroll offset, in points. The light drifts gently against the scroll — about a tenth of
+    /// the screen over a screen's worth of scrolling — so the rims shimmer as the page moves.
     func scrolled(to offset: CGFloat) {
         let screens = Double(offset / max(UIScreen.main.bounds.height, 1))
-        let shift = -0.1 * min(1.5, max(-0.3, screens))
-        guard abs(shift - scrollShift) > 0.0005 else { return }
-        scrollShift = shift
-        guard !motion.isDeviceMotionActive, settleTask == nil else { return }
-        settleTask = Task { [weak self] in
-            while let self, !Task.isCancelled, self.step() {
-                try? await Task.sleep(for: .seconds(Self.sampleInterval))
-            }
-            self?.settleTask = nil
-        }
+        scrollShift = -0.1 * min(1.5, max(-0.3, screens))
     }
 
-    /// Moves the light one frame towards its target. Returns false once it has arrived.
-    @discardableResult private func step() -> Bool {
-        let tx = min(1.25, max(-0.25, tiltTarget.x))
-        let ty = min(1.25, max(-0.25, tiltTarget.y + scrollShift))
-        let k = Self.easing
-        let next = UnitPoint(x: point.x + (tx - point.x) * k, y: point.y + (ty - point.y) * k)
-        // Skip invisible sub-pixel moves so resting glass doesn't redraw 60 times a second.
-        guard abs(next.x - point.x) > 0.0004 || abs(next.y - point.y) > 0.0004 else { return false }
-        point = next
-        return true
+    // MARK: Frame
+
+    fileprivate func tick(_ link: CADisplayLink) {
+        let now = link.targetTimestamp
+        let dt = lastTime == 0 ? 1.0 / 60 : min(1.0 / 20, max(1.0 / 240, now - lastTime))
+        lastTime = now
+
+        if reduceMotion {
+            point = Self.resting
+            velocity = .zero
+            breath = 1
+        } else {
+            let tx = min(1.25, max(-0.25, tiltTarget.x))
+            let ty = min(1.25, max(-0.25, tiltTarget.y + scrollShift))
+            // Critically damped spring: a = ω²(target − x) − 2ω·v.
+            let w = Self.stiffness
+            let ax = w * w * (tx - point.x) - 2 * w * velocity.x
+            let ay = w * w * (ty - point.y) - 2 * w * velocity.y
+            velocity.x += ax * dt; velocity.y += ay * dt
+            point.x += velocity.x * dt; point.y += velocity.y * dt
+            breath = 1 + Self.breathDepth * sin(now * 2 * .pi / Self.breathPeriod)
+        }
+        updateColors()
+        redrawAll()
     }
+
+    private func redrawAll() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for surface in surfaces.allObjects { surface.redraw(light: self) }
+        CATransaction.commit()
+    }
+
+    // MARK: Colour
 
     private func updateColors() {
-        let t = min(1, max(0, point.x))
-        color = Self.rgb(Self.blend(palette, at: t))
-        fadeColor = Self.rgb(Self.blend(palette, at: 1 - t))
+        let t = min(1, max(0, Double(point.x)))
+        color = Self.uiColor(Self.blend(palette, at: t))
+        fadeColor = Self.uiColor(Self.blend(palette, at: 1 - t))
     }
 
     private static func blend(_ p: [SIMD3<Double>], at t: Double) -> SIMD3<Double> {
         t < 0.5 ? p[0] + (p[1] - p[0]) * (t * 2) : p[1] + (p[2] - p[1]) * ((t - 0.5) * 2)
     }
 
-    private static func rgb(_ v: SIMD3<Double>) -> Color { Color(red: v.x, green: v.y, blue: v.z) }
+    private static func uiColor(_ v: SIMD3<Double>) -> UIColor { UIColor(red: v.x, green: v.y, blue: v.z, alpha: 1) }
 
     /// Averages the photo's left, centre and right thirds by drawing it into a 3×1 bitmap, then lifts each to full
     /// brightness with moderate saturation so it reads as coloured light rather than a dark photo tone.
@@ -138,7 +182,7 @@ final class GlassLight: ObservableObject {
                             blue: CGFloat(pixels[i * 4 + 2]) / 255, alpha: 1)
             var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
             c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-            let lifted = UIColor(hue: h, saturation: min(0.75, max(0.25, s * 1.6)), brightness: 1, alpha: 1)
+            let lifted = UIColor(hue: h, saturation: min(0.7, max(0.2, s * 1.5)), brightness: 1, alpha: 1)
             var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0
             lifted.getRed(&r, green: &g, blue: &bl, alpha: &a)
             return SIMD3(Double(r), Double(g), Double(bl))
@@ -146,15 +190,133 @@ final class GlassLight: ObservableObject {
     }
 }
 
-/// The light itself where it falls on one surface. Directional, like a real lamp on a sheet of glass: the rim facing
-/// the light catches a bright, thin highlight that fades away within a short arc around the edge; the opposite inner
-/// rim gets a faint reflected catch; and a small soft bloom sits just inside the lit corner. The body of the glass is
-/// never lit, so it stays clear. Surfaces nearer the light catch more of it. Placed behind a surface's content.
-struct GlassSheen<S: InsettableShape>: View {
+/// CADisplayLink retains its target; this keeps it from retaining the light.
+private final class DisplayLinkProxy {
+    weak var light: GlassLight?
+    init(_ light: GlassLight) { self.light = light }
+    @objc func tick(_ link: CADisplayLink) {
+        MainActor.assumeIsolated { light?.tick(link) }
+    }
+}
+
+// MARK: - Surface
+
+/// The light where it falls on one surface, drawn with Core Animation layers and updated by `GlassLight` each frame.
+final class SheenSurfaceView: UIView {
+    var makePath: (CGRect) -> CGPath = { UIBezierPath(rect: $0).cgPath }
+    var strength: Double = 1
+
+    private let bloom = CAGradientLayer()
+    private let halo = CAGradientLayer()
+    private let rim = CAGradientLayer()
+    private let haloMask = CAShapeLayer()
+    private let rimMask = CAShapeLayer()
+    private let clip = CAShapeLayer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        backgroundColor = .clear
+        bloom.type = .radial
+        halo.type = .conic
+        rim.type = .conic
+        for mask in [haloMask, rimMask] {
+            mask.fillColor = UIColor.clear.cgColor
+            mask.strokeColor = UIColor.white.cgColor
+        }
+        haloMask.lineWidth = 7
+        rimMask.lineWidth = 2.4   // half of it lies outside the shape and is clipped: ~1.2 pt visible
+        halo.mask = haloMask
+        rim.mask = rimMask
+        layer.addSublayer(bloom)
+        layer.addSublayer(halo)
+        layer.addSublayer(rim)
+        layer.mask = clip
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { GlassLight.shared.register(self) } else { GlassLight.shared.unregister(self) }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let path = makePath(bounds)
+        clip.path = path
+        haloMask.path = path
+        rimMask.path = path
+        for l in [bloom, halo, rim, haloMask, rimMask, clip] as [CALayer] { l.frame = bounds }
+        CATransaction.commit()
+        redraw(light: GlassLight.shared)
+    }
+
+    func redraw(light: GlassLight) {
+        guard let window, bounds.width > 1, bounds.height > 1 else { return }
+        let frame = convert(bounds, to: window)
+        let screen = window.bounds.size
+        let w = frame.width, h = frame.height
+        // From this surface's centre towards the light, in points.
+        let dx = light.point.x * screen.width - frame.midX
+        let dy = light.point.y * screen.height - frame.midY
+        let angle = atan2(dy, dx)
+        // Nearer the light, brighter: full within a third of the screen, down to 45% far away; then the breath.
+        let distance = (dx * dx + dy * dy).squareRoot() / screen.height
+        let k = strength * min(1, max(0.45, 1.15 - distance)) * light.breath
+        let lit = light.color, far = light.fadeColor
+
+        // Conic gradients start at the trailing edge and run clockwise; aim the start at the light.
+        let dir = CGPoint(x: 0.5 + cos(angle) * 0.5, y: 0.5 + sin(angle) * 0.5)
+        for (layer, main, back) in [(halo, 0.55 * k, 0.12 * k), (rim, 1.0 * k, 0.32 * k)] {
+            layer.startPoint = CGPoint(x: 0.5, y: 0.5)
+            layer.endPoint = dir
+            layer.colors = [lit.withAlphaComponent(min(1, main)), lit.withAlphaComponent(min(1, main * 0.4)),
+                            UIColor.clear, UIColor.clear, far.withAlphaComponent(min(1, back)), UIColor.clear,
+                            UIColor.clear, lit.withAlphaComponent(min(1, main * 0.4)),
+                            lit.withAlphaComponent(min(1, main))].map(\.cgColor)
+            layer.locations = [0, 0.07, 0.17, 0.38, 0.5, 0.62, 0.83, 0.93, 1]
+        }
+
+        // Bloom: just inside the edge facing the light.
+        let reachX = dx / max(abs(dx), abs(dy) * w / h, 1) * 0.42
+        let reachY = dy / max(abs(dy), abs(dx) * h / w, 1) * 0.42
+        let r = min(w, h) * 0.55
+        bloom.startPoint = CGPoint(x: 0.5 + reachX, y: 0.5 + reachY)
+        bloom.endPoint = CGPoint(x: bloom.startPoint.x + r / w, y: bloom.startPoint.y + r / h)
+        bloom.colors = [lit.withAlphaComponent(min(1, 0.16 * k)), lit.withAlphaComponent(0)].map(\.cgColor)
+    }
+}
+
+/// SwiftUI wrapper for one surface's light, clipped to `shape`.
+private struct SheenSurface<S: Shape>: UIViewRepresentable {
+    let shape: S
+    let strength: Double
+
+    func makeUIView(context: Context) -> SheenSurfaceView {
+        let view = SheenSurfaceView()
+        update(view)
+        return view
+    }
+
+    func updateUIView(_ view: SheenSurfaceView, context: Context) {
+        update(view)
+        view.setNeedsLayout()
+    }
+
+    private func update(_ view: SheenSurfaceView) {
+        let shape = shape
+        view.makePath = { shape.path(in: $0).cgPath }
+        view.strength = strength
+    }
+}
+
+/// The light on one surface, behind its content.
+struct GlassSheen<S: Shape>: View {
     let shape: S
     var strength: Double = 1
-    @ObservedObject private var light = GlassLight.shared
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     init(shape: S, strength: Double = 1) {
@@ -164,56 +326,10 @@ struct GlassSheen<S: InsettableShape>: View {
 
     var body: some View {
         if !reduceTransparency {
-            let p = reduceMotion ? GlassLight.resting : light.point
-            GeometryReader { geo in
-                let screen = UIScreen.main.bounds.size
-                let frame = geo.frame(in: .global)
-                let w = max(frame.width, 1), h = max(frame.height, 1)
-                // From this surface's centre towards the light, in screen points (y down, so angles run clockwise
-                // from the trailing edge, as SwiftUI's gradients expect).
-                let dx = p.x * screen.width - frame.midX, dy = p.y * screen.height - frame.midY
-                let angle = Angle.radians(atan2(dy, dx))
-                // Nearer the light, brighter catch: full within a third of the screen, down to 40% far away.
-                let distance = (dx * dx + dy * dy).squareRoot() / screen.height
-                let k = strength * min(1, max(0.4, 1.15 - distance))
-                // Where the bloom sits: the point on the surface's edge facing the light, pulled slightly inside.
-                let reachX = dx / max(abs(dx), abs(dy) * w / h, 1) * 0.42
-                let reachY = dy / max(abs(dy), abs(dx) * h / w, 1) * 0.42
-                let bloom = UnitPoint(x: 0.5 + reachX, y: 0.5 + reachY)
-                ZStack {
-                    // Soft light just inside the lit edge; small, so the rest of the glass stays clear.
-                    RadialGradient(colors: [light.color.opacity(0.10 * k), .clear],
-                                   center: bloom, startRadius: 0, endRadius: min(w, h) * 0.45)
-                    // A soft halo along the lit rim…
-                    shape.strokeBorder(rim(angle, main: 0.45 * k, back: 0.10 * k), lineWidth: 4)
-                        .blur(radius: 3)
-                    // …and the crisp catch itself.
-                    shape.strokeBorder(rim(angle, main: 0.95 * k, back: 0.28 * k), lineWidth: 1.1)
-                }
-            }
-            .clipShape(shape)
-            .blendMode(.plusLighter)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            .onAppear { light.start() }
-            .onDisappear { light.stop() }
+            SheenSurface(shape: shape, strength: strength)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
-    }
-
-    /// Bright where the rim faces the light, gone within ~60° either side, and a faint reflected catch opposite.
-    private func rim(_ angle: Angle, main: Double, back: Double) -> AngularGradient {
-        let lit = light.color, far = light.fadeColor
-        return AngularGradient(stops: [
-            .init(color: lit.opacity(main), location: 0),
-            .init(color: lit.opacity(main * 0.35), location: 0.07),
-            .init(color: .clear, location: 0.17),
-            .init(color: .clear, location: 0.38),
-            .init(color: far.opacity(back), location: 0.5),
-            .init(color: .clear, location: 0.62),
-            .init(color: .clear, location: 0.83),
-            .init(color: lit.opacity(main * 0.35), location: 0.93),
-            .init(color: lit.opacity(main), location: 1),
-        ], center: .center, angle: angle)
     }
 }
 
@@ -230,7 +346,7 @@ extension View {
     }
 
     /// Puts the moving light under this view's content, inside `shape`.
-    func glassSheen<S: InsettableShape>(in shape: S, strength: Double = 1) -> some View {
+    func glassSheen<S: Shape>(in shape: S, strength: Double = 1) -> some View {
         background { GlassSheen(shape: shape, strength: strength) }
     }
 }

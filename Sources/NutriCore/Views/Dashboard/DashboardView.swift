@@ -373,7 +373,14 @@ private struct DateWheel: View {
             .frame(width: pillWidth)
             .padding(.top, 10).padding(.bottom, 9)
             .background {
-                if on { Capsule().fill(Mono.text) } else { Capsule().fill(Color.clear).glass(.clear, in: Capsule()) }
+                // Drawn glass, not system Liquid Glass: the system glass ignores the drum's 3D turn and stretches.
+                if on {
+                    Capsule().fill(Mono.text)
+                } else {
+                    Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(Color.white.opacity(0.06)))
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+                        .environment(\.colorScheme, .dark)
+                }
             }
             .contentShape(Capsule())
         }
@@ -395,7 +402,7 @@ private struct DateWheel: View {
 
 // MARK: - Calories
 
-/// The large tile: a 152 pt ring (progress arc only, no track) with the day's kcal inside, what's left (or how far under/over on a past day),
+/// The large section: a 132 pt ring with the day's kcal inside, what's left (or how far under/over on a past day),
 /// and one row per macro with its bar.
 private struct CalorieTile: View {
     let total: Double
@@ -414,13 +421,14 @@ private struct CalorieTile: View {
     var body: some View {
         HStack(alignment: .center, spacing: 18) {
             ZStack {
+                Circle().stroke(Mono.track, lineWidth: 12)
                 Circle()
                     .trim(from: 0, to: min(progress, 1))
                     .stroke(Mono.text, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.smooth(duration: 0.6), value: progress)
                 VStack(spacing: 0) {
-                    Text(Int(total).formatted()).font(.bentoNumber(34)).tracking(Font.bentoTracking(34))
+                    Text(Int(total).formatted()).font(.bentoNumber(30)).tracking(Font.bentoTracking(30))
                         .foregroundColor(Mono.text)
                         .lineLimit(1).minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
@@ -429,8 +437,7 @@ private struct CalorieTile: View {
                 }
                 .padding(.horizontal, 18)
             }
-            .padding(6)
-            .frame(width: 152, height: 152)
+            .frame(width: 132, height: 132)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Calories")
             .accessibilityValue("\(Int(total)) of \(Int(goal)) kcal")
@@ -464,7 +471,8 @@ private struct CalorieTile: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .bentoTile(padding: 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
         .onChange(of: reached) { was, now in
             // Celebrate crossing the line today, once per day; not on opening the app already past it.
             guard isToday, !was, now else { return }

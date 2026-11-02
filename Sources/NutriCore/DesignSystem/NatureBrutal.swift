@@ -114,13 +114,13 @@ enum Backdrop: String, CaseIterable {
 
 extension Backdrop {
     /// The session's photo, heavily blurred so it reads as soft colour and light behind the glass rather than a
-    /// picture, while keeping the photo's shapes faintly readable. Blurred once at 40% size (the blur hides the lost
+    /// picture, while keeping the photo's shapes readable. Blurred once at 40% size (the blur hides the lost
     /// detail) and cached; nil if Core Image fails.
     static let blurredImage: UIImage? = {
         guard let source = UIImage(named: current.assetName), let cg = source.cgImage else { return nil }
         let input = CIImage(cgImage: cg).transformed(by: CGAffineTransform(scaleX: 0.4, y: 0.4))
         let blurred = input.clampedToExtent()
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 16])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 9])
             .cropped(to: input.extent)
         guard let out = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(blurred, from: input.extent)
         else { return nil }

@@ -52,8 +52,17 @@ private struct GlassModifier<S: InsettableShape>: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
+        if style == .clear, !reduceTransparency, contrast != .increased, #available(iOS 26.0, *) {
+            // Clear controls are real, see-through Liquid Glass on iOS 26.
+            content.glassEffect(.clear, in: shape)
+        } else {
+            drawn(content)
+        }
+    }
+
+    private func drawn(_ content: Content) -> some View {
         let increased = contrast == .increased
-        content
+        return content
             .background {
                 if reduceTransparency {
                     // Reduce Transparency: an opaque surface instead of blur.
@@ -94,8 +103,10 @@ extension View {
 
 // MARK: - Liquid Glass panel
 
-/// A panel of clear system Liquid Glass (iOS 26), with the moving light under it, behind content that sits on the backdrop, like the tab bar.
-/// Earlier iOS gets clear glass; Reduce Transparency and Increase Contrast get an opaque surface.
+/// A see-through glass panel for content on the backdrop (bento tiles, Home's date pills): a faint white film, a
+/// hairline rim with a top highlight, and the moving light. No blur and no system Liquid Glass, so the photo shows
+/// through undistorted (system glass frosts it and lenses it at the edges). Legible because the backdrop itself is
+/// already blurred and darkened. Reduce Transparency and Increase Contrast get an opaque surface.
 private struct LiquidGlassPanel<S: InsettableShape>: ViewModifier {
     let shape: S
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -106,11 +117,16 @@ private struct LiquidGlassPanel<S: InsettableShape>: ViewModifier {
             content
                 .background(Mono.solid, in: shape)
                 .overlay(shape.strokeBorder(Color.white.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 1))
-        } else if #available(iOS 26.0, *) {
-            // Clear glass: more see-through than .regular; fine here because the backdrop is already darkened.
-            content.glassSheen(in: shape).glassEffect(.clear, in: shape)
         } else {
-            content.glassSheen(in: shape).glass(.clear, in: shape)
+            content
+                .glassSheen(in: shape)
+                .background(shape.fill(Color.white.opacity(0.04)))
+                .overlay {
+                    shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                    shape.strokeBorder(
+                        LinearGradient(colors: [.white.opacity(0.22), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.08)),
+                        lineWidth: 1)
+                }
         }
     }
 }

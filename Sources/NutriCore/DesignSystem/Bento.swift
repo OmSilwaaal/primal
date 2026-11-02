@@ -60,13 +60,13 @@ extension Font {
 // MARK: - Tile surface
 
 extension View {
-    /// A bento tile: content padded inside tinted glass with 28 pt corners, the moving light on its rim.
+    /// A bento tile: content padded inside see-through glass with 28 pt corners, so the photo shows through, and the
+    /// moving light (coloured from the photo) on its rim. Solid under Reduce Transparency / Increase Contrast.
     func bentoTile(padding: CGFloat = 16) -> some View {
         self
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
-            .glassSheen(in: Bento.shape, strength: 0.6)
-            .glass(.tinted, in: Bento.shape)
+            .liquidGlassPanel(in: Bento.shape)
     }
 }
 

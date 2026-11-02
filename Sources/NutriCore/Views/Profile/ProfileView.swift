@@ -38,7 +38,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackdrop()
+                // No backdrop here: ContentView draws one that stays still while tabs change.
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         if let profile {
@@ -70,6 +70,7 @@ struct ProfileView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
+            .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
             .navigationTitle("Profile") // names the back button on pushed screens
             .navigationDestination(isPresented: $showSettings) { SettingsView().pushedScreen() }

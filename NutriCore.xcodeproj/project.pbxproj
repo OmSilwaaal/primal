@@ -85,6 +85,7 @@
 		CF23A47B102473377F1995EA /* HealthPrimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4EEA6ACCF1E0F35E5A031E /* HealthPrimingView.swift */; };
 		D0CCA8172B9F7CE11D248C2E /* MicronutrientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8553A6D92E1D4E7879A71878 /* MicronutrientsView.swift */; };
 		D3D2ACB1B1ADC9CF11B120F4 /* RiskEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D380AF063C89978A24EDF04F /* RiskEngine.swift */; };
+		D46A8CB84921CED86F046606 /* GlassLight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980C1948FB1B261D3DAAF19B /* GlassLight.swift */; };
 		D4998CED088EB72135EC4FC6 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11083E0FCF5E27A542FD494F /* CameraView.swift */; };
 		DFFCBD3F81E24E0B81FFBDAB /* BodyGoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8669E7ED4CB0F8CC71E4C196 /* BodyGoalsView.swift */; };
 		E33B40BC38492E3B5B15D705 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B5AADEDA754664969AA15E67 /* Assets.xcassets */; };
@@ -169,6 +170,7 @@
 		9402E1253CE8AD9F8EC2D945 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
 		973AEBB9A626E614C100036C /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		97522CB9E8D36549A45F50D7 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
+		980C1948FB1B261D3DAAF19B /* GlassLight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLight.swift; sourceTree = "<group>"; };
 		9DA0DA57110F9BDBAC5D0BA4 /* VitalisWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitalisWidgets.swift; sourceTree = "<group>"; };
 		9DE028D2712E5E3DB2423CD5 /* terms-of-service.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "terms-of-service.md"; sourceTree = "<group>"; };
 		9FC213DF8182CD0ABC6A26BF /* RawLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawLogView.swift; sourceTree = "<group>"; };
@@ -480,6 +482,7 @@
 				D1C40E1E923AF5B43E2EBB1B /* Brand.swift */,
 				AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */,
 				C1BBE5253355C28064890C87 /* Glass.swift */,
+				980C1948FB1B261D3DAAF19B /* GlassLight.swift */,
 				FB2900E28FAD8503B46089A9 /* NatureBrutal.swift */,
 				E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */,
 			);
@@ -665,6 +668,7 @@
 				1836314A372BB7AF95625A12 /* FriendProfileView.swift in Sources */,
 				AFE323A571CF61E302779765 /* FriendsView.swift in Sources */,
 				CAD248835D9D8F49F262B14C /* Glass.swift in Sources */,
+				D46A8CB84921CED86F046606 /* GlassLight.swift in Sources */,
 				98511612CDB6663E002612FD /* HealthKitManager.swift in Sources */,
 				CF23A47B102473377F1995EA /* HealthPrimingView.swift in Sources */,
 				7172BD5119E72912B6906701 /* InsightsEngine.swift in Sources */,

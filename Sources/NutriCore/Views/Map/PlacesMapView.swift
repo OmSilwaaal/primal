@@ -18,8 +18,7 @@ struct PlacesMapView: View {
 
     var body: some View {
         ZStack {
-            AppBackdrop()
-
+            // No backdrop here: ContentView draws one that stays still while tabs change.
             switch locationManager.authorizationStatus {
             case .notDetermined:
                 permissionPrompt(label: "Find sources nearby",

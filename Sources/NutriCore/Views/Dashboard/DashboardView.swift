@@ -81,8 +81,7 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                AppBackdrop()
-
+                // No backdrop here: ContentView draws one that stays still while tabs change.
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         HomeHeader(day: selectedDay, onToday: isToday ? nil : { select(Calendar.current.startOfDay(for: .now)) },
@@ -116,8 +115,10 @@ struct DashboardView: View {
 
                         MicrosSunSection(micros: dayMicros, sunMinutes: daySunMinutes, sunGoal: Double(sunGoal),
                                          onMicros: isToday ? onOpenData : nil, onSun: { pushed = .sun })
+                            .padding(.horizontal, 18).padding(.vertical, 18)
+                            .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
                             .padding(.horizontal, Space.margin)
-                            .padding(.top, 24)
+                            .padding(.top, 14)
 
                         MealsSection(meals: dayMeals, readOnly: !isToday, onAdd: onSearch) { meal in
                             Haptics.success()
@@ -156,6 +157,7 @@ struct DashboardView: View {
                     .padding(.bottom, 120)
                 }
             }
+            .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
             .navigationTitle("Home") // names the back button on pushed screens
             .navigationDestination(item: $pushed) { $0.destination }
@@ -219,27 +221,30 @@ private struct HomeHeader: View {
     let onToday: (() -> Void)?
     let onSearch: () -> Void
     let onWeather: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var dateText: String {
         let f = DateFormatter(); f.dateFormat = "EEE, MMM d"; return f.string(from: day).uppercased()
     }
     var body: some View {
-        // Date and buttons on one row when they fit; buttons drop below the date at large text sizes.
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .bottom) {
-                date
-                Spacer()
-                actions
-            }
+        // One row, always the same height, so Home doesn't jump when "Today" appears on a past day or the date
+        // gets longer; the date shrinks to make room instead. Buttons drop below the date only at accessibility sizes.
+        if typeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 12) {
                 date
                 actions
             }
+        } else {
+            HStack(alignment: .center, spacing: 12) {
+                date.frame(maxWidth: .infinity, alignment: .leading)
+                actions.fixedSize()
+            }
+            .frame(height: 64)
         }
     }
     private var date: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(dateText).font(.ui(size: 22, weight: .bold)).tracking(0.44).foregroundColor(.ncPrimary)
-                .lineLimit(1).fixedSize()
+                .lineLimit(1).minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
         }
     }
@@ -515,12 +520,15 @@ private struct MacroGrid: View {
                         LineGauge(value: p, height: 4).padding(.top, 4)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 20).padding(.trailing, 14)
+                    .padding(.horizontal, 14)
                     .padding(.top, 16).padding(.bottom, 18)
                     .accessibilityElement(children: .combine)
                 }
             }
+            .padding(.horizontal, 4)
         }
+        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .padding(.horizontal, Space.margin)
     }
 }
 
@@ -759,7 +767,7 @@ struct MealsSection: View {
 
             if !readOnly {
                 Button("Log food", action: onAdd)
-                    .buttonStyle(.vitalis)
+                    .buttonStyle(.whiteGlass)
                     .padding(Space.margin)
             }
         }

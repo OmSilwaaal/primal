@@ -44,7 +44,7 @@ struct MicronutrientsView: View {
         let minerals = all.filter { $0.group == .minerals && keep($0) }
 
         ZStack {
-            AppBackdrop()
+            // No backdrop here: ContentView draws one that stays still while tabs change.
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 6) {

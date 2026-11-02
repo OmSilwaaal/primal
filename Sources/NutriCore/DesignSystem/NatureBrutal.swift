@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreImage
 
 // MARK: - Vitalis design system: type, space, backdrop
 //
@@ -111,7 +112,23 @@ enum Backdrop: String, CaseIterable {
     }()
 }
 
-/// The session's darkened photograph (see `Backdrop`) behind every screen, with the design's top/bottom scrim.
+extension Backdrop {
+    /// The session's photo, heavily blurred so it reads as soft colour and light behind the glass rather than a
+    /// picture, while keeping the photo's shapes faintly readable. Blurred once at 40% size (the blur hides the lost
+    /// detail) and cached; nil if Core Image fails.
+    static let blurredImage: UIImage? = {
+        guard let source = UIImage(named: current.assetName), let cg = source.cgImage else { return nil }
+        let input = CIImage(cgImage: cg).transformed(by: CGAffineTransform(scaleX: 0.4, y: 0.4))
+        let blurred = input.clampedToExtent()
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 16])
+            .cropped(to: input.extent)
+        guard let out = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(blurred, from: input.extent)
+        else { return nil }
+        return UIImage(cgImage: out)
+    }()
+}
+
+/// The session's darkened photograph (see `Backdrop`), blurred, behind every screen, with the design's top/bottom scrim.
 struct AppBackdrop: View {
     var intensity: Double = 1
     @Environment(\.colorSchemeContrast) private var contrast
@@ -120,7 +137,7 @@ struct AppBackdrop: View {
         GeometryReader { geo in
             ZStack {
                 Color.ncBg
-                Image(Backdrop.current.assetName)
+                (Backdrop.blurredImage.map { Image(uiImage: $0) } ?? Image(Backdrop.current.assetName))
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)

@@ -75,6 +75,35 @@ extension View {
     }
 }
 
+// MARK: - Liquid Glass panel
+
+/// A panel of clear system Liquid Glass (iOS 26), with the moving light under it, behind content that sits on the backdrop, like the tab bar.
+/// Earlier iOS gets clear glass; Reduce Transparency and Increase Contrast get an opaque surface.
+private struct LiquidGlassPanel<S: InsettableShape>: ViewModifier {
+    let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        if reduceTransparency || contrast == .increased {
+            content
+                .background(Color.ncSurface, in: shape)
+                .overlay(shape.strokeBorder(Color.white.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 1))
+        } else if #available(iOS 26.0, *) {
+            // Clear glass: more see-through than .regular; fine here because the backdrop is already darkened.
+            content.glassSheen(in: shape).glassEffect(.clear, in: shape)
+        } else {
+            content.glassSheen(in: shape).glass(.clear, in: shape)
+        }
+    }
+}
+
+extension View {
+    func liquidGlassPanel<S: InsettableShape>(in shape: S) -> some View {
+        modifier(LiquidGlassPanel(shape: shape))
+    }
+}
+
 // MARK: - Buttons
 
 /// Square clear-glass control with mono caps ("SEARCH", "BACK").
@@ -114,12 +143,50 @@ struct GlassDotButtonStyle: ButtonStyle {
         configuration.label
             .foregroundColor(.ncPrimary)
             .frame(width: size, height: size)
+            .glassSheen(in: Circle(), strength: 0.8)
             .glass(.clear, in: Circle())
             .contentShape(Circle())
             .dynamicTypeSize(...DynamicTypeSize.large)
             .scaleEffect(configuration.isPressed ? 0.92 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.7), value: configuration.isPressed)
     }
+}
+
+/// A full-width capsule of white-tinted Liquid Glass with dark caps text: the primary action on a glass screen
+/// (Home's Log food). The moving light catches its rim like the other glass.
+struct WhiteGlassButtonStyle: ButtonStyle {
+    var height: CGFloat = 56
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func makeBody(configuration: Configuration) -> some View {
+        let label = configuration.label
+            .font(.ui(size: 14, weight: .bold)).tracking(2.2).textCase(.uppercase)
+            .foregroundColor(.ncOnPrimary)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: height)
+            .glassSheen(in: Capsule(), strength: 0.9)
+        return Group {
+            if reduceTransparency {
+                label.background(Color.ncPrimary, in: Capsule())
+            } else if #available(iOS 26.0, *) {
+                label.glassEffect(.regular.tint(Color.white.opacity(0.78)), in: Capsule())
+            } else {
+                label
+                    .background(Color.white.opacity(0.8), in: Capsule())
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+        }
+        .contentShape(Capsule())
+        .scaleEffect(configuration.isPressed ? 0.97 : 1)
+        .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
+        .onChange(of: configuration.isPressed) { _, pressed in
+            if pressed { Haptics.tap() }
+        }
+    }
+}
+
+extension ButtonStyle where Self == WhiteGlassButtonStyle {
+    static var whiteGlass: WhiteGlassButtonStyle { WhiteGlassButtonStyle() }
 }
 
 extension ButtonStyle where Self == GlassDotButtonStyle {

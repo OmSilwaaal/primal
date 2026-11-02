@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreImage
 
 // MARK: - Vitalis design system: type, space, backdrop
 //
@@ -112,51 +111,40 @@ enum Backdrop: String, CaseIterable {
     }()
 }
 
-extension Backdrop {
-    /// The session's photo, heavily blurred so it reads as soft colour and light behind the glass rather than a
-    /// picture, while keeping the photo's shapes faintly readable. Blurred once at 40% size (the blur hides the lost
-    /// detail) and cached; nil if Core Image fails.
-    static let blurredImage: UIImage? = {
-        guard let source = UIImage(named: current.assetName), let cg = source.cgImage else { return nil }
-        let input = CIImage(cgImage: cg).transformed(by: CGAffineTransform(scaleX: 0.4, y: 0.4))
-        let blurred = input.clampedToExtent()
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 16])
-            .cropped(to: input.extent)
-        guard let out = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(blurred, from: input.extent)
-        else { return nil }
-        return UIImage(cgImage: out)
-    }()
-}
-
-/// The session's darkened photograph (see `Backdrop`), blurred, behind every screen, with the design's top/bottom scrim.
+/// The base behind every screen: near-black #0A0A0B with soft gray light and a few large gray circles, so the
+/// glass above has shapes to blur. Grayscale only. The photo backdrops (`Backdrop`) are kept for share cards.
 struct AppBackdrop: View {
     var intensity: Double = 1
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
             ZStack {
-                Color.ncBg
-                (Backdrop.blurredImage.map { Image(uiImage: $0) } ?? Image(Backdrop.current.assetName))
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
-                    .offset(x: -max(0, geo.size.height * 2 / 3 - geo.size.width) * 0.12)
-                    .opacity(intensity)
-                    .clipped()
-                LinearGradient(stops: [
-                    .init(color: .black.opacity(0.55), location: 0),
-                    .init(color: .black.opacity(0.25), location: 0.4),
-                    .init(color: .black.opacity(0.45), location: 0.75),
-                    .init(color: .black.opacity(0.7), location: 1),
-                ], startPoint: .top, endPoint: .bottom)
-                // Increase Contrast: the photo recedes further behind text.
-                if contrast == .increased { Color.black.opacity(0.35) }
+                Mono.base
+                RadialGradient(colors: [Color(hex: "#2C2C30"), .clear], center: UnitPoint(x: 0.15, y: 0.05),
+                               startRadius: 0, endRadius: w * 1.1)
+                RadialGradient(colors: [Color(hex: "#232326"), .clear], center: UnitPoint(x: 0.95, y: 0.6),
+                               startRadius: 0, endRadius: w * 0.9)
+                Group {
+                    circle(w * 0.78).position(x: w * 0.92, y: h * 0.16)
+                    circle(w * 0.62).position(x: w * 0.06, y: h * 0.5)
+                    circle(w * 0.7).position(x: w * 0.8, y: h * 0.86)
+                }
+                .opacity(0.55 * intensity)
+                // Increase Contrast: the shapes recede further behind text.
+                if contrast == .increased { Color.black.opacity(0.4) }
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(width: w, height: h)
         }
         .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+
+    private func circle(_ d: CGFloat) -> some View {
+        Circle()
+            .fill(LinearGradient(colors: [Mono.grayLight, Mono.grayDark], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: d, height: d)
     }
 }
 

@@ -2,33 +2,44 @@ import SwiftUI
 
 // MARK: - Glass materials
 //
-// Three weights, for anything that floats over content:
-//   • clear  – white 8%, blur, 18% border, 20% top highlight. Buttons, inputs, segmented controls.
-//   • tinted – ink 42%, blur, drop shadow. Tab bar, map header, toasts.
-//   • thick  – ink 62%, heavier blur and shadow. Sheets, place detail.
+// Three weights, for anything that floats over content. Monochrome: grays and white only.
+//   • clear  – white 8%, blur, 18% border, 20% top highlight. Buttons, segmented controls, round controls.
+//   • tinted – blur + white 10%→3% gradient + ink #18181A at 50%, 16% border, 28% top highlight,
+//              shadow black 35% r32 y12. Bento tiles, map header, toasts.
+//   • thick  – ink #1E1E20 at 66% over a heavier blur, 20% border. Sheets, place detail.
+// Reduce Transparency swaps the blur for solid #1C1C1E; Increase Contrast darkens the tint and lifts the border to 50%.
 
 enum GlassStyle {
     case clear, tinted, thick
 
+    fileprivate var material: Material { self == .thick ? .thinMaterial : .ultraThinMaterial }
     fileprivate var tint: Color {
         switch self {
         case .clear: Color.white.opacity(0.08)
-        case .tinted: Color(red: 28 / 255, green: 31 / 255, blue: 28 / 255).opacity(0.42)
-        case .thick: Color(red: 26 / 255, green: 29 / 255, blue: 26 / 255).opacity(0.62)
+        case .tinted: Mono.ink.opacity(0.5)
+        case .thick: Mono.sheetInk.opacity(0.66)
         }
     }
-    fileprivate var border: Double { self == .thick ? 0.2 : 0.18 }
+    /// Top-to-bottom white wash that gives tiles their sheen.
+    fileprivate var wash: (top: Double, bottom: Double)? { self == .tinted ? (0.10, 0.03) : nil }
+    fileprivate var border: Double {
+        switch self {
+        case .clear: 0.18
+        case .tinted: 0.16
+        case .thick: 0.2
+        }
+    }
     fileprivate var highlight: Double {
         switch self {
         case .clear: 0.2
-        case .tinted: 0.22
+        case .tinted: 0.28
         case .thick: 0.25
         }
     }
     fileprivate var shadow: (opacity: Double, radius: CGFloat, y: CGFloat) {
         switch self {
         case .clear: (0, 0, 0)
-        case .tinted: (0.45, 15, 12)
+        case .tinted: (0.35, 32, 12)
         case .thick: (0.5, 25, -10)
         }
     }
@@ -46,11 +57,17 @@ private struct GlassModifier<S: InsettableShape>: ViewModifier {
             .background {
                 if reduceTransparency {
                     // Reduce Transparency: an opaque surface instead of blur.
-                    shape.fill(Color.ncSurface)
+                    shape.fill(Mono.solid)
                 } else {
-                    shape.fill(.ultraThinMaterial)
+                    shape.fill(style.material)
+                        .overlay {
+                            if let wash = style.wash {
+                                shape.fill(LinearGradient(colors: [.white.opacity(wash.top), .white.opacity(wash.bottom)],
+                                                          startPoint: .top, endPoint: .bottom))
+                            }
+                        }
                         .overlay(shape.fill(style.tint))
-                        // Increase Contrast: a darker tint so text over busy photos stays legible.
+                        // Increase Contrast: a darker tint so text over the backdrop stays legible.
                         .overlay(shape.fill(Color.black.opacity(increased ? 0.35 : 0)))
                         .environment(\.colorScheme, .dark)
                 }
@@ -87,7 +104,7 @@ private struct LiquidGlassPanel<S: InsettableShape>: ViewModifier {
     func body(content: Content) -> some View {
         if reduceTransparency || contrast == .increased {
             content
-                .background(Color.ncSurface, in: shape)
+                .background(Mono.solid, in: shape)
                 .overlay(shape.strokeBorder(Color.white.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 1))
         } else if #available(iOS 26.0, *) {
             // Clear glass: more see-through than .regular; fine here because the backdrop is already darkened.

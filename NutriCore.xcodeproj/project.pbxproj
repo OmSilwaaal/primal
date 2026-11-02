@@ -47,6 +47,7 @@
 		5FCFF79115DFB2AF3A1314A2 /* NutrientAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 560B83020143CC838BC6F5D2 /* NutrientAnalyzer.swift */; };
 		64B269FD1AAE01171778F0D2 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9CB56696939BD9DC16FF9F /* OnboardingView.swift */; };
 		6521971AF2F5022BF63A0E8B /* SunService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A1A1EEE304EF9FF344B5FE /* SunService.swift */; };
+		6794DD1C4AC24278758616BE /* Bento.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95B2AAE49F9EB997F31DF39F /* Bento.swift */; };
 		6AA6BAFAB72F1F3AB70A3D46 /* DailyHydration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1082D74B25302B2EC64C638 /* DailyHydration.swift */; };
 		7172BD5119E72912B6906701 /* InsightsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73FD0E9574B0DCE39E45EB /* InsightsEngine.swift */; };
 		7217318470105783FD5BAFA2 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D399FAF59DB0AC5783943253 /* WeatherService.swift */; };
@@ -168,6 +169,7 @@
 		9080278985972B7F1AC47371 /* IBMPlexMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Medium.ttf"; sourceTree = "<group>"; };
 		9139A9FEEF058D4EB56BD291 /* FoodWater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodWater.swift; sourceTree = "<group>"; };
 		9402E1253CE8AD9F8EC2D945 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
+		95B2AAE49F9EB997F31DF39F /* Bento.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bento.swift; sourceTree = "<group>"; };
 		973AEBB9A626E614C100036C /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		97522CB9E8D36549A45F50D7 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		980C1948FB1B261D3DAAF19B /* GlassLight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassLight.swift; sourceTree = "<group>"; };
@@ -479,6 +481,7 @@
 			children = (
 				D40AF724808D1E7FDBCA06C0 /* AlgizMark.swift */,
 				130042E88420E3954DF48AE2 /* ArcWheel.swift */,
+				95B2AAE49F9EB997F31DF39F /* Bento.swift */,
 				D1C40E1E923AF5B43E2EBB1B /* Brand.swift */,
 				AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */,
 				C1BBE5253355C28064890C87 /* Glass.swift */,
@@ -647,6 +650,7 @@
 				882EFFCD16B6736E93137501 /* AvatarView.swift in Sources */,
 				3A95FC56916E7D22DF1FAFE1 /* BarcodeLookupService.swift in Sources */,
 				44D3F1BBB0EA51B15A502E61 /* BatchViews.swift in Sources */,
+				6794DD1C4AC24278758616BE /* Bento.swift in Sources */,
 				77BAD8C59581698F78094765 /* BiomarkersView.swift in Sources */,
 				DFFCBD3F81E24E0B81FFBDAB /* BodyGoalsView.swift in Sources */,
 				872B186F016DFE4CA383591E /* Brand.swift in Sources */,

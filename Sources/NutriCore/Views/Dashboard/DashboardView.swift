@@ -340,8 +340,8 @@ private struct DateWheel: View {
             let width = geo.size.width
             let centerX = geo.frame(in: .global).midX
             ZStack {
-                // The selection is one white drop behind the centre; the days scroll over it.
-                WaterDrop(stretch: stretch, pill: CGSize(width: pillWidth, height: pillHeight))
+                // The selection is one liquid-glass pill behind the centre; the days scroll over it.
+                LiquidSelector(stretch: stretch, lobe: CGSize(width: pillWidth, height: pillHeight))
                     .frame(width: pillWidth * 5, height: pillHeight + 24)
                     .accessibilityHidden(true)
 
@@ -392,11 +392,12 @@ private struct DateWheel: View {
                     .lineLimit(1).minimumScaleFactor(0.6)
                 markDot(day.mark, on: on).frame(width: 6, height: 6)
             }
-            .foregroundColor(on ? Mono.onWhite : Mono.text)
+            .foregroundColor(Mono.text)
+            .fontWeight(on ? .semibold : nil)
             .frame(width: pillWidth, height: pillHeight)
             .background {
-                // The selected day sits on the drop behind the wheel; the others are drawn see-through glass (system
-                // glass morphs under the drum's 3D turn).
+                // The selected day sits on the liquid-glass selector behind the wheel; the others are drawn
+                // see-through glass (system glass morphs under the drum's 3D turn).
                 if !on {
                     Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule())
                 }
@@ -424,13 +425,13 @@ private struct DateWheel: View {
             try? await Task.sleep(for: .milliseconds(140))
             guard !Task.isCancelled else { return }
             tracker.smoothed = 0
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.5)) { stretch = 0 }
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.62)) { stretch = 0 }
         }
     }
 
 
     @ViewBuilder private func markDot(_ m: EatingCycle.Mark, on: Bool) -> some View {
-        let ink = on ? Mono.onWhite : Mono.text
+        let ink = Mono.text
         switch m {
         case .onTarget, .today: Circle().fill(ink)
         case .offTarget: Circle().strokeBorder(ink, lineWidth: 1.5)
@@ -466,46 +467,75 @@ private struct TrackScrollVelocity: ViewModifier {
     }
 }
 
-/// The selection drop: a white capsule the size of a day, drawn liquid (blur, then a hard alpha threshold, so shapes
-/// that come close merge with a soft neck). Scrolling leans and stretches it towards the next day while a small
-/// droplet pulls away behind it; at rest it's just the capsule. Animatable, so springs drive it frame by frame.
-private struct WaterDrop: View, Animatable {
+/// The selection: a pill of Liquid Glass behind the centred day. While the wheel scrolls it stretches like liquid
+/// glass moving between items — a second lobe trails behind and the two are joined by a narrowing waist, further
+/// apart the faster you scroll — and at rest the trailing lobe springs back into it, leaving a single pill.
+private struct LiquidSelector: View {
+    /// −1 … 1, signed by scroll direction (animatable through the shape).
     var stretch: CGFloat
-    let pill: CGSize
+    let lobe: CGSize
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        let shape = LiquidPill(stretch: stretch, lobe: lobe)
+        Group {
+            if reduceTransparency {
+                shape.fill(Color.white.opacity(0.3))
+            } else if #available(iOS 26.0, *) {
+                Color.clear.glassEffect(.regular.tint(Color.white.opacity(0.22)), in: shape)
+            } else {
+                shape.fill(.ultraThinMaterial)
+                    .overlay(shape.fill(Color.white.opacity(0.2)))
+                    .environment(\.colorScheme, .dark)
+            }
+        }
+        .overlay(shape.stroke(Color.white.opacity(0.4), lineWidth: 1))
+        .overlay(GlassSheen(shape: shape, strength: 1.1))
+        .allowsHitTesting(false)
+    }
+}
+
+/// Two day-sized capsules (the leading one at the centre, the trailing one behind it) joined by a bridge whose top and
+/// bottom curve in to a waist. At `stretch` 0 they coincide: one capsule.
+private struct LiquidPill: Shape {
+    var stretch: CGFloat
+    let lobe: CGSize
 
     var animatableData: CGFloat {
         get { stretch }
         set { stretch = newValue }
     }
 
-    var body: some View {
-        Canvas { ctx, size in
-            let s = min(1, abs(stretch)), dir: CGFloat = stretch >= 0 ? 1 : -1
-            let c = CGPoint(x: size.width / 2, y: size.height / 2)
-            // A little larger than the pill: the threshold eats a few points off each edge.
-            let w = (pill.width + 6) * (1 + 0.55 * s)
-            let h = (pill.height + 6) * (1 - 0.18 * s)
-            ctx.addFilter(.alphaThreshold(min: 0.5, color: Mono.text))
-            ctx.addFilter(.blur(radius: 7))
-            ctx.drawLayer { layer in
-                let main = CGRect(x: c.x - w / 2 + dir * s * 16, y: c.y - h / 2, width: w, height: h)
-                layer.fill(Capsule().path(in: main), with: .color(.white))
-                func drop(_ r: CGFloat, _ x: CGFloat, _ y: CGFloat) {
-                    layer.fill(Circle().path(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
-                               with: .color(.white))
-                }
-                if s > 0.05 {
-                    // The droplet trails behind, slightly low, as if dripping off the drop…
-                    drop(8 + 11 * s, main.midX - dir * (w / 2 + 2 + 14 * s), c.y + h * 0.16)
-                }
-                if s > 0.45 {
-                    // …and a smaller one breaks away further back when scrolling fast.
-                    let t = (s - 0.45) / 0.55
-                    drop(6 + 5 * t, main.midX - dir * (w / 2 + 30 + 22 * t), c.y + h * 0.24)
-                }
-            }
+    func path(in rect: CGRect) -> Path {
+        let s = max(-1, min(1, stretch))
+        let w = lobe.width, h = lobe.height
+        let cx = rect.midX, cy = rect.midY
+        // The leading lobe edges forward a little; the trailing one hangs back up to a day and a quarter.
+        let lead = cx + s * w * 0.18
+        let trail = cx - s * w * 1.25
+        let trailScale = 1 - 0.1 * abs(s)
+
+        let tw = w * trailScale, th = h * trailScale
+        // One true outline (boolean union), so the rim and the glass follow the whole shape.
+        var p = Capsule().path(in: CGRect(x: lead - w / 2, y: cy - h / 2, width: w, height: h))
+            .union(Capsule().path(in: CGRect(x: trail - tw / 2, y: cy - th / 2, width: tw, height: th)))
+
+        let a = min(lead, trail), b = max(lead, trail)
+        if b - a > 0.5 {
+            // The waist: a soft dip, deeper the further apart the lobes are; at most about a seventh of the height
+            // on each side, so the glass reads as one body, as it does in the system's own selectors.
+            let depth = th * 0.14 * min(1, (b - a) / w)
+            let top = cy - th / 2, bottom = cy + th / 2
+            let mid = (a + b) / 2
+            var bridge = Path()
+            bridge.move(to: CGPoint(x: a, y: top))
+            bridge.addQuadCurve(to: CGPoint(x: b, y: top), control: CGPoint(x: mid, y: top + depth * 2))
+            bridge.addLine(to: CGPoint(x: b, y: bottom))
+            bridge.addQuadCurve(to: CGPoint(x: a, y: bottom), control: CGPoint(x: mid, y: bottom - depth * 2))
+            bridge.closeSubpath()
+            p = p.union(bridge)
         }
-        .allowsHitTesting(false)
+        return p
     }
 }
 

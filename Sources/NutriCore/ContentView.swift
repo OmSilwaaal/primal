@@ -46,6 +46,8 @@ struct ContentView: View {
     @State private var forward = true
     @State private var showSearch = false
     @State private var childHidesTabBar = false
+    /// The kept-alive tabs opened so far.
+    @State private var visited: Set<AppTab> = []
 
     init(initialTab: AppTab = .home) { _tab = State(initialValue: initialTab) }
 
@@ -55,20 +57,21 @@ struct ContentView: View {
             // and the photo never slides or zooms. Pushed screens and sheets still draw their own.
             AppBackdrop()
 
-            Group {
-                switch tab {
-                case .home: DashboardView(onSearch: { showSearch = true }, onOpenProfile: { select(.profile) })
-                case .map: PlacesMapView()
-                case .scan: CameraView(onClose: { select(.home) })
-                case .data: MicronutrientsView()
-                case .profile: ProfileView()
+            // Home, Data and Profile stay alive once opened: switching back is an instant cross-fade with nothing
+            // rebuilt, reloaded or re-laid-out mid-animation (that rebuild was what made tabs stutter and shift).
+            // Map and Scan are built fresh each time, so the camera and location stop when you leave them.
+            ZStack {
+                ForEach([AppTab.home, .data, .profile], id: \.self) { t in
+                    if visited.contains(t) || tab == t {
+                        page(t)
+                            .opacity(tab == t ? 1 : 0)
+                            .allowsHitTesting(tab == t)
+                            .accessibilityHidden(tab != t)
+                    }
                 }
+                if tab == .map { PlacesMapView().transition(.opacity) }
+                if tab == .scan { CameraView(onClose: { select(.home) }).transition(.opacity) }
             }
-            .id(tab)
-            .transition(.asymmetric(
-                insertion: .opacity.combined(with: .offset(x: forward ? 36 : -36)).combined(with: .scale(scale: 0.985)),
-                removal: .opacity.combined(with: .offset(x: forward ? -36 : 36))
-            ))
             .ignoresSafeArea(edges: .bottom)
 
             if !childHidesTabBar {
@@ -91,15 +94,24 @@ struct ContentView: View {
         .background(Color.ncBg.ignoresSafeArea())
     }
 
+    @ViewBuilder private func page(_ t: AppTab) -> some View {
+        switch t {
+        case .home: DashboardView(onSearch: { showSearch = true }, onOpenProfile: { select(.profile) })
+        case .data: MicronutrientsView()
+        case .profile: ProfileView()
+        default: EmptyView()
+        }
+    }
+
     private func select(_ new: AppTab) {
         guard new != tab else { return }
         Haptics.selection()
         // Set the direction first, then change tab on the next pass, so the outgoing screen's removal
         // transition already knows which way to go.
         forward = new > tab
-        DispatchQueue.main.async {
-            withAnimation(.smooth(duration: 0.38)) { tab = new }
-        }
+        visited.insert(tab)
+        visited.insert(new)
+        withAnimation(.easeInOut(duration: 0.2)) { tab = new }
     }
 }
 

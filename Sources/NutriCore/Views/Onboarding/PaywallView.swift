@@ -291,14 +291,14 @@ struct VitalisCard: View {
 
     var body: some View {
         let roll = reduceMotion ? 0 : tilt.roll, pitch = reduceMotion ? 0 : tilt.pitch
-        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)   // a real card's corner
         GeometryReader { geo in
             ZStack {
                 // Thickness: the glass edge, showing on the side turning away.
                 shape.fill(LinearGradient(colors: [.white.opacity(0.35), .white.opacity(0.06)],
                                           startPoint: .top, endPoint: .bottom))
-                    .offset(x: -roll * 5, y: -pitch * 4)
-                    .opacity(reduceTransparency ? 0 : 0.7)
+                    .offset(x: -roll * 1.5, y: -pitch * 1.2)   // a card is under 1 mm thick
+                    .opacity(reduceTransparency ? 0 : 0.5)
 
                 // Glass body: mostly clear, a light frost so text stays readable.
                 if reduceTransparency {
@@ -339,8 +339,8 @@ struct VitalisCard: View {
                 }
 
                 // The text sits a little above the glass: it shifts slightly against the turn (parallax).
-                content.padding(22)
-                    .offset(x: roll * 5, y: pitch * 4)
+                content.padding(18)
+                    .offset(x: roll * 3, y: pitch * 2)
             }
             .overlay {
                 // Iridescent rim, its colours turning with the tilt.
@@ -359,7 +359,7 @@ struct VitalisCard: View {
                 .onEnded { _ in tilt.drag(to: nil) })
         }
         .aspectRatio(1.586, contentMode: .fit)
-        .shadow(color: .black.opacity(0.45), radius: 26, x: -roll * 14, y: 18 + pitch * 8)
+        .shadow(color: .black.opacity(0.4), radius: 16, x: -roll * 10, y: 12 + pitch * 6)
         .rotation3DEffect(.degrees(pitch * -16), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
         .rotation3DEffect(.degrees(roll * 20), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
         .onAppear { tilt.start() }
@@ -371,16 +371,16 @@ struct VitalisCard: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
-                Text(name).font(.ui(size: 17, weight: .semibold)).foregroundColor(.white).lineLimit(1)
+                Text(name).font(.ui(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                 Spacer()
                 HStack(spacing: 6) {
-                    AlgizMark().fill(Color.white).frame(width: 12, height: 16)
-                    Text("VITALIS").font(.display(22)).tracking(-0.4).foregroundColor(.white)
+                    AlgizMark().fill(Color.white).frame(width: 10, height: 13)
+                    Text("VITALIS").font(.display(18)).tracking(-0.4).foregroundColor(.white)
                 }
             }
             Spacer(minLength: 8)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("Pro").font(.display(44)).foregroundColor(.white)
+                Text("Pro").font(.display(34)).foregroundColor(.white)
                 Text(isPro ? "Member" : "Membership").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white.opacity(0.85))
             }
             Text("Scanner · full nutrients · Health sync").font(.ui(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.75))

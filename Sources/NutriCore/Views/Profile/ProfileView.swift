@@ -576,9 +576,11 @@ private struct VitalisGlass<S: Shape>: ViewModifier {
                 .background(shape.fill(Color.white.opacity(0.03)))
                 .overlay(shape.stroke(Color.white.opacity(0.16), lineWidth: 1))
         } else if #available(iOS 26.0, *) {
-            content.glassEffect(glass, in: shape)
+            // The moving light caught inside the glass, behind the content.
+            content.glassSheen(in: shape, strength: 0.9).glassEffect(glass, in: shape)
         } else {
             content
+                .glassSheen(in: shape, strength: 0.9)
                 .background(shape.fill(.ultraThinMaterial))
                 .background(shape.fill((tint ?? .clear).opacity(0.25)))
                 .overlay(shape.stroke(LinearGradient(colors: [.white.opacity(0.35), .white.opacity(0.08)],

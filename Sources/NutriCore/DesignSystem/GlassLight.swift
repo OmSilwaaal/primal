@@ -206,6 +206,12 @@ final class SheenSurfaceView: UIView {
     var makePath: (CGRect) -> CGPath = { UIBezierPath(rect: $0).cgPath }
     var strength: Double = 1
 
+    /// Light caught inside the glass: a soft wash rising from the bottom, a pool of the light's colour sitting in
+    /// the lower part of the surface, and a bright line along the bottom edge — like light trapped in thick glass.
+    private let volume = CAGradientLayer()
+    private let pool = CAGradientLayer()
+    private let baseLine = CAGradientLayer()
+    private let baseLineMask = CAShapeLayer()
     private let bloom = CAGradientLayer()
     private let halo = CAGradientLayer()
     private let rim = CAGradientLayer()
@@ -217,10 +223,11 @@ final class SheenSurfaceView: UIView {
         super.init(frame: frame)
         isUserInteractionEnabled = false
         backgroundColor = .clear
+        pool.type = .radial
         bloom.type = .radial
         halo.type = .conic
         rim.type = .conic
-        for mask in [haloMask, rimMask] {
+        for mask in [haloMask, rimMask, baseLineMask] {
             mask.fillColor = UIColor.clear.cgColor
             mask.strokeColor = UIColor.white.cgColor
         }
@@ -228,6 +235,11 @@ final class SheenSurfaceView: UIView {
         rimMask.lineWidth = 2.4   // half of it lies outside the shape and is clipped: ~1.2 pt visible
         halo.mask = haloMask
         rim.mask = rimMask
+        baseLineMask.lineWidth = 3
+        baseLine.mask = baseLineMask
+        layer.addSublayer(volume)
+        layer.addSublayer(pool)
+        layer.addSublayer(baseLine)
         layer.addSublayer(bloom)
         layer.addSublayer(halo)
         layer.addSublayer(rim)
@@ -249,7 +261,10 @@ final class SheenSurfaceView: UIView {
         clip.path = path
         haloMask.path = path
         rimMask.path = path
-        for l in [bloom, halo, rim, haloMask, rimMask, clip] as [CALayer] { l.frame = bounds }
+        baseLineMask.path = path
+        for l in [volume, pool, baseLine, baseLineMask, bloom, halo, rim, haloMask, rimMask, clip] as [CALayer] {
+            l.frame = bounds
+        }
         CATransaction.commit()
         redraw(light: GlassLight.shared)
     }
@@ -270,7 +285,7 @@ final class SheenSurfaceView: UIView {
 
         // Conic gradients start at the trailing edge and run clockwise; aim the start at the light.
         let dir = CGPoint(x: 0.5 + cos(angle) * 0.5, y: 0.5 + sin(angle) * 0.5)
-        for (layer, main, back) in [(halo, 0.55 * k, 0.12 * k), (rim, 1.0 * k, 0.32 * k)] {
+        for (layer, main, back) in [(halo, 0.4 * k, 0.1 * k), (rim, 0.85 * k, 0.26 * k)] {
             layer.startPoint = CGPoint(x: 0.5, y: 0.5)
             layer.endPoint = dir
             layer.colors = [lit.withAlphaComponent(min(1, main)), lit.withAlphaComponent(min(1, main * 0.4)),
@@ -279,6 +294,29 @@ final class SheenSurfaceView: UIView {
                             lit.withAlphaComponent(min(1, main))].map(\.cgColor)
             layer.locations = [0, 0.07, 0.17, 0.38, 0.5, 0.62, 0.83, 0.93, 1]
         }
+
+        // The pool: an ellipse of the light's colour centred just below the bottom edge, drifting sideways with the
+        // light, about the lower 45% of a tall card (relatively more on small controls). Its far side fades to the
+        // photo's other colour, so it reads as a soft two-tone glow rather than a flat tint.
+        let p = strength * light.breath
+        let drift = min(0.28, max(-0.28, Double(dx / screen.width) * 0.7))
+        let cx = 0.5 + drift
+        let ry = min(0.75, max(0.42, 130 / Double(h)))
+        pool.startPoint = CGPoint(x: cx, y: 1.06)
+        pool.endPoint = CGPoint(x: cx + 0.78, y: 1.06 - ry)
+        pool.colors = [lit.withAlphaComponent(min(1, 0.62 * p)), lit.withAlphaComponent(min(1, 0.3 * p)),
+                       far.withAlphaComponent(min(1, 0.07 * p)), UIColor.clear].map(\.cgColor)
+        pool.locations = [0, 0.35, 0.7, 1]
+        // A faint wash up from the bottom, so the glass feels lit through, not just tinted at the base.
+        volume.startPoint = CGPoint(x: 0.5, y: 1)
+        volume.endPoint = CGPoint(x: 0.5, y: 0.35)
+        volume.colors = [lit.withAlphaComponent(min(1, 0.16 * p)), UIColor.clear].map(\.cgColor)
+        // The bright line where the light meets the bottom edge, fading up the sides.
+        baseLine.startPoint = CGPoint(x: 0.5, y: 1)
+        baseLine.endPoint = CGPoint(x: 0.5, y: 0.6)
+        baseLine.colors = [UIColor.white.withAlphaComponent(min(1, 0.7 * p)), lit.withAlphaComponent(min(1, 0.3 * p)),
+                           UIColor.clear].map(\.cgColor)
+        baseLine.locations = [0, 0.3, 1]
 
         // Bloom: just inside the edge facing the light.
         let reachX = dx / max(abs(dx), abs(dy) * w / h, 1) * 0.42

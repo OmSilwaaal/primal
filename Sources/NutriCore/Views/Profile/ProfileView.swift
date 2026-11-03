@@ -13,7 +13,7 @@ enum ProfileRoute: Hashable { case settings, goals }
 /// Raw, Sun and Friends stay reachable at the bottom; Pro, legal and signing out live in Settings.
 struct ProfileView: View {
     enum Sheet: Identifiable {
-        case editHeight, editAge, editGoal, weight, plan, energy, ask, addFood
+        case editHeight, editAge, editGoal, weight, plan, energy, ask, add, addFood, addWater, addSun
         var id: Self { self }
     }
 
@@ -30,6 +30,8 @@ struct ProfileView: View {
     @State private var sheet: Sheet?
     @State private var showScan = false
     @State private var expanded = false
+    /// The extra stats' natural height, measured, so the panel can open to exactly that.
+    @State private var extraHeight: CGFloat = 0
     @Namespace private var glassSpace
 
     init() {
@@ -151,7 +153,7 @@ struct ProfileView: View {
 
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
-                        smallTile(tint: nil, label: "Add food", action: { sheet = .addFood }) {
+                        smallTile(tint: nil, label: "Add", action: { sheet = .add }) {
                             Image(systemName: "plus").font(.ui(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.7))
                         }
                         smallTile(tint: Color(hex: "#E0A458"), photo: photos.first?.photoData,
@@ -178,7 +180,7 @@ struct ProfileView: View {
                             }
                         }
                         smallTile(tint: Color(hex: "#6E9A5B"), photo: today.first?.photoData ?? photos.dropFirst().first?.photoData,
-                                  label: "Today's meals, \(today.count)", action: { sheet = .addFood }) {
+                                  label: "Today's meals, \(today.count)", action: { sheet = .energy }) {
                             Text("\(today.count)").font(.ui(size: 12, weight: .bold)).foregroundColor(.white)
                                 .frame(minWidth: 22, minHeight: 22)
                                 .padding(.horizontal, 3)
@@ -226,27 +228,42 @@ struct ProfileView: View {
         let bmi = profile.heightCm > 0 ? profile.weightKg / pow(profile.heightCm / 100, 2) : 0
         let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         return VStack(spacing: 10) {
-            GlassGroup(spacing: 10) {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    statCapsule("Weight", NutrientRow.dec(profile.weightKg), "kg", glow: .vitalisLime) { sheet = .weight }
-                    statCapsule("Height", "\(Int(profile.heightCm))", "cm", glow: .ncPrimary) { sheet = .editHeight }
-                    statCapsule("Age", "\(profile.age)", "yrs", glow: .ncPrimary) { sheet = .editAge }
-                    statCapsule("Goal", NutrientRow.dec(profile.goalWeightKg), "kg", glow: .ncMoss) { sheet = .editGoal }
-                    if expanded {
-                        Group {
-                            statCapsule("BMI", bmi > 0 ? String(format: "%.1f", bmi) : "-", "", glow: .ncPrimary, action: nil)
-                            statCapsule("Daily", "\(Int(profile.dailyCalorieGoal))", "kcal", glow: .ncEmber) { sheet = .energy }
-                            wordCapsule("Activity", activity) { sheet = .plan }
-                            wordCapsule("Sex", profile.isMale ? "Male" : "Female") { sheet = .plan }
-                        }
-                        .transition(.opacity.combined(with: .scale(scale: 0.92)))
-                    }
-                }
+            pair {
+                statCapsule("Weight", NutrientRow.dec(profile.weightKg), "kg", glow: .vitalisLime) { sheet = .weight }
+            } right: {
+                statCapsule("Height", "\(Int(profile.heightCm))", "cm", glow: .ncPrimary) { sheet = .editHeight }
             }
+            pair {
+                statCapsule("Age", "\(profile.age)", "yrs", glow: .ncPrimary) { sheet = .editAge }
+            } right: {
+                statCapsule("Goal", NutrientRow.dec(profile.goalWeightKg), "kg", glow: .ncMoss) { sheet = .editGoal }
+            }
+            // The extra stats sit in a clipped panel whose height opens and closes, so nothing below ever overlaps
+            // them mid-animation.
+            VStack(spacing: 10) {
+                    pair {
+                        statCapsule("BMI", bmi > 0 ? String(format: "%.1f", bmi) : "-", "", glow: .ncPrimary, action: nil)
+                    } right: {
+                        statCapsule("Daily", "\(Int(profile.dailyCalorieGoal))", "kcal", glow: .ncEmber) { sheet = .energy }
+                    }
+                    pair {
+                        wordCapsule("Activity", activity) { sheet = .plan }
+                    } right: {
+                        wordCapsule("Sex", profile.isMale ? "Male" : "Female") { sheet = .plan }
+                    }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { extraHeight = $0 }
+            .frame(height: expanded ? extraHeight : 0, alignment: .top)
+            .opacity(expanded ? 1 : 0)
+            .clipped()
+            .padding(.top, expanded ? 0 : -10)   // no extra gap while closed
+            .allowsHitTesting(expanded)
+            .accessibilityHidden(!expanded)
 
             Button {
                 Haptics.tap()
-                withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) { expanded.toggle() }
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.38)) { expanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
                     Text(expanded ? "Less info" : "More info").font(.ui(size: 15, weight: .medium))
@@ -260,6 +277,14 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint(expanded ? "Hides the extra body details" : "Shows the rest of your body details")
+        }
+    }
+
+    /// Two equal capsules side by side; stacked at accessibility text sizes.
+    @ViewBuilder private func pair<L: View, R: View>(@ViewBuilder _ left: () -> L, @ViewBuilder right: () -> R) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) { left(); right() }.fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 10) { left(); right() }
         }
     }
 
@@ -443,10 +468,66 @@ struct ProfileView: View {
                                  today: recentMeals.filter { Calendar.current.isDateInToday($0.date) })
             case .ask:
                 AskSheet(meals: recentMeals)
+            case .add:
+                AddMenuSheet { choice in
+                    switch choice {
+                    case .food: self.sheet = .addFood
+                    case .scan: self.sheet = nil; showScan = true
+                    case .water: self.sheet = .addWater
+                    case .sun: self.sheet = .addSun
+                    case .weight: self.sheet = .weight
+                    }
+                }
             case .addFood:
                 SearchView(onClose: { self.sheet = nil })
+            case .addWater:
+                WaterSheet(drinksMl: todayWaterMl(), foodMl: FoodWater.millilitres(in: todaysMeals)) { ml in addWater(ml) }
+            case .addSun:
+                SunSheet(minutes: todaySunMinutes(), goal: sunGoal) { minutes in addSun(minutes) }
             }
         }
+    }
+
+    @AppStorage(RawSettings.sunGoalKey) private var sunGoal = 30
+
+    private var todaysMeals: [MealEntry] { recentMeals.filter { Calendar.current.isDateInToday($0.date) } }
+
+    private func todayHydration() -> DailyHydration {
+        let start = Calendar.current.startOfDay(for: .now)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? .now
+        let found = try? modelContext.fetch(FetchDescriptor<DailyHydration>(predicate: #Predicate { $0.date >= start && $0.date < end }))
+        if let first = found?.first { return first }
+        let new = DailyHydration()
+        modelContext.insert(new)
+        return new
+    }
+
+    private func todayWaterMl() -> Double { todayHydration().waterOunces * WaterSheet.mlPerOunce }
+
+    private func todaySunMinutes() -> Double {
+        let start = Calendar.current.startOfDay(for: .now)
+        let sessions = (try? modelContext.fetch(FetchDescriptor<SunSession>(predicate: #Predicate { $0.start >= start }))) ?? []
+        return sessions.reduce(0) { $0 + $1.minutes }
+    }
+
+    private func addWater(_ ml: Double) {
+        let ounces = ml / WaterSheet.mlPerOunce
+        todayHydration().waterOunces += ounces
+        HealthKitManager.shared.saveDietaryWater(ounces: ounces)
+        try? modelContext.save()
+        Haptics.success()
+        ToastCenter.shared.show("Added \(Int(ml)) ml water", branded: true)
+    }
+
+    private func addSun(_ minutes: Double) {
+        let session = SunSession()
+        session.start = .now
+        session.minutes = minutes
+        session.source = "manual"
+        modelContext.insert(session)
+        try? modelContext.save()
+        Haptics.success()
+        ToastCenter.shared.show("Added \(Int(minutes)) min outside", branded: true)
     }
 
     private func save(_ message: String) {
@@ -606,6 +687,60 @@ private struct MealBubbles: View {
             Circle().stroke(Color.white.opacity(0.35), lineWidth: 1)
         }
         .frame(width: 32, height: 32)
+    }
+}
+
+// MARK: - Add menu
+
+/// What the + tile adds: a meal (search or scan), water, time outside, or today's weight.
+private struct AddMenuSheet: View {
+    enum Choice { case food, scan, water, sun, weight }
+    let onChoose: (Choice) -> Void
+
+    private let items: [(Choice, String, String, String)] = [
+        (.food, "fork.knife", "Log food", "Search and add a meal"),
+        (.scan, "viewfinder", "Scan", "Barcode or a photo of your plate"),
+        (.water, "drop", "Water", "Add a glass or a bottle"),
+        (.sun, "sun.max", "Time outside", "Minutes in daylight"),
+        (.weight, "scalemass", "Weight", "Log today's weight"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Add").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+                .padding(.top, 14)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(items, id: \.2) { choice, icon, title, detail in
+                    Button {
+                        Haptics.tap()
+                        onChoose(choice)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Image(systemName: icon).font(.ui(size: 18, weight: .medium)).foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .vitalisGlass(Circle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(title).font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                                Text(detail).font(.ui(size: 12)).foregroundColor(.white.opacity(0.72))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .vitalisGlass(RoundedRectangle(cornerRadius: 24, style: .continuous), interactive: true)
+                        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isButton)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .presentationDetents([.medium, .large])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
     }
 }
 

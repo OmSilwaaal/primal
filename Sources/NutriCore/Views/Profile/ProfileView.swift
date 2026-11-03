@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 enum ProfileRoute: Hashable { case settings, goals }
 
@@ -416,8 +417,8 @@ struct ProfileView: View {
                     profile.goalWeightKg = $0; save("Goal saved")
                 }
             case .weight:
-                WeightHistorySheet(current: profile.weightKg,
-                                   history: readings.filter { $0.kind == BiomarkerKind.weight.rawValue }.reversed()) { kg in
+                WeightTrendSheet(current: profile.weightKg, goal: profile.goalWeightKg,
+                                 logs: readings.filter { $0.kind == BiomarkerKind.weight.rawValue }) { kg in
                     let reading = BiomarkerReading()
                     reading.date = .now
                     reading.kind = BiomarkerKind.weight.rawValue
@@ -955,66 +956,284 @@ private struct StatEditor: View {
     }
 }
 
-/// Weight readings, newest first, and logging today's weight in half-kilo steps.
-private struct WeightHistorySheet: View {
+/// Weight over time as a Liquid Glass chart. A smooth line through every logged weight with a soft fill, the goal as
+/// a dashed line, and a range switch. Touch and drag across it: a white dot glides from log to log and a glass
+/// tooltip shows that day's weight and the change since the start of the range. Above it, the numbers that matter
+/// (now, change over the range, weekly pace, left to goal); below it, logging today's weight.
+private struct WeightTrendSheet: View {
+    struct Log: Identifiable, Equatable {
+        let id: UUID
+        let date: Date
+        let kg: Double
+    }
+
+    enum Span: String, CaseIterable, Identifiable {
+        case month = "1M", quarter = "3M", half = "6M", year = "1Y", all = "All"
+        var id: Self { self }
+        var days: Int? {
+            switch self {
+            case .month: 30
+            case .quarter: 91
+            case .half: 182
+            case .year: 365
+            case .all: nil
+            }
+        }
+    }
+
     let current: Double
-    let history: [BiomarkerReading]
+    let goal: Double
+    let allLogs: [Log]
     let onLog: (Double) -> Void
+    @State private var span: Span = .quarter
+    @State private var selected: Log?
     /// The slider works in half kilos.
     @State private var halves: Double
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(current: Double, history: [BiomarkerReading], onLog: @escaping (Double) -> Void) {
+    init(current: Double, goal: Double, logs: [BiomarkerReading], onLog: @escaping (Double) -> Void) {
         self.current = current
-        self.history = history
+        self.goal = goal
         self.onLog = onLog
-        _halves = State(initialValue: min(max((current * 2).rounded(), 60), 500))
+        // One point per day (the day's last reading), oldest first.
+        var byDay: [Date: BiomarkerReading] = [:]
+        for r in logs { byDay[Calendar.current.startOfDay(for: r.date)] = r }
+        allLogs = byDay.values.sorted { $0.date < $1.date }.map { Log(id: $0.id, date: $0.date, kg: $0.value) }
+        // Start the slider at the latest weigh-in, else the profile's weight.
+        let start = allLogs.last?.kg ?? current
+        _halves = State(initialValue: min(max((start * 2).rounded(), 60), 500))
+    }
+
+    private var logs: [Log] {
+        guard let days = span.days, let start = Calendar.current.date(byAdding: .day, value: -days, to: .now) else { return allLogs }
+        return allLogs.filter { $0.date >= start }
+    }
+
+    private var yDomain: ClosedRange<Double> {
+        let values = logs.map(\.kg) + (goal > 0 ? [goal] : [])
+        let lo = (values.min() ?? current) - 1, hi = (values.max() ?? current) + 1
+        return lo...max(hi, lo + 2)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Weight").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Weight").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+                    .padding(.top, 14)
+                    .accessibilityAddTraits(.isHeader)
+                summary
+                chartCard
+                logCard
+            }
+            .padding(20)
+        }
+        .presentationDetents([.large])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+
+    // MARK: Summary
+
+    private var summary: some View {
+        let first = logs.first?.kg, last = logs.last?.kg ?? current
+        let change = first.map { last - $0 }
+        let weeks = logs.count > 1 ? max(1, (logs.last!.date.timeIntervalSince(logs.first!.date)) / (7 * 86_400)) : 0
+        let pace = change.map { weeks > 0 ? $0 / weeks : 0 }
+        let left = goal > 0 ? last - goal : nil
+        return HStack(spacing: 10) {
+            stat("Now", String(format: "%.1f", last), "kg")
+            stat("Change", change.map { signed($0) } ?? "—", "kg", color: change.map(changeColor))
+            stat("Per week", pace.map { signed($0) } ?? "—", "kg")
+            stat("To goal", left.map { abs($0) < 0.1 ? "0" : String(format: "%.1f", abs($0)) } ?? "—", "kg")
+        }
+    }
+
+    private func stat(_ label: String, _ value: String, _ unit: String, color: Color? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.mono(11, .semibold)).tracking(0.5).textCase(.uppercase).foregroundColor(.white.opacity(0.72))
+                .lineLimit(1).minimumScaleFactor(0.8)
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(value).font(.display(18)).foregroundColor(color ?? .white).lineLimit(1).minimumScaleFactor(0.6)
+                Text(unit).font(.mono(11)).foregroundColor(.white.opacity(0.72))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Moving towards the goal is good news whichever way the goal lies.
+    private func changeColor(_ delta: Double) -> Color {
+        guard abs(delta) >= 0.05, goal > 0, let start = logs.first?.kg else { return .white }
+        return (goal < start) == (delta < 0) ? .ncMoss : .ncEmber
+    }
+
+    private func signed(_ v: Double) -> String { abs(v) < 0.05 ? "0.0" : String(format: "%+.1f", v) }
+
+    // MARK: Chart
+
+    private var chartCard: some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        return VStack(alignment: .leading, spacing: 14) {
+            // Range switch.
+            HStack(spacing: 4) {
+                ForEach(Span.allCases) { s in
+                    let on = span == s
+                    Button {
+                        Haptics.selection()
+                        withAnimation(reduceMotion ? nil : .smooth(duration: 0.35)) { span = s; selected = nil }
+                    } label: {
+                        Text(s.rawValue).font(.mono(11, .semibold))
+                            .foregroundColor(on ? Mono.onWhite : .white)
+                            .frame(maxWidth: .infinity, minHeight: 34)
+                            .background { if on { Capsule().fill(Color.white) } }
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            .padding(4)
+            .liquidGlassPanel(in: Capsule())
+
+            if logs.count < 2 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Image(systemName: "chart.xyaxis.line").font(.ui(size: 22)).foregroundColor(.white.opacity(0.8))
+                    Text(logs.isEmpty ? "No weights logged in this range yet." : "One weight logged in this range.")
+                        .font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                    Text("Log your weight a few times and your trend appears here. Apple Health weights sync in from Biomarkers.")
+                        .font(.ui(size: 13)).foregroundColor(.white.opacity(0.72)).fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 220, alignment: .leading)
+            } else {
+                chart.frame(height: 240)
+                Text(selected == nil ? "Touch and drag along the line to see each weigh-in."
+                                     : "Release to clear.")
+                    .font(.ui(size: 12)).foregroundColor(.white.opacity(0.6))
+            }
+        }
+        .padding(16)
+        .glassSheen(in: shape, strength: 0.8)
+        .liquidGlassPanel(in: shape)
+    }
+
+    private var chart: some View {
+        let first = logs.first?.kg ?? current
+        return Chart {
+            ForEach(logs) { log in
+                AreaMark(x: .value("Date", log.date), yStart: .value("Base", yDomain.lowerBound), yEnd: .value("Weight", log.kg))
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(LinearGradient(colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
+                                                    startPoint: .top, endPoint: .bottom))
+                LineMark(x: .value("Date", log.date), y: .value("Weight", log.kg))
+                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .foregroundStyle(Color.white)
+                PointMark(x: .value("Date", log.date), y: .value("Weight", log.kg))
+                    .symbolSize(selected == log ? 0 : 18)
+                    .foregroundStyle(Color.white.opacity(0.8))
+                    .accessibilityLabel(log.date.formatted(date: .abbreviated, time: .omitted))
+                    .accessibilityValue("\(String(format: "%.1f", log.kg)) kilograms")
+            }
+            if goal > 0, yDomain.contains(goal) {
+                RuleMark(y: .value("Goal", goal))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .foregroundStyle(Color.ncMoss.opacity(0.9))
+                    .annotation(position: .top, alignment: .leading) {
+                        Text("Goal \(NutrientRow.dec(goal))").font(.mono(11, .semibold)).foregroundColor(.ncMoss)
+                    }
+            }
+            if let selected {
+                RuleMark(x: .value("Selected", selected.date))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                PointMark(x: .value("Selected", selected.date), y: .value("Weight", selected.kg))
+                    .symbol {
+                        ZStack {
+                            Circle().fill(Color.white.opacity(0.18)).frame(width: 30, height: 30)
+                            Circle().fill(Color.white).frame(width: 14, height: 14)
+                                .shadow(color: .black.opacity(0.3), radius: 4, y: 1)
+                        }
+                    }
+                    .annotation(position: .top, spacing: 10, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        tooltip(selected, first: first)
+                    }
+            }
+        }
+        .chartYScale(domain: yDomain)
+        // Room at the ends so the first and last date labels aren't clipped.
+        .chartXScale(range: .plotDimension(startPadding: 6, endPadding: 30))
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 1)).foregroundStyle(Color.white.opacity(0.06))
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day()).foregroundStyle(Color.white.opacity(0.7))
+                    .font(.mono(11))
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 1)).foregroundStyle(Color.white.opacity(0.06))
+                AxisValueLabel().foregroundStyle(Color.white.opacity(0.7)).font(.mono(11))
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle().fill(Color.clear).contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard let plot = proxy.plotFrame else { return }
+                            let x = value.location.x - geo[plot].origin.x
+                            guard let date: Date = proxy.value(atX: x) else { return }
+                            // Snap to the nearest log, so the dot always sits on a real weigh-in.
+                            let nearest = logs.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
+                            if nearest != selected {
+                                Haptics.selection()
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.86)) { selected = nearest }
+                            }
+                        }
+                        .onEnded { _ in
+                            withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { selected = nil }
+                        })
+            }
+        }
+        .accessibilityLabel("Weight chart")
+    }
+
+    private func tooltip(_ log: Log, first: Double) -> some View {
+        let delta = log.kg - first
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(log.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                .font(.mono(11, .semibold)).textCase(.uppercase).foregroundColor(.white.opacity(0.75))
+            Text("\(String(format: "%.1f", log.kg)) kg").font(.display(17)).foregroundColor(.white)
+            Text("\(signed(delta)) kg since start").font(.ui(size: 11, weight: .semibold))
+                .foregroundColor(changeColor(delta))
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .glass(.tinted, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .fixedSize()
+    }
+
+    // MARK: Log
+
+    private var logCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Log today").font(.bentoLabel).foregroundColor(.white.opacity(0.72))
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 DotMatrixText(text: String(format: "%.1f", halves / 2), pitch: 5)
-                Text("kg").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                Text("kg").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.white.opacity(0.72))
             }
             .frame(maxWidth: .infinity)
             LineRuler(amount: $halves, range: 60...500, step: 1, major: 10, spokenUnit: "half kilograms") {
                 "\($0 / 2)"
             }
-            .padding(.horizontal, -20)
-            Button("Log \(String(format: "%.1f", halves / 2)) kg today") { onLog(halves / 2); dismiss() }
+            .padding(.horizontal, -16)
+            Button("Log \(String(format: "%.1f", halves / 2)) kg") { onLog(halves / 2); dismiss() }
                 .buttonStyle(.bentoPrimary)
-
-            Text("History").font(.bentoLabel).foregroundColor(Mono.label).padding(.top, 6)
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    if history.isEmpty {
-                        Text("No weight readings yet. Log one above, or sync from Apple Health on Biomarkers.")
-                            .font(.ui(size: 13)).foregroundColor(Mono.label)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
-                    }
-                    ForEach(Array(history.prefix(60).enumerated()), id: \.element.id) { i, r in
-                        HStack {
-                            Text(r.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
-                                .font(.ui(size: 14)).foregroundColor(Mono.text)
-                            Spacer()
-                            Text("\(String(format: "%.1f", r.value)) kg").font(.mono(12)).foregroundColor(Mono.text)
-                        }
-                        .frame(minHeight: 44)
-                        .overlay(alignment: .top) {
-                            if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-            }
         }
-        .padding(20)
-        .presentationDetents([.large])
-        .glassSheetBackground()
-        .presentationCornerRadius(Bento.radius)
+        .padding(16)
+        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 }
 

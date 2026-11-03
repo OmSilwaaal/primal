@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var legalDocument: LegalDocument?
     @State private var showManageSubscriptions = false
     @State private var showPaywall = false
+    @State private var showPayment = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
@@ -42,11 +43,12 @@ struct SettingsView: View {
                                 showManageSubscriptions = true
                             }
                         } else {
-                            NavigationLink(destination: PaymentView().pushedScreen()) {
-                                SettingsRowLabel(icon: "creditcard", title: "Get Vitalis Pro",
-                                                 subtitle: "Plans and payment", showsChevron: true)
+                            // An explicit button + destination: the older NavigationLink(destination:) could fire on
+                            // its own inside this pushed screen and jump straight to Payment.
+                            SettingsRow(icon: "creditcard", title: "Get Vitalis Pro", subtitle: "Plans and payment",
+                                        showsChevron: true) {
+                                showPayment = true
                             }
-                            .buttonStyle(PressScaleStyle(scale: 0.98))
                         }
                         SettingsDivider()
                         SettingsRow(icon: "arrow.clockwise", title: "Restore purchases",
@@ -217,6 +219,7 @@ struct SettingsView: View {
             Text("We'll email a confirmation link to the new address.")
         }
         .sheet(item: $legalDocument) { LegalView(document: $0) }
+        .navigationDestination(isPresented: $showPayment) { PaymentView().pushedScreen() }
         .sheet(isPresented: $showPaywall) {
             PaywallView(onNotNow: { showPaywall = false }, showsAccountButton: false)
         }

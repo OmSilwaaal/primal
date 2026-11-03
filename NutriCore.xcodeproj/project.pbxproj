@@ -69,7 +69,6 @@
 		98511612CDB6663E002612FD /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F43AEEE97508ADEB765043 /* HealthKitManager.swift */; };
 		986A7FE4D6D803C2F3E59896 /* knock.wav in Resources */ = {isa = PBXBuildFile; fileRef = AD8827C99C1BCDD5B2A5E877 /* knock.wav */; };
 		9A28B90AC9D6CC55E36219AE /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD6F4EC5D7730A444C40FE3 /* AuthManager.swift */; };
-		9F681009B748A1644CF2BE7B /* payment-bg.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = B0B7183F3FEB92B3352CDB7A /* payment-bg.mp4 */; };
 		A3FEE26475F3027899272BDE /* ReferenceNutrition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FB8BFBCA681393FBD6E6C98 /* ReferenceNutrition.swift */; };
 		A408D166DCBEE96D8F6B1217 /* Reminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149AD276A29D8A1C88CE1418 /* Reminders.swift */; };
 		AB17BA9C480D45AE3E4102CA /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB52BDB580959B47AE585E14 /* SubscriptionManager.swift */; };
@@ -184,7 +183,6 @@
 		AC465D780DCE4BD10AD5E9A1 /* Color+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Extensions.swift"; sourceTree = "<group>"; };
 		AD8827C99C1BCDD5B2A5E877 /* knock.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = knock.wav; sourceTree = "<group>"; };
 		B01121074273574E03EA87A3 /* RecallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecallService.swift; sourceTree = "<group>"; };
-		B0B7183F3FEB92B3352CDB7A /* payment-bg.mp4 */ = {isa = PBXFileReference; path = "payment-bg.mp4"; sourceTree = "<group>"; };
 		B29170599826277F533BBD18 /* LegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalView.swift; sourceTree = "<group>"; };
 		B5AADEDA754664969AA15E67 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BBC63352402B6EAFF05BEEB1 /* ShareCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCards.swift; sourceTree = "<group>"; };
@@ -381,14 +379,6 @@
 			path = Raw;
 			sourceTree = "<group>";
 		};
-		89A7E825333FB8F69E11F7BA /* Video */ = {
-			isa = PBXGroup;
-			children = (
-				B0B7183F3FEB92B3352CDB7A /* payment-bg.mp4 */,
-			);
-			path = Video;
-			sourceTree = "<group>";
-		};
 		97FFEFC1F5BE34A2E5CBA8F7 /* Share */ = {
 			isa = PBXGroup;
 			children = (
@@ -509,7 +499,6 @@
 				18918BA75893A783B4C048FD /* Fonts */,
 				3CE3416EA69B5836EB1C9B05 /* Legal */,
 				B82B32B9603F8C64476D81F7 /* Sounds */,
-				89A7E825333FB8F69E11F7BA /* Video */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -629,7 +618,6 @@
 				14F5A56A9E058289DB7EB43C /* OFL-IBMPlexMono.txt in Resources */,
 				0EEFB94EBE44A4818C02C616 /* health-safety-policy.md in Resources */,
 				986A7FE4D6D803C2F3E59896 /* knock.wav in Resources */,
-				9F681009B748A1644CF2BE7B /* payment-bg.mp4 in Resources */,
 				CEBAA1D47C4B7DC8DB08EBA1 /* privacy-policy.md in Resources */,
 				4B8C5DCB268D4D972309C847 /* terms-of-service.md in Resources */,
 			);

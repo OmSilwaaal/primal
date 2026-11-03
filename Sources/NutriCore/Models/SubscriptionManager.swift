@@ -22,6 +22,8 @@ final class SubscriptionManager: ObservableObject {
     }
 
     @Published private(set) var isSubscribed: Bool
+    /// When the current subscription period ends (it renews then unless cancelled); nil without one.
+    @Published private(set) var expirationDate: Date?
     @Published private(set) var isWorking = false
     @Published private(set) var products: [Plan: Product] = [:]
     @Published var errorMessage: String?
@@ -87,13 +89,16 @@ final class SubscriptionManager: ObservableObject {
     func refreshEntitlement() async -> Bool {
         let ids = Set(Plan.allCases.map(\.productID))
         var entitled = false
+        var latest: Date?
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result,
                   ids.contains(transaction.productID),
                   transaction.revocationDate == nil,
                   transaction.expirationDate.map({ $0 > Date() }) ?? true else { continue }
             entitled = true
+            if let end = transaction.expirationDate { latest = max(latest ?? end, end) }
         }
+        expirationDate = latest
         setSubscribed(entitled)
         return entitled
     }

@@ -321,10 +321,8 @@ private struct PaymentMark: View {
                     Text("Pay").font(.system(size: 19, weight: .semibold))
                 }
             case .card:
-                HStack(spacing: 6) {
-                    Image(systemName: "creditcard.fill").font(.system(size: 17, weight: .semibold))
-                    Text("DEBIT · CREDIT").font(.mono(11, .semibold)).tracking(0.8)
-                }
+                // A VISA-style wordmark (set in type; Visa's own artwork isn't bundled).
+                Text("VISA").font(.system(size: 22, weight: .black)).italic().tracking(-0.5)
             case .paypal:
                 Text("PayPal").font(.system(size: 19, weight: .heavy)).italic()
             case .balance:
@@ -348,6 +346,8 @@ struct VitalisCard: View {
     let name: String
     let isPro: Bool
     var method: PaymentMethod? = nil
+    /// Printed as VALID THRU MM/YY: when the membership runs until.
+    var expires: Date? = nil
     @StateObject private var tilt = CardTilt()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -424,7 +424,7 @@ struct VitalisCard: View {
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Vitalis \(isPro ? "Pro member card" : "card"), \(name)\(method.map { ", paying with \($0.title)" } ?? "")")
+        .accessibilityLabel("Vitalis \(isPro ? "Pro member card" : "card"), \(name)\(method.map { ", paying with \($0.title)" } ?? "")\(expires.map { ", valid through \($0.formatted(.dateTime.month(.wide).year()))" } ?? "")")
     }
 
     private func content(size: CGSize) -> some View {
@@ -447,6 +447,18 @@ struct VitalisCard: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Spacer()
+                if let expires {
+                    HStack(alignment: .center, spacing: 6) {
+                        Text("VALID\nTHRU").font(.mono(7, .semibold)).lineSpacing(-1).multilineTextAlignment(.trailing)
+                            .foregroundColor(.white.opacity(0.75))
+                        Text(expires.formatted(.dateTime.month(.twoDigits).year(.twoDigits)))
+                            .font(.mono(15, .semibold)).foregroundColor(.white.opacity(0.92))
+                            .shadow(color: .black.opacity(0.3), radius: 0.8, y: 0.6)
+                            .contentTransition(.numericText())
+                    }
+                    .padding(.bottom, 4)
+                    .accessibilityHidden(true)
+                }
                 Text(name).font(.system(size: w * 0.05, weight: .medium)).foregroundColor(.white.opacity(0.92))
                     .shadow(color: .black.opacity(0.3), radius: 0.8, y: 0.6)
                     .lineLimit(1).minimumScaleFactor(0.7)

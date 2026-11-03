@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 import StoreKit
 import SwiftData
 
@@ -411,10 +410,10 @@ private struct SettingsToggleRow: View {
 
 // MARK: - Payment
 
-/// The payment page, opened from Settings › Subscription: the Vitalis card centred over a slowly looping forest,
-/// lightly blurred. Without Pro: choose a plan and how to pay — the card shows the chosen method's mark — and
+/// The payment page, opened from Settings › Subscription: the Vitalis card centred on the app's backdrop, with
+/// its valid-through date. Without Pro: choose a plan and how to pay — the card shows the chosen method's mark — and
 /// subscribe through the App Store. With Pro: the card reads Active and the button manages the subscription.
-/// The back button sits bottom left in Liquid Glass, refracting the video behind it.
+/// The back button sits bottom left in Liquid Glass.
 struct PaymentView: View {
     @StateObject private var subManager = SubscriptionManager.shared
     @StateObject private var social = SocialService.shared
@@ -425,11 +424,21 @@ struct PaymentView: View {
 
     private var method: PaymentMethod { PaymentMethod(rawValue: methodRaw) ?? .applePay }
 
+    /// With Pro, when the current period ends; without, when the selected plan would run until if started today.
+    private var expires: Date? {
+        if subManager.isSubscribed { return subManager.expirationDate }
+        return Calendar.current.date(byAdding: plan == .annual ? .year : .month, value: 1, to: .now)
+    }
+
+    private var expiryLine: String {
+        guard let expires else { return "Active" }
+        let date = expires.formatted(date: .long, time: .omitted)
+        return subManager.isSubscribed ? "Renews or expires on \(date)" : "Starting today, valid through \(date)"
+    }
+
     var body: some View {
         ZStack {
-            LoopingVideo(name: "payment-bg", blur: 0.12)
-                .overlay(Color.black.opacity(0.22))
-                .ignoresSafeArea()
+            AppBackdrop()
 
             VStack(spacing: 18) {
                 Text(subManager.isSubscribed ? "Your membership" : "Vitalis Pro")
@@ -439,8 +448,10 @@ struct PaymentView: View {
                     .padding(.top, 8)
                 Spacer(minLength: 0)
                 VitalisCard(name: social.myProfile?.name ?? "Vitalis Member", isPro: subManager.isSubscribed,
-                            method: subManager.isSubscribed ? nil : method)
+                            method: subManager.isSubscribed ? nil : method, expires: expires)
                     .padding(.horizontal, 6)
+                Text(expiryLine).font(.ui(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.85))
+                    .contentTransition(.opacity)
                 Spacer(minLength: 0)
                 if subManager.isSubscribed { manage } else { checkout }
                 bottomBar
@@ -568,64 +579,6 @@ struct PaymentView: View {
             }
         }
         .padding(.bottom, 4)
-    }
-}
-
-/// A muted video that loops forever, aspect-filled, with an optional light blur (0…1). Holds still on its first
-/// frame under Reduce Motion.
-struct LoopingVideo: UIViewRepresentable {
-    let name: String
-    var blur: CGFloat = 0
-
-    func makeUIView(context: Context) -> LoopingVideoView {
-        LoopingVideoView(name: name, blur: blur)
-    }
-    func updateUIView(_ view: LoopingVideoView, context: Context) {}
-    static func dismantleUIView(_ view: LoopingVideoView, coordinator: ()) { view.teardown() }
-}
-
-final class LoopingVideoView: UIView {
-    override class var layerClass: AnyClass { AVPlayerLayer.self }
-    private var player: AVQueuePlayer?
-    private var looper: AVPlayerLooper?
-    private var blurAnimator: UIViewPropertyAnimator?
-    private let blurView = UIVisualEffectView(effect: nil)
-
-    init(name: String, blur: CGFloat) {
-        super.init(frame: .zero)
-        isUserInteractionEnabled = false
-        backgroundColor = .black
-        guard let url = Bundle.main.url(forResource: name, withExtension: "mp4") else { return }
-        let item = AVPlayerItem(url: url)
-        let player = AVQueuePlayer()
-        player.isMuted = true
-        player.preventsDisplaySleepDuringVideoPlayback = false
-        looper = AVPlayerLooper(player: player, templateItem: item)
-        (layer as? AVPlayerLayer)?.player = player
-        (layer as? AVPlayerLayer)?.videoGravity = .resizeAspectFill
-        self.player = player
-        if UIAccessibility.isReduceMotionEnabled { player.pause() } else { player.play() }
-
-        if blur > 0 {
-            // A partial blur: run a blur animator to `blur` of the way and hold it there.
-            blurView.frame = bounds
-            blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            addSubview(blurView)
-            let animator = UIViewPropertyAnimator(duration: 1, curve: .linear) { [blurView] in
-                blurView.effect = UIBlurEffect(style: .regular)
-            }
-            animator.pausesOnCompletion = true
-            animator.fractionComplete = blur
-            blurAnimator = animator
-        }
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func teardown() {
-        player?.pause()
-        blurAnimator?.stopAnimation(true)
-        blurAnimator = nil
     }
 }
 

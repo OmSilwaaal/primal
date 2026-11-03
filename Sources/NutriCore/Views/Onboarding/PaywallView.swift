@@ -222,35 +222,66 @@ struct PaywallFeatureRow: View {
 
 // MARK: - Vitalis card
 
-/// The phone's tilt for the card: roll and pitch from gravity, eased, as −1…1 (0 held upright, facing you).
+/// The card's tilt, −1…1 on each axis (0 = facing you). Follows the phone's tilt from Core Motion, or a finger /
+/// pointer dragged across the card while it's held. Eased every frame by one display link, so both feel smooth.
 @MainActor
 final class CardTilt: ObservableObject {
     @Published private(set) var roll: Double = 0
     @Published private(set) var pitch: Double = 0
+    private var target = (roll: 0.0, pitch: 0.0)
+    private var dragTarget: (roll: Double, pitch: Double)?
     private let motion = CMMotionManager()
+    private var link: CADisplayLink?
 
     func start() {
-        guard motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive, !UIAccessibility.isReduceMotionEnabled else { return }
-        motion.deviceMotionUpdateInterval = 1.0 / 60
-        motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
-            guard let g = data?.gravity else { return }
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                let r = max(-1, min(1, g.x * 1.6))
-                let p = max(-1, min(1, (g.y + 0.72) * 1.8))
-                // Ease so the card glides rather than shakes.
-                self.roll += (r - self.roll) * 0.14
-                self.pitch += (p - self.pitch) * 0.14
+        guard !UIAccessibility.isReduceMotionEnabled else { return }
+        if motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive {
+            motion.deviceMotionUpdateInterval = 1.0 / 60
+            motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
+                guard let g = data?.gravity else { return }
+                MainActor.assumeIsolated {
+                    self?.target = (max(-1, min(1, g.x * 1.6)), max(-1, min(1, (g.y + 0.72) * 1.8)))
+                }
             }
         }
+        guard link == nil else { return }
+        let link = CADisplayLink(target: CardTiltProxy(self), selector: #selector(CardTiltProxy.tick))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 120, preferred: 120)
+        link.add(to: .main, forMode: .common)
+        self.link = link
     }
 
-    func stop() { motion.stopDeviceMotionUpdates() }
+    func stop() {
+        motion.stopDeviceMotionUpdates()
+        link?.invalidate()
+        link = nil
+    }
+
+    /// A point over the card in unit space (0…1); nil when the finger lifts.
+    func drag(to unit: CGPoint?) {
+        dragTarget = unit.map { (Double($0.x - 0.5) * 2, Double($0.y - 0.5) * 2) }
+    }
+
+    fileprivate func tick() {
+        let t = dragTarget ?? target
+        // Critically damped easing: quick to follow, no wobble. A held finger follows a little tighter.
+        let k = dragTarget == nil ? 0.10 : 0.2
+        let r = roll + (t.roll - roll) * k, p = pitch + (t.pitch - pitch) * k
+        guard abs(r - roll) > 0.0003 || abs(p - pitch) > 0.0003 else { return }
+        roll = r; pitch = p
+    }
 }
 
-/// A transparent glass membership card that says VITALIS, with light refracting inside it and an iridescent rim.
-/// It turns in 3D with the phone: tilt it and the card rotates, its sheen slides across and the colours inside shift.
-/// Still under Reduce Motion.
+private final class CardTiltProxy {
+    weak var tilt: CardTilt?
+    init(_ tilt: CardTilt) { self.tilt = tilt }
+    @objc func tick() { MainActor.assumeIsolated { tilt?.tick() } }
+}
+
+/// A transparent glass membership card that says VITALIS. It turns in 3D with the phone, or with a finger or the
+/// pointer dragged across it: the glass rotates, its edge shows thickness on the side turning away, the light
+/// inside refracts and slides at a different depth from the text, a highlight sweeps across, and the rim's
+/// colours rotate. Still under Reduce Motion.
 struct VitalisCard: View {
     let name: String
     let isPro: Bool
@@ -263,51 +294,76 @@ struct VitalisCard: View {
     var body: some View {
         let roll = reduceMotion ? 0 : tilt.roll, pitch = reduceMotion ? 0 : tilt.pitch
         let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
-        ZStack {
-            // Glass body.
-            if reduceTransparency {
-                shape.fill(Color(hex: "#141614"))
-            } else {
-                shape.fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
-                shape.fill(Color(hex: "#0A0B0A").opacity(0.28))
-                // Light refracting inside the glass: soft warm and cool blooms that drift against the tilt.
-                ZStack {
-                    Ellipse().fill(Color(hex: "#F37E61").opacity(0.55)).frame(width: 190, height: 120)
-                        .offset(x: 90 - roll * 60, y: -30 + pitch * 30)
-                    Ellipse().fill(Color(hex: "#5FB7C4").opacity(0.45)).frame(width: 200, height: 110)
-                        .offset(x: -100 - roll * 40, y: 60 + pitch * 24)
-                    Ellipse().fill(Color(hex: "#D7F25A").opacity(0.28)).frame(width: 140, height: 80)
-                        .offset(x: -10 + roll * 50, y: -70 - pitch * 20)
-                }
-                // Fill the whole card before blurring, so the blooms fade out softly instead of in a box.
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .blur(radius: 40)
-                .compositingGroup()
-                .opacity(0.9)
-                .clipShape(shape)
-                // Specular band that slides across as the card turns.
-                LinearGradient(stops: [.init(color: .clear, location: 0.25 + roll * 0.2),
-                                       .init(color: .white.opacity(0.22), location: 0.45 + roll * 0.2),
-                                       .init(color: .clear, location: 0.62 + roll * 0.2)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .clipShape(shape)
-                    .blendMode(.plusLighter)
-            }
+        GeometryReader { geo in
+            ZStack {
+                // Thickness: the glass edge, showing on the side turning away.
+                shape.fill(LinearGradient(colors: [.white.opacity(0.35), .white.opacity(0.06)],
+                                          startPoint: .top, endPoint: .bottom))
+                    .offset(x: -roll * 5, y: -pitch * 4)
+                    .opacity(reduceTransparency ? 0 : 0.7)
 
-            content.padding(22)
+                // Glass body: mostly clear, a light frost so text stays readable.
+                if reduceTransparency {
+                    shape.fill(Color(hex: "#141614"))
+                } else {
+                    shape.fill(.ultraThinMaterial).opacity(0.55).environment(\.colorScheme, .dark)
+                    shape.fill(Color(hex: "#0A0B0A").opacity(0.12))
+                    // Light refracting inside the glass, at its own depth: it slides further than the card turns.
+                    ZStack {
+                        Ellipse().fill(Color(hex: "#F37E61").opacity(0.7)).frame(width: 200, height: 130)
+                            .offset(x: 80 - roll * 90, y: -30 + pitch * 50)
+                        Ellipse().fill(Color(hex: "#5FB7C4").opacity(0.55)).frame(width: 220, height: 120)
+                            .offset(x: -100 - roll * 60, y: 60 + pitch * 40)
+                        Ellipse().fill(Color(hex: "#D7F25A").opacity(0.3)).frame(width: 150, height: 90)
+                            .offset(x: -10 + roll * 70, y: -70 - pitch * 30)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .blur(radius: 38)
+                    .compositingGroup()
+                    .clipShape(shape)
+                    // Prismatic streak: a thin rainbow band, like light split by the glass edge.
+                    LinearGradient(stops: [
+                        .init(color: .clear, location: 0.30 + roll * 0.25),
+                        .init(color: Color(hex: "#F37E61").opacity(0.22), location: 0.38 + roll * 0.25),
+                        .init(color: Color(hex: "#D7F25A").opacity(0.18), location: 0.42 + roll * 0.25),
+                        .init(color: Color(hex: "#5FB7C4").opacity(0.22), location: 0.46 + roll * 0.25),
+                        .init(color: .clear, location: 0.54 + roll * 0.25),
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        .clipShape(shape)
+                        .blendMode(.plusLighter)
+                    // Specular highlight that sweeps across as the card turns.
+                    LinearGradient(stops: [.init(color: .clear, location: 0.15 + roll * 0.3),
+                                           .init(color: .white.opacity(0.28), location: 0.3 + roll * 0.3),
+                                           .init(color: .clear, location: 0.45 + roll * 0.3)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .clipShape(shape)
+                        .blendMode(.plusLighter)
+                }
+
+                // The text sits a little above the glass: it shifts slightly against the turn (parallax).
+                content.padding(22)
+                    .offset(x: roll * 5, y: pitch * 4)
+            }
+            .overlay {
+                // Iridescent rim, its colours turning with the tilt.
+                shape.strokeBorder(AngularGradient(colors: [.white.opacity(0.8), Color(hex: "#F37E61").opacity(0.7),
+                                                            Color(hex: "#D7F25A").opacity(0.55), Color(hex: "#5FB7C4").opacity(0.7),
+                                                            Color(hex: "#9B7BE0").opacity(0.55), .white.opacity(0.8)],
+                                                   center: .center, angle: .degrees(roll * 110 + pitch * 50)),
+                                   lineWidth: 1.3)
+            }
+            .contentShape(shape)
+            .simultaneousGesture(DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    tilt.drag(to: CGPoint(x: value.location.x / max(1, geo.size.width),
+                                          y: value.location.y / max(1, geo.size.height)))
+                }
+                .onEnded { _ in tilt.drag(to: nil) })
         }
         .aspectRatio(1.586, contentMode: .fit)
-        .overlay {
-            // Iridescent rim, its colours turning with the tilt.
-            shape.strokeBorder(AngularGradient(colors: [.white.opacity(0.7), Color(hex: "#F37E61").opacity(0.6),
-                                                        Color(hex: "#D7F25A").opacity(0.5), Color(hex: "#5FB7C4").opacity(0.6),
-                                                        Color(hex: "#9B7BE0").opacity(0.5), .white.opacity(0.7)],
-                                               center: .center, angle: .degrees(roll * 90 + pitch * 40)),
-                               lineWidth: 1.2)
-        }
-        .shadow(color: .black.opacity(0.45), radius: 24, x: -roll * 10, y: 18 + pitch * 6)
-        .rotation3DEffect(.degrees(pitch * -12), axis: (x: 1, y: 0, z: 0), perspective: 0.55)
-        .rotation3DEffect(.degrees(roll * 16), axis: (x: 0, y: 1, z: 0), perspective: 0.55)
+        .shadow(color: .black.opacity(0.45), radius: 26, x: -roll * 14, y: 18 + pitch * 8)
+        .rotation3DEffect(.degrees(pitch * -16), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
+        .rotation3DEffect(.degrees(roll * 20), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
         .accessibilityElement(children: .ignore)
@@ -327,9 +383,9 @@ struct VitalisCard: View {
             Spacer(minLength: 8)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("Pro").font(.display(44)).foregroundColor(.white)
-                Text(isPro ? "Member" : "Membership").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white.opacity(0.8))
+                Text(isPro ? "Member" : "Membership").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white.opacity(0.85))
             }
-            Text("Scanner · full nutrients · Health sync").font(.ui(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.7))
+            Text("Scanner · full nutrients · Health sync").font(.ui(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.75))
                 .lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: 8)
             HStack {
@@ -345,5 +401,6 @@ struct VitalisCard: View {
                 }
             }
         }
+        .shadow(color: .black.opacity(0.35), radius: 6, y: 1)   // readable over the clearer glass
     }
 }

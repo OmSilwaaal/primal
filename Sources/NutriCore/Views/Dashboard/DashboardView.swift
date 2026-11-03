@@ -92,11 +92,9 @@ struct DashboardView: View {
                     }
                     .padding(.top, 8)
 
-                    let cycle = EatingCycle(meals: meals, calorieGoal: baseGoals.calories)
-                    MonthLog(cycle: cycle, selected: selectedDay)
-
                     // Past days: scroll the drum back; the tiles below follow the day it lands on (view-only).
-                    DateWheel(days: cycle.history, selected: selectedDay, onSelect: select)
+                    DateWheel(days: EatingCycle(meals: meals, calorieGoal: baseGoals.calories).history,
+                              selected: selectedDay, onSelect: select)
                         .padding(.horizontal, -Bento.margin)
 
                     CalorieTile(total: dayMeals.totalCalories, goal: goals.calories, isToday: isToday, macros: [
@@ -381,58 +379,6 @@ private struct BentoHomeHeader<Card: View>: View {
             .fixedSize()
         }
         .frame(minHeight: 64)
-    }
-}
-
-// MARK: - Month log
-
-/// The month at a glance, over the date wheel: "Day 2 of 30" and a tick per day of the month — Moss when the
-/// calorie goal was hit, Ember when logged but off target, faint when nothing was logged or still to come. The day
-/// Home shows stands tall and white.
-private struct MonthLog: View {
-    let cycle: EatingCycle
-    let selected: Date
-
-    /// The selected day's place in this month (today's when an earlier month's day is showing).
-    private var dayNumber: Int {
-        let cal = Calendar.current
-        return cal.isDate(selected, equalTo: .now, toGranularity: .month) ? cal.component(.day, from: selected) : cycle.day
-    }
-
-    private var onTarget: Int { cycle.ticks.filter { $0.mark == .onTarget }.count }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                (Text("Day \(dayNumber) ") + Text("of \(cycle.length)").foregroundColor(Mono.label))
-                    .font(.mono(12, .semibold)).tracking(0.96).textCase(.uppercase).foregroundColor(Mono.text)
-                    .contentTransition(.numericText())
-                Spacer()
-                Text("\(onTarget) on target").font(.mono(11)).tracking(0.88).textCase(.uppercase)
-                    .foregroundColor(Mono.label)
-            }
-            HStack(alignment: .bottom, spacing: 3) {
-                ForEach(Array(cycle.ticks.enumerated()), id: \.offset) { _, tick in
-                    let isSelected = tick.date == selected
-                    Capsule().fill(isSelected ? Mono.text : color(tick.mark))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: isSelected ? 24 : tick.mark == .today ? 20 : 14)
-                }
-            }
-            .frame(height: 24)
-            .animation(.smooth(duration: 0.35), value: selected)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Day \(dayNumber) of \(cycle.length), \(onTarget) days on target this month")
-    }
-
-    private func color(_ m: EatingCycle.Mark) -> Color {
-        switch m {
-        case .onTarget: .ncMoss
-        case .offTarget: .ncEmber
-        case .today: Mono.text.opacity(0.55)
-        case .upcoming, .empty: Mono.text.opacity(0.16)
-        }
     }
 }
 
@@ -799,22 +745,23 @@ struct WeatherSheet: View {
                     }
                 }
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
 
-            // The season, under the weather.
-            HStack(spacing: 10) {
-                Image(systemName: season.symbol).font(.ui(size: 15, weight: .medium)).foregroundColor(Mono.text)
-                    .frame(width: 34, height: 34)
+            // The season, large, filling the space under the weather.
+            HStack(alignment: .center, spacing: 14) {
+                Image(systemName: season.symbol).font(.system(size: 30, weight: .light)).foregroundColor(Mono.text)
+                    .frame(width: 56, height: 56)
                     .liquidGlassPanel(in: Circle())
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Season").font(.ui(size: 12)).foregroundColor(Mono.label)
-                    Text(season.name).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Season").font(.ui(size: 13)).foregroundColor(Mono.label)
+                    Text(season.name).font(.display(44)).foregroundColor(Mono.text)
+                        .lineLimit(1).minimumScaleFactor(0.6)
                 }
             }
-            .padding(.top, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
             .accessibilityElement(children: .combine)
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)

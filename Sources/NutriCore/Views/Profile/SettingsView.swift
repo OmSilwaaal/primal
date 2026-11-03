@@ -125,27 +125,6 @@ struct SettingsView: View {
                         }
                     }
 
-                    // ── More (moved here from Profile) ──────────────────────
-                    SettingsSection(title: "More") {
-                        NavigationLink(destination: RawHubView().pushedScreen()) {
-                            SettingsRowLabel(icon: "asset:icon-raw", title: "Raw",
-                                             subtitle: "Diet position, food safety, organ rotation", showsChevron: true)
-                        }
-                        .buttonStyle(PressScaleStyle(scale: 0.98))
-                        SettingsDivider()
-                        NavigationLink(destination: SunView().pushedScreen()) {
-                            SettingsRowLabel(icon: "sun.max", title: "Sun",
-                                             subtitle: "Time outside and today's vitamin D window", showsChevron: true)
-                        }
-                        .buttonStyle(PressScaleStyle(scale: 0.98))
-                        SettingsDivider()
-                        NavigationLink(destination: FriendsView().pushedScreen()) {
-                            SettingsRowLabel(icon: "person.2", title: "Friends",
-                                             subtitle: "Eat together, shared meals", showsChevron: true)
-                        }
-                        .buttonStyle(PressScaleStyle(scale: 0.98))
-                    }
-
                     // ── Preferences ─────────────────────────────────────────
                     SettingsSection(title: "Preferences") {
                         SettingsToggleRow(icon: "waveform.path", title: "Haptic feedback",

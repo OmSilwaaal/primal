@@ -25,8 +25,8 @@ import CoreMotion
 final class GlassLight {
     static let shared = GlassLight()
 
-    /// Where the light rests with the phone held upright: upper left of the screen.
-    nonisolated static let resting = CGPoint(x: 0.3, y: 0.2)
+    /// Where the light rests with the phone held upright: left of centre, a third of the way down.
+    nonisolated static let resting = CGPoint(x: 0.32, y: 0.34)
 
     /// Spring stiffness (rad/s): higher follows the hand more tightly. ~0.35 s to settle, never overshoots.
     private static let stiffness = 11.0
@@ -295,28 +295,22 @@ final class SheenSurfaceView: UIView {
             layer.locations = [0, 0.07, 0.17, 0.38, 0.5, 0.62, 0.83, 0.93, 1]
         }
 
-        // The pool: an ellipse of the light's colour centred just below the bottom edge, drifting sideways with the
-        // light, about the lower 45% of a tall card (relatively more on small controls). Its far side fades to the
-        // photo's other colour, so it reads as a soft two-tone glow rather than a flat tint.
+        // The pool: one glow in screen space, centred on the light itself and about two thirds of the screen wide.
+        // Each surface shows only the part of it that falls on it — bright on the glass nearest the light, a faint
+        // edge on glass further off, nothing on glass out of reach — so neighbouring tiles read as lit by the same
+        // lamp rather than each carrying its own glow.
         let p = strength * light.breath
-        let drift = min(0.28, max(-0.28, Double(dx / screen.width) * 0.7))
-        let cx = 0.5 + drift
-        let ry = min(0.75, max(0.42, 130 / Double(h)))
-        pool.startPoint = CGPoint(x: cx, y: 1.06)
-        pool.endPoint = CGPoint(x: cx + 0.78, y: 1.06 - ry)
-        pool.colors = [lit.withAlphaComponent(min(1, 0.62 * p)), lit.withAlphaComponent(min(1, 0.3 * p)),
-                       far.withAlphaComponent(min(1, 0.07 * p)), UIColor.clear].map(\.cgColor)
-        pool.locations = [0, 0.35, 0.7, 1]
-        // A faint wash up from the bottom, so the glass feels lit through, not just tinted at the base.
-        volume.startPoint = CGPoint(x: 0.5, y: 1)
-        volume.endPoint = CGPoint(x: 0.5, y: 0.35)
-        volume.colors = [lit.withAlphaComponent(min(1, 0.16 * p)), UIColor.clear].map(\.cgColor)
-        // The bright line where the light meets the bottom edge, fading up the sides.
-        baseLine.startPoint = CGPoint(x: 0.5, y: 1)
-        baseLine.endPoint = CGPoint(x: 0.5, y: 0.6)
-        baseLine.colors = [UIColor.white.withAlphaComponent(min(1, 0.7 * p)), lit.withAlphaComponent(min(1, 0.3 * p)),
-                           UIColor.clear].map(\.cgColor)
-        baseLine.locations = [0, 0.3, 1]
+        let radius = Double(screen.width) * 0.72
+        let centre = CGPoint(x: (light.point.x * screen.width - frame.minX) / w,
+                             y: (light.point.y * screen.height - frame.minY) / h)
+        pool.startPoint = centre
+        pool.endPoint = CGPoint(x: centre.x + radius / w, y: centre.y + radius / h)
+        pool.colors = [lit.withAlphaComponent(min(1, 0.42 * p)), lit.withAlphaComponent(min(1, 0.2 * p)),
+                       far.withAlphaComponent(min(1, 0.06 * p)), UIColor.clear].map(\.cgColor)
+        pool.locations = [0, 0.32, 0.68, 1]
+        // The uniform wash and base line are gone: they made every block look the same.
+        volume.colors = nil
+        baseLine.colors = nil
 
         // Bloom: just inside the edge facing the light.
         let reachX = dx / max(abs(dx), abs(dy) * w / h, 1) * 0.42

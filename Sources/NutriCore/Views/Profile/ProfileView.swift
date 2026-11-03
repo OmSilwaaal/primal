@@ -14,7 +14,7 @@ enum ProfileRoute: Hashable { case settings, goals }
 /// Raw, Sun and Friends stay reachable at the bottom; Pro, legal and signing out live in Settings.
 struct ProfileView: View {
     enum Sheet: Identifiable {
-        case editHeight, editAge, editGoal, weight, plan, ask, addFood, addWater, addSun
+        case editHeight, editAge, editGoal, weight, plan, ask, addFood, addWater, addSun, pro
         var id: Self { self }
     }
 
@@ -33,6 +33,7 @@ struct ProfileView: View {
     @State private var panel: Panel?
     enum Panel { case log, energy, info }
     @State private var showScan = false
+    @State private var showManage = false
     @State private var expanded = false
     /// The extra stats' natural height, measured, so the panel can open to exactly that.
     @State private var extraHeight: CGFloat = 0
@@ -54,6 +55,16 @@ struct ProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     header.padding(.top, 4)
+                    // Vitalis Pro, front and centre: the membership card. Tap for the plans, or to manage it.
+                    Button {
+                        Haptics.tap()
+                        if subscription.isSubscribed { showManage = true } else { sheet = .pro }
+                    } label: {
+                        VitalisCard(name: displayName(profile), isPro: subscription.isSubscribed,
+                                    action: subscription.isSubscribed ? "Manage" : "See plans")
+                    }
+                    .buttonStyle(PressScaleStyle(scale: 0.98))
+                    .accessibilityHint(subscription.isSubscribed ? "Manage your subscription" : "Shows the Vitalis Pro plans")
                     if let profile {
                         bento(profile)
                         details(profile)
@@ -89,6 +100,10 @@ struct ProfileView: View {
                 if let profile { panelContent(profile) }
             }
             .fullScreenCover(isPresented: $showScan) { CameraView(onClose: { showScan = false }) }
+            .manageSubscriptionsSheet(isPresented: $showManage)
+            .onChange(of: showManage) { _, shown in
+                if !shown { Task { await subscription.refreshEntitlement() } }
+            }
         }
     }
 
@@ -465,6 +480,8 @@ struct ProfileView: View {
                 AskSheet(meals: recentMeals)
             case .addFood:
                 SearchView(onClose: { self.sheet = nil })
+            case .pro:
+                PaywallView(onNotNow: { self.sheet = nil }, showsAccountButton: false)
             case .addWater:
                 WaterSheet(drinksMl: todayWaterMl(), foodMl: FoodWater.millilitres(in: todaysMeals)) { ml in addWater(ml) }
             case .addSun:

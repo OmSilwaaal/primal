@@ -327,10 +327,10 @@ private struct DateWheel: View {
     let selected: Date
     let onSelect: (Date) -> Void
     @State private var centered: Date?
-    /// How far the drop leans and stretches (−1 … 1, signed by scroll direction); springs back to 0 at rest.
-    @State private var stretch: CGFloat = 0
-    @State private var tracker = ScrollVelocity()
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Counts day changes; each one plays the drop once (see `LiquidSelector`).
+    @State private var drops = 0
+    /// +1 when the new day is later than the last one, −1 when earlier.
+    @State private var dropDirection: CGFloat = 1
 
     private let pillWidth: CGFloat = 50
     private let pillHeight: CGFloat = 68
@@ -341,7 +341,8 @@ private struct DateWheel: View {
             let centerX = geo.frame(in: .global).midX
             ZStack {
                 // The selection is one liquid-glass pill behind the centre; the days scroll over it.
-                LiquidSelector(stretch: stretch, lobe: CGSize(width: pillWidth, height: pillHeight))
+                LiquidSelector(drops: drops, direction: dropDirection, step: pillWidth + 8,
+                               lobe: CGSize(width: pillWidth, height: pillHeight))
                     .frame(width: pillWidth * 5, height: pillHeight + 24)
                     .accessibilityHidden(true)
 
@@ -360,7 +361,6 @@ private struct DateWheel: View {
                 .scrollTargetBehavior(.viewAligned)
                 .scrollPosition(id: $centered, anchor: .center)
                 .scrollClipDisabled()
-                .modifier(TrackScrollVelocity(onVelocity: lean))
                 .drumRimFade()
             }
             .frame(height: pillHeight + 24)
@@ -372,8 +372,8 @@ private struct DateWheel: View {
             guard let new, new != selected else { return }
             Haptics.selection()
             onSelect(new)
-            // iOS 17 has no scroll geometry to read speed from: give each step a small drip instead.
-            if #unavailable(iOS 18.0), let old { lean(new > old ? 900 : -900) }
+            if let old { dropDirection = new > old ? 1 : -1 }
+            drops += 1
         }
         .onChange(of: selected) { _, new in
             if centered != new { withAnimation(.smooth(duration: 0.45)) { centered = new } }
@@ -410,26 +410,6 @@ private struct DateWheel: View {
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    /// Leans the drop with the scroll speed (points per second), then lets it spring back like a settling drop.
-    /// The speed is averaged over recent frames so the drop eases with the scroll instead of twitching with each
-    /// uneven update, and it only animates when the change is visible.
-    private func lean(_ velocity: CGFloat) {
-        guard !reduceMotion else { return }
-        tracker.smoothed += (velocity - tracker.smoothed) * 0.3
-        let target = max(-1, min(1, tracker.smoothed / 650))
-        if abs(target - stretch) > 0.03 {
-            withAnimation(.smooth(duration: 0.22)) { stretch = target }
-        }
-        tracker.settle?.cancel()
-        tracker.settle = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(140))
-            guard !Task.isCancelled else { return }
-            tracker.smoothed = 0
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.62)) { stretch = 0 }
-        }
-    }
-
-
     @ViewBuilder private func markDot(_ m: EatingCycle.Mark, on: Bool) -> some View {
         let ink = Mono.text
         switch m {
@@ -440,45 +420,52 @@ private struct DateWheel: View {
     }
 }
 
-/// Holds the pending settle so a burst of scroll updates restarts it without re-rendering the wheel.
-private final class ScrollVelocity {
-    var settle: Task<Void, Never>?
-    /// Scroll speed averaged over recent updates (points per second).
-    var smoothed: CGFloat = 0
-}
-
-/// Reports a horizontal ScrollView's speed in points per second (iOS 18+).
-private struct TrackScrollVelocity: ViewModifier {
-    let onVelocity: (CGFloat) -> Void
-    @State private var last: (x: CGFloat, t: CFTimeInterval)?
-
-    func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x } action: { _, x in
-                let now = CACurrentMediaTime()
-                if let last, now - last.t > 0.001 {
-                    onVelocity((x - last.x) / CGFloat(now - last.t))
-                }
-                last = (x, now)
-            }
-        } else {
-            content
-        }
-    }
-}
-
-/// The selection: a pill of Liquid Glass behind the centred day. While the wheel scrolls it stretches like liquid
-/// glass moving between items — a second lobe trails behind and the two are joined by a narrowing waist, further
-/// apart the faster you scroll — and at rest the trailing lobe springs back into it, leaving a single pill.
+/// The selection: a pill of Liquid Glass behind the centred day. Each time a new day lands in the centre, the glass
+/// pours into it like a drop of water: it stretches all the way back to the day it came from, joined by a liquid
+/// waist, then flows forward into the new day and lands with a small squash and settle. One keyframe animation per
+/// change, so the wheel itself doesn't redraw while it plays; at rest it's a single still pill.
 private struct LiquidSelector: View {
-    /// −1 … 1, signed by scroll direction (animatable through the shape).
-    var stretch: CGFloat
+    let drops: Int
+    let direction: CGFloat
+    /// Distance between neighbouring days' centres.
+    let step: CGFloat
     let lobe: CGSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
+    struct Pose {
+        /// Where the trailing lobe sits, in points from the centre (0 = merged).
+        var reach: CGFloat = 0
+        /// Landing squash: 0 at rest, 1 fully squashed.
+        var squash: CGFloat = 0
+    }
+
     var body: some View {
-        let shape = LiquidPill(stretch: stretch, lobe: lobe)
-        Group {
+        if reduceMotion {
+            glass(Pose())
+        } else {
+            KeyframeAnimator(initialValue: Pose(), trigger: drops) { pose in
+                glass(pose)
+            } keyframes: { _ in
+                // Stretch back to the previous day (where the drop comes from)…
+                KeyframeTrack(\.reach) {
+                    CubicKeyframe(-direction * step, duration: 0.11)
+                    // …then pour forward into the new one.
+                    SpringKeyframe(0, duration: 0.5, spring: Spring(response: 0.36, dampingRatio: 0.78))
+                }
+                // Land: a quick squash as it arrives, then a soft wobble out.
+                KeyframeTrack(\.squash) {
+                    CubicKeyframe(0, duration: 0.18)
+                    CubicKeyframe(1, duration: 0.09)
+                    SpringKeyframe(0, duration: 0.55, spring: Spring(response: 0.42, dampingRatio: 0.42))
+                }
+            }
+        }
+    }
+
+    private func glass(_ pose: Pose) -> some View {
+        let shape = LiquidPill(reach: pose.reach, lobe: lobe)
+        return Group {
             if reduceTransparency {
                 shape.fill(Color.white.opacity(0.3))
             } else if #available(iOS 26.0, *) {
@@ -491,42 +478,33 @@ private struct LiquidSelector: View {
         }
         .overlay(shape.stroke(Color.white.opacity(0.4), lineWidth: 1))
         .overlay(GlassSheen(shape: shape, strength: 1.1))
+        .scaleEffect(x: 1 + 0.08 * pose.squash, y: 1 - 0.09 * pose.squash, anchor: .center)
         .allowsHitTesting(false)
     }
 }
 
-/// Two day-sized capsules (the leading one at the centre, the trailing one behind it) joined by a bridge whose top and
-/// bottom curve in to a waist. At `stretch` 0 they coincide: one capsule.
+/// The selection's outline: a day-sized capsule at the centre and a second one `reach` points away, joined by a
+/// bridge whose top and bottom curve in to a waist (one boolean-union outline). At `reach` 0 they coincide.
 private struct LiquidPill: Shape {
-    var stretch: CGFloat
+    var reach: CGFloat
     let lobe: CGSize
 
-    var animatableData: CGFloat {
-        get { stretch }
-        set { stretch = newValue }
-    }
-
     func path(in rect: CGRect) -> Path {
-        let s = max(-1, min(1, stretch))
         let w = lobe.width, h = lobe.height
         let cx = rect.midX, cy = rect.midY
-        // The leading lobe edges forward a little; the trailing one hangs back up to a day and a quarter.
-        let lead = cx + s * w * 0.18
-        let trail = cx - s * w * 1.25
-        let trailScale = 1 - 0.1 * abs(s)
+        let lead = cx, trail = cx + reach
+        let sep = abs(reach)
+        // The far lobe thins a little as the glass leaves it.
+        let k = 1 - 0.12 * min(1, sep / w)
+        let tw = w * k, th = h * k
 
-        let tw = w * trailScale, th = h * trailScale
-        // One true outline (boolean union), so the rim and the glass follow the whole shape.
         var p = Capsule().path(in: CGRect(x: lead - w / 2, y: cy - h / 2, width: w, height: h))
             .union(Capsule().path(in: CGRect(x: trail - tw / 2, y: cy - th / 2, width: tw, height: th)))
-
-        let a = min(lead, trail), b = max(lead, trail)
-        if b - a > 0.5 {
-            // The waist: a soft dip, deeper the further apart the lobes are; at most about a seventh of the height
-            // on each side, so the glass reads as one body, as it does in the system's own selectors.
-            let depth = th * 0.14 * min(1, (b - a) / w)
+        if sep > 0.5 {
+            // The waist: deeper as the lobes part, up to about a fifth of the height on each side.
+            let depth = th * 0.2 * min(1, sep / w)
+            let a = min(lead, trail), b = max(lead, trail), mid = (a + b) / 2
             let top = cy - th / 2, bottom = cy + th / 2
-            let mid = (a + b) / 2
             var bridge = Path()
             bridge.move(to: CGPoint(x: a, y: top))
             bridge.addQuadCurve(to: CGPoint(x: b, y: top), control: CGPoint(x: mid, y: top + depth * 2))

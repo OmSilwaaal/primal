@@ -327,10 +327,6 @@ private struct DateWheel: View {
     let selected: Date
     let onSelect: (Date) -> Void
     @State private var centered: Date?
-    /// Counts day changes; each one plays the drop once (see `LiquidSelector`).
-    @State private var drops = 0
-    /// +1 when the new day is later than the last one, −1 when earlier.
-    @State private var dropDirection: CGFloat = 1
 
     private let pillWidth: CGFloat = 50
     private let pillHeight: CGFloat = 68
@@ -341,9 +337,8 @@ private struct DateWheel: View {
             let centerX = geo.frame(in: .global).midX
             ZStack {
                 // The selection is one liquid-glass pill behind the centre; the days scroll over it.
-                LiquidSelector(drops: drops, direction: dropDirection, step: pillWidth + 8,
-                               lobe: CGSize(width: pillWidth, height: pillHeight))
-                    .frame(width: pillWidth * 5, height: pillHeight + 24)
+                GlassSelector()
+                    .frame(width: pillWidth, height: pillHeight)
                     .accessibilityHidden(true)
 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -368,12 +363,10 @@ private struct DateWheel: View {
         .frame(height: 92)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .onAppear { centered = selected }
-        .onChange(of: centered) { old, new in
+        .onChange(of: centered) { _, new in
             guard let new, new != selected else { return }
             Haptics.selection()
             onSelect(new)
-            if let old { dropDirection = new > old ? 1 : -1 }
-            drops += 1
         }
         .onChange(of: selected) { _, new in
             if centered != new { withAnimation(.smooth(duration: 0.45)) { centered = new } }
@@ -420,100 +413,26 @@ private struct DateWheel: View {
     }
 }
 
-/// The selection: a pill of Liquid Glass behind the centred day. Each time a new day lands in the centre, the glass
-/// pours into it like a drop of water: it stretches all the way back to the day it came from, joined by a liquid
-/// waist, then flows forward into the new day and lands with a small squash and settle. One keyframe animation per
-/// change, so the wheel itself doesn't redraw while it plays; at rest it's a single still pill.
-private struct LiquidSelector: View {
-    let drops: Int
-    let direction: CGFloat
-    /// Distance between neighbouring days' centres.
-    let step: CGFloat
-    let lobe: CGSize
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+/// The selection: a still pill of Liquid Glass behind the centred day (lightly white-tinted on iOS 26, frosted
+/// before), with a bright rim and the moving light. The days scroll over it.
+private struct GlassSelector: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    struct Pose {
-        /// Where the trailing lobe sits, in points from the centre (0 = merged).
-        var reach: CGFloat = 0
-        /// Landing squash: 0 at rest, 1 fully squashed.
-        var squash: CGFloat = 0
-    }
-
     var body: some View {
-        if reduceMotion {
-            glass(Pose())
-        } else {
-            KeyframeAnimator(initialValue: Pose(), trigger: drops) { pose in
-                glass(pose)
-            } keyframes: { _ in
-                // Stretch back to the previous day (where the drop comes from)…
-                KeyframeTrack(\.reach) {
-                    CubicKeyframe(-direction * step, duration: 0.11)
-                    // …then pour forward into the new one.
-                    SpringKeyframe(0, duration: 0.5, spring: Spring(response: 0.36, dampingRatio: 0.78))
-                }
-                // Land: a quick squash as it arrives, then a soft wobble out.
-                KeyframeTrack(\.squash) {
-                    CubicKeyframe(0, duration: 0.18)
-                    CubicKeyframe(1, duration: 0.09)
-                    SpringKeyframe(0, duration: 0.55, spring: Spring(response: 0.42, dampingRatio: 0.42))
-                }
-            }
-        }
-    }
-
-    private func glass(_ pose: Pose) -> some View {
-        let shape = LiquidPill(reach: pose.reach, lobe: lobe)
-        return Group {
+        Group {
             if reduceTransparency {
-                shape.fill(Color.white.opacity(0.3))
+                Capsule().fill(Color.white.opacity(0.3))
             } else if #available(iOS 26.0, *) {
-                Color.clear.glassEffect(.regular.tint(Color.white.opacity(0.22)), in: shape)
+                Color.clear.glassEffect(.regular.tint(Color.white.opacity(0.22)), in: Capsule())
             } else {
-                shape.fill(.ultraThinMaterial)
-                    .overlay(shape.fill(Color.white.opacity(0.2)))
+                Capsule().fill(.ultraThinMaterial)
+                    .overlay(Capsule().fill(Color.white.opacity(0.2)))
                     .environment(\.colorScheme, .dark)
             }
         }
-        .overlay(shape.stroke(Color.white.opacity(0.4), lineWidth: 1))
-        .overlay(GlassSheen(shape: shape, strength: 1.1))
-        .scaleEffect(x: 1 + 0.08 * pose.squash, y: 1 - 0.09 * pose.squash, anchor: .center)
+        .overlay(Capsule().stroke(Color.white.opacity(0.4), lineWidth: 1))
+        .overlay(GlassSheen(shape: Capsule(), strength: 1.1))
         .allowsHitTesting(false)
-    }
-}
-
-/// The selection's outline: a day-sized capsule at the centre and a second one `reach` points away, joined by a
-/// bridge whose top and bottom curve in to a waist (one boolean-union outline). At `reach` 0 they coincide.
-private struct LiquidPill: Shape {
-    var reach: CGFloat
-    let lobe: CGSize
-
-    func path(in rect: CGRect) -> Path {
-        let w = lobe.width, h = lobe.height
-        let cx = rect.midX, cy = rect.midY
-        let lead = cx, trail = cx + reach
-        let sep = abs(reach)
-        // The far lobe thins a little as the glass leaves it.
-        let k = 1 - 0.12 * min(1, sep / w)
-        let tw = w * k, th = h * k
-
-        var p = Capsule().path(in: CGRect(x: lead - w / 2, y: cy - h / 2, width: w, height: h))
-            .union(Capsule().path(in: CGRect(x: trail - tw / 2, y: cy - th / 2, width: tw, height: th)))
-        if sep > 0.5 {
-            // The waist: deeper as the lobes part, up to about a fifth of the height on each side.
-            let depth = th * 0.2 * min(1, sep / w)
-            let a = min(lead, trail), b = max(lead, trail), mid = (a + b) / 2
-            let top = cy - th / 2, bottom = cy + th / 2
-            var bridge = Path()
-            bridge.move(to: CGPoint(x: a, y: top))
-            bridge.addQuadCurve(to: CGPoint(x: b, y: top), control: CGPoint(x: mid, y: top + depth * 2))
-            bridge.addLine(to: CGPoint(x: b, y: bottom))
-            bridge.addQuadCurve(to: CGPoint(x: a, y: bottom), control: CGPoint(x: mid, y: bottom - depth * 2))
-            bridge.closeSubpath()
-            p = p.union(bridge)
-        }
-        return p
     }
 }
 

@@ -631,7 +631,6 @@ private struct TileRing: View {
                 Text(Int(eaten).formatted()).font(.bentoNumber(26)).tracking(Font.bentoTracking(26))
                     .foregroundColor(.white)
                     .lineLimit(1).minimumScaleFactor(0.5)
-                    .bloom(4)
                 Text("of \(Int(goal).formatted())").font(.ui(size: 11, weight: .medium)).foregroundColor(.white.opacity(0.8))
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
@@ -850,7 +849,7 @@ private struct DailyEnergySheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Daily energy").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
             HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text(Int(eaten).formatted()).font(.display(44)).foregroundColor(.white).bloom()
+                Text(Int(eaten).formatted()).font(.display(44)).foregroundColor(.white)
                 Text("of \(Int(goals.calories).formatted()) kcal today").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
             }
             .accessibilityElement(children: .combine)

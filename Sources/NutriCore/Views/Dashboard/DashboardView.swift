@@ -186,7 +186,7 @@ struct DashboardView: View {
                     ToastCenter.shared.show("Added \(Int(minutes)) min outside", branded: true)
                 }
             }
-            .sheet(isPresented: $showWeather) {
+            .bottomPanel(isPresented: $showWeather, fraction: 0.46) {
                 WeatherSheet(current: weather.current, status: weatherLocation.authorizationStatus, sunGoal: sunGoal,
                              latitude: weatherLocation.location?.coordinate.latitude) {
                     weatherLocation.requestPermission()
@@ -747,29 +747,27 @@ struct WeatherSheet: View {
             }
             Spacer(minLength: 8)
 
-            // The season, large, filling the space under the weather.
-            HStack(alignment: .center, spacing: 14) {
-                Image(systemName: season.symbol).font(.system(size: 30, weight: .light)).foregroundColor(Mono.text)
-                    .frame(width: 56, height: 56)
-                    .liquidGlassPanel(in: Circle())
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Season").font(.ui(size: 13)).foregroundColor(Mono.label)
-                    Text(season.name).font(.display(44)).foregroundColor(Mono.text)
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                }
+            // The season, brutalist: a mono label over the name in heavy caps, flush left and as big as the card
+            // allows.
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Season").font(.mono(11, .semibold)).tracking(1.6).textCase(.uppercase)
+                    .foregroundColor(Mono.label)
+                Text(season.name.uppercased()).font(.display(76)).tracking(-2.2).foregroundColor(Mono.text)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                    .padding(.leading, -3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
 
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 20)
         .background(alignment: .bottomTrailing) {
             Image(LineArt.sun.rawValue).resizable().scaledToFit().frame(width: 150, height: 150)
                 .opacity(0.14).offset(x: 30, y: 30).accessibilityHidden(true)
         }
-        .presentationDetents([.height(340)])
+        .presentationDetents([.height(360)])
         .glassSheetBackground()
         .presentationCornerRadius(Bento.radius)
     }

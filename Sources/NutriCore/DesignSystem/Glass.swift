@@ -148,15 +148,86 @@ struct GlassGroup<Content: View>: View {
 }
 
 extension View {
-    /// Partial-height sheets: system Liquid Glass on iOS 26 (no custom background, per Apple); the thick ink before.
-    @ViewBuilder func glassSheetBackground() -> some View {
-        if #available(iOS 26.0, *) {
-            self.environment(\.glassNested, true)
-        } else {
-            self.presentationBackground {
-                Mono.sheetInk.opacity(0.66).background(.thinMaterial).environment(\.colorScheme, .dark)
+    /// Sheets: a frosted ink glass background, edge to edge. (iOS 26's default glass floats partial-height sheets
+    /// inset from the screen's sides and bottom, which left them looking off-centre and short of the bottom edge.)
+    func glassSheetBackground() -> some View {
+        self
+            .environment(\.glassNested, true)
+            .presentationBackground {
+                Mono.sheetInk.opacity(0.62).background(.ultraThinMaterial).environment(\.colorScheme, .dark)
             }
+    }
+}
+
+// MARK: - Bottom panel
+
+extension View {
+    /// An edge-to-edge glass panel that slides up from the bottom over a dimmed page (iOS 26's own half-height
+    /// sheets float inset from the edges). Swipe down or tap outside to close; the tab bar hides while it's up.
+    /// `fraction` is its height as a share of the screen.
+    func bottomPanel<Content: View>(isPresented: Binding<Bool>, fraction: CGFloat = 0.5,
+                                    @ViewBuilder content: @escaping () -> Content) -> some View {
+        modifier(BottomPanelModifier(isPresented: isPresented, fraction: fraction, panel: content))
+    }
+}
+
+private struct BottomPanelModifier<Panel: View>: ViewModifier {
+    @Binding var isPresented: Bool
+    let fraction: CGFloat
+    @ViewBuilder let panel: () -> Panel
+    @State private var drag: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var animation: Animation { reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.42, dampingFraction: 0.9) }
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                ZStack(alignment: .bottom) {
+                    if isPresented {
+                        Color.black.opacity(0.4).ignoresSafeArea()
+                            .onTapGesture(perform: close)
+                            .transition(.opacity)
+                            .accessibilityHidden(true)
+                        sheet.transition(.move(edge: .bottom))
+                    }
+                }
+                .animation(animation, value: isPresented)
+            }
+            .hidesTabBar(isPresented)
+    }
+
+    private var sheet: some View {
+        let shape = UnevenRoundedRectangle(topLeadingRadius: 34, topTrailingRadius: 34, style: .continuous)
+        return VStack(spacing: 0) {
+            Capsule().fill(Color.white.opacity(0.35)).frame(width: 40, height: 5)
+                .padding(.top, 8).padding(.bottom, 4)
+                .accessibilityHidden(true)
+            panel()
+                .environment(\.glassNested, true)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: UIScreen.main.bounds.height * fraction)
+        .background {
+            shape.fill(Mono.sheetInk.opacity(0.62)).background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(Color.white.opacity(0.14), lineWidth: 1))
+                .environment(\.colorScheme, .dark)
+                .ignoresSafeArea(edges: .bottom)
+        }
+        .offset(y: max(0, drag))
+        .gesture(DragGesture()
+            .onChanged { drag = $0.translation.height }
+            .onEnded { value in
+                if value.translation.height > 110 || value.predictedEndTranslation.height > 260 { close() }
+                withAnimation(animation) { drag = 0 }
+            })
+        .accessibilityAddTraits(.isModal)
+        .accessibilityAction(.escape, close)
+    }
+
+    private func close() {
+        withAnimation(animation) { isPresented = false }
     }
 }
 

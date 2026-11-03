@@ -11,6 +11,8 @@ struct SettingsView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var legalDocument: LegalDocument?
     @State private var showManageSubscriptions = false
+    @State private var showPaywall = false
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
     @StateObject private var social = SocialService.shared
@@ -28,8 +30,34 @@ struct SettingsView: View {
         ZStack {
             AppBackdrop()
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: Space.section) {
+                VStack(alignment: .leading, spacing: 22) {
                     header
+
+                    // ── Subscription ────────────────────────────────────────
+                    SettingsSection(title: "Subscription") {
+                        if subManager.isSubscribed {
+                            SettingsRow(icon: "checkmark.seal", title: "Vitalis Pro",
+                                        subtitle: "Active · change plan or cancel", showsChevron: true,
+                                        enabled: !subManager.isWorking) {
+                                showManageSubscriptions = true
+                            }
+                        } else {
+                            SettingsRow(icon: "sparkles", title: "Get Vitalis Pro",
+                                        subtitle: "Scanner, full nutrients, Health sync, app icons", showsChevron: true) {
+                                showPaywall = true
+                            }
+                        }
+                        SettingsDivider()
+                        SettingsRow(icon: "arrow.clockwise", title: "Restore purchases",
+                                    subtitle: "Bought Pro on another device or Apple Account",
+                                    enabled: !subManager.isWorking) {
+                            Task { await subManager.restorePurchases() }
+                        }
+                        if let error = subManager.errorMessage {
+                            Text(error).font(.ui(size: 13)).foregroundColor(.ncEmber)
+                                .padding(.bottom, 12)
+                        }
+                    }
 
                     // ── Account ─────────────────────────────────────────────
                     SettingsSection(title: "Account") {
@@ -37,14 +65,14 @@ struct SettingsView: View {
                             NavigationLink(destination: EditProfileView()) {
                                 HStack(spacing: 16) {
                                     AvatarView(url: profile.avatarUrl, name: profile.name, size: 52)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(profile.name).font(.serif(20)).foregroundColor(.ncPrimary)
-                                        Text("@\(profile.username)").font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(profile.name).font(.ui(size: 17, weight: .semibold)).foregroundColor(Mono.text)
+                                        Text("@\(profile.username)").font(.ui(size: 13)).foregroundColor(Mono.label)
                                     }
                                     Spacer()
-                                    Image(systemName: "arrow.up.right").font(.ui(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                                    Image(systemName: "chevron.right").font(.ui(size: 12, weight: .semibold)).foregroundColor(Mono.label)
                                 }
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 12)
                             }
                             .buttonStyle(SmoothButtonStyle())
                             SettingsDivider()
@@ -75,8 +103,8 @@ struct SettingsView: View {
                             HStack(spacing: 12) {
                                 SettingsIcon(name: "fork.knife")
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Who can see my meals").font(.ui(size: 15, weight: .medium)).foregroundColor(.ncPrimary)
-                                    Text("Calories and what you ate").font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                                    Text("Who can see my meals").font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                                    Text("Calories and what you ate").font(.ui(size: 12)).foregroundColor(Mono.label)
                                 }
                                 Spacer()
                                 Menu {
@@ -93,7 +121,7 @@ struct SettingsView: View {
                                     .foregroundColor(.ncSecondary)
                                 }
                             }
-                            .padding(14)
+                            .padding(.vertical, 12)
                         }
                     }
 
@@ -106,8 +134,9 @@ struct SettingsView: View {
                                           subtitle: "A soft knock when you log or hit a goal", isOn: $isSoundEnabled)
                     }
 
-                    SettingsSection(title: "App icon") {
-                        AppIconPicker()
+                    SettingsSection(title: "App icon",
+                                    footer: subManager.isSubscribed ? nil : "App icons come with Vitalis Pro.") {
+                        AppIconPicker(locked: !subManager.isSubscribed) { showPaywall = true }
                     }
 
                     SettingsSection(title: "Reminders",
@@ -123,19 +152,6 @@ struct SettingsView: View {
                     }
                     .onChange(of: morningReminder) { _, on in
                         Task { if !(await Reminders.set(.morningSun, on: on)) { morningReminder = false; reminderDenied = true } }
-                    }
-
-                    // ── Subscription ────────────────────────────────────────
-                    SettingsSection(title: "Subscription") {
-                        SettingsRow(icon: "creditcard", title: "Manage subscription",
-                                    subtitle: subManager.isSubscribed ? "Change plan or cancel" : "No active subscription",
-                                    enabled: subManager.isSubscribed && !subManager.isWorking) {
-                            showManageSubscriptions = true
-                        }
-                        if let error = subManager.errorMessage {
-                            Text(error).font(.ui(size: 13)).foregroundColor(.ncError)
-                                .padding(.bottom, 12)
-                        }
                     }
 
                     // ── Legal ───────────────────────────────────────────────
@@ -172,18 +188,20 @@ struct SettingsView: View {
                             showDeleteConfirm = true
                         }
                         if let deleteError {
-                            Text(deleteError).font(.ui(size: 13)).foregroundColor(.ncError)
+                            Text(deleteError).font(.ui(size: 13)).foregroundColor(.ncEmber)
                                 .padding(.bottom, 12)
                         }
                     }
 
                     Text("Vitalis · Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
-                        .font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                        .font(.ui(size: 12)).foregroundColor(Mono.label)
+                        .frame(maxWidth: .infinity)
                         .padding(.bottom, 100)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                .padding(.horizontal, Bento.margin)
+                .padding(.top, 8)
             }
+            .glassLightFollowsScroll()
         }
         .navigationBarHidden(true)
         .alert("Change email", isPresented: $showEmailAlert) {
@@ -198,6 +216,9 @@ struct SettingsView: View {
             Text("We'll email a confirmation link to the new address.")
         }
         .sheet(item: $legalDocument) { LegalView(document: $0) }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(onNotNow: { showPaywall = false }, showsAccountButton: false)
+        }
         .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .onChange(of: showManageSubscriptions) { _, shown in
             if !shown { Task { await subManager.refreshEntitlement() } }
@@ -216,7 +237,14 @@ struct SettingsView: View {
     // MARK: - Pieces
 
     private var header: some View {
-        PageHeader(title: "Settings", caption: "Account · privacy · app")
+        HStack(spacing: 12) {
+            Button { dismiss() } label: { Image(systemName: "chevron.left") }
+                .buttonStyle(.bentoRound)
+                .accessibilityLabel("Back")
+            Text("Settings").font(.bentoTitle).foregroundColor(Mono.text)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+        }
     }
 
     private func privacyFooter(_ profile: PublicProfile) -> String {
@@ -261,34 +289,41 @@ struct SettingsView: View {
 
 // MARK: - Building blocks
 
+/// A group of settings: a label, then its rows in one glass tile, and an optional note under it.
 struct SettingsSection<Content: View>: View {
     let title: String
     var footer: String?
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SectionLabel(title: title)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.bentoLabel).foregroundColor(Mono.label).padding(.leading, 4)
+                .accessibilityAddTraits(.isHeader)
             VStack(spacing: 0) { content }
+                .bentoTile(padding: 16)
             if let footer {
-                Text(footer).font(.ui(size: 13)).foregroundColor(.ncSecondary).lineSpacing(2).padding(.top, 8)
+                Text(footer).font(.ui(size: 12)).foregroundColor(Mono.label).lineSpacing(2)
+                    .padding(.horizontal, 4)
             }
         }
     }
 }
 
 private struct SettingsDivider: View {
-    var body: some View { Hairline(opacity: 0.1) }
+    var body: some View { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
 }
 
+/// The row's icon in a small glass circle.
 private struct SettingsIcon: View {
     let name: String
     var destructive = false
     var body: some View {
         Image(systemName: name)
-            .font(.ui(size: 16, weight: .regular))
-            .foregroundColor(destructive ? .ncError : .ncPrimary)
-            .frame(width: 24)
+            .font(.ui(size: 14, weight: .medium))
+            .foregroundColor(destructive ? .ncEmber : Mono.text)
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(Color.white.opacity(0.06)))
+            .overlay(Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
     }
 }
 
@@ -300,18 +335,22 @@ private struct SettingsRowLabel: View {
     var showsChevron = false
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             SettingsIcon(name: icon, destructive: destructive)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.ui(size: 17, weight: .medium)).foregroundColor(destructive ? .ncError : .ncPrimary)
-                if let subtitle { Text(subtitle).font(.ui(size: 13)).foregroundColor(.ncSecondary) }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.ui(size: 15, weight: .semibold)).foregroundColor(destructive ? .ncEmber : Mono.text)
+                if let subtitle {
+                    Text(subtitle).font(.ui(size: 12)).foregroundColor(Mono.label)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Spacer()
+            Spacer(minLength: 8)
             if showsChevron {
-                Image(systemName: "arrow.up.right").font(.ui(size: 12, weight: .medium)).foregroundColor(.ncSecondary)
+                Image(systemName: "chevron.right").font(.ui(size: 12, weight: .semibold)).foregroundColor(Mono.label)
             }
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
+        .frame(minHeight: 56)
         .contentShape(Rectangle())
     }
 }
@@ -321,14 +360,16 @@ private struct SettingsRow: View {
     let title: String
     let subtitle: String?
     var destructive = false
+    var showsChevron = false
     var enabled = true
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            SettingsRowLabel(icon: icon, title: title, subtitle: subtitle, destructive: destructive)
+            SettingsRowLabel(icon: icon, title: title, subtitle: subtitle, destructive: destructive,
+                             showsChevron: showsChevron)
         }
-        .buttonStyle(SmoothButtonStyle())
+        .buttonStyle(PressScaleStyle(scale: 0.98))
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.45)
     }
@@ -341,15 +382,17 @@ private struct SettingsToggleRow: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             SettingsIcon(name: icon)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.ui(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
-                Text(subtitle).font(.ui(size: 13)).foregroundColor(.ncSecondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                Text(subtitle).font(.ui(size: 12)).foregroundColor(Mono.label)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
-            Toggle("", isOn: $isOn).labelsHidden().tint(.ncPrimary.opacity(0.85))
+            Spacer(minLength: 8)
+            Toggle("", isOn: $isOn).labelsHidden().tint(.ncMoss)
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
+        .frame(minHeight: 56)
     }
 }

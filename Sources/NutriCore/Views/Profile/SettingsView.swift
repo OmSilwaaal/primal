@@ -125,6 +125,27 @@ struct SettingsView: View {
                         }
                     }
 
+                    // ── More (moved here from Profile) ──────────────────────
+                    SettingsSection(title: "More") {
+                        NavigationLink(destination: RawHubView().pushedScreen()) {
+                            SettingsRowLabel(icon: "asset:icon-raw", title: "Raw",
+                                             subtitle: "Diet position, food safety, organ rotation", showsChevron: true)
+                        }
+                        .buttonStyle(PressScaleStyle(scale: 0.98))
+                        SettingsDivider()
+                        NavigationLink(destination: SunView().pushedScreen()) {
+                            SettingsRowLabel(icon: "sun.max", title: "Sun",
+                                             subtitle: "Time outside and today's vitamin D window", showsChevron: true)
+                        }
+                        .buttonStyle(PressScaleStyle(scale: 0.98))
+                        SettingsDivider()
+                        NavigationLink(destination: FriendsView().pushedScreen()) {
+                            SettingsRowLabel(icon: "person.2", title: "Friends",
+                                             subtitle: "Eat together, shared meals", showsChevron: true)
+                        }
+                        .buttonStyle(PressScaleStyle(scale: 0.98))
+                    }
+
                     // ── Preferences ─────────────────────────────────────────
                     SettingsSection(title: "Preferences") {
                         SettingsToggleRow(icon: "waveform.path", title: "Haptic feedback",
@@ -318,8 +339,15 @@ private struct SettingsIcon: View {
     let name: String
     var destructive = false
     var body: some View {
-        Image(systemName: name)
-            .font(.ui(size: 14, weight: .medium))
+        Group {
+            if name.hasPrefix("asset:") {
+                // A drawn icon from the asset catalog (e.g. Raw's steak).
+                Image(String(name.dropFirst(6))).renderingMode(.template).resizable().scaledToFit()
+                    .frame(width: 17, height: 17)
+            } else {
+                Image(systemName: name).font(.ui(size: 14, weight: .medium))
+            }
+        }
             .foregroundColor(destructive ? .ncEmber : Mono.text)
             .frame(width: 32, height: 32)
             .background(Circle().fill(Color.white.opacity(0.06)))

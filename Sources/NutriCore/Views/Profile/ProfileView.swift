@@ -53,11 +53,9 @@ struct ProfileView: View {
                     if let profile {
                         bento(profile)
                         details(profile)
-                        greeting(profile).padding(.top, 10)
                     } else {
                         setUp
                     }
-                    more.padding(.top, 10)
                 }
                 .padding(.horizontal, Bento.margin)
                 .padding(.bottom, 210)   // clears the ask bar and the floating tab bar
@@ -71,7 +69,6 @@ struct ProfileView: View {
                         .padding(.bottom, 80)   // the tab bar is 62 pt tall, 8 pt off the bottom
                 }
             }
-            .background { ProfileGlowBackdrop().ignoresSafeArea() }
             .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
             .navigationTitle("Profile") // names the back button on pushed screens
@@ -154,39 +151,37 @@ struct ProfileView: View {
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
                         smallTile(tint: nil, label: "Add", action: { sheet = .add }) {
-                            Image(systemName: "plus").font(.ui(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.7))
+                            tileFace(icon: "plus", title: "Add")
                         }
                         smallTile(tint: Color(hex: "#E0A458"), photo: photos.first?.photoData,
                                   label: monthPhotos.count > 1 ? "Meal photos, \(monthPhotos.count - 1) more this month"
                                                                : "Meal photos",
                                   action: { route = .goals }) {
-                            Group {
-                                if monthPhotos.count > 1 {
-                                    Text("+\(monthPhotos.count - 1)").font(.ui(size: 14, weight: .semibold)).foregroundColor(.white)
-                                } else {
-                                    Image(systemName: "photo.on.rectangle").font(.ui(size: 15, weight: .medium))
-                                        .foregroundColor(.white.opacity(0.85))
-                                }
+                            if monthPhotos.count > 1 {
+                                Text("+\(monthPhotos.count - 1)").font(.ui(size: 14, weight: .semibold)).foregroundColor(.white)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                                    .padding(10)
+                            } else {
+                                tileFace(icon: "photo.stack", title: "Photos")
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                            .padding(10)
                         }
                     }
                     HStack(spacing: 10) {
-                        smallTile(tint: Color(hex: "#0A0B0A"), label: "Streak and insights", action: { route = .goals }) {
-                            ZStack {
-                                Circle().fill(Color.vitalisLime.opacity(0.35)).frame(width: 34, height: 34).blur(radius: 12)
-                                AlgizMark().fill(Color.vitalisLime).frame(width: 15, height: 20)
-                            }
+                        smallTile(tint: Color(hex: "#0A0B0A"), label: "Goals this month", action: { route = .goals }) {
+                            MiniGoalsMonth(meals: recentMeals, goal: profile.dailyCalorieGoal)
+                                .padding(10)
                         }
                         smallTile(tint: Color(hex: "#6E9A5B"), photo: today.first?.photoData ?? photos.dropFirst().first?.photoData,
                                   label: "Today's meals, \(today.count)", action: { sheet = .energy }) {
-                            Text("\(today.count)").font(.ui(size: 12, weight: .bold)).foregroundColor(.white)
-                                .frame(minWidth: 22, minHeight: 22)
-                                .padding(.horizontal, 3)
-                                .vitalisGlass(Capsule(), tint: .ncEmber)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                                .padding(7)
+                            ZStack {
+                                tileFace(icon: "fork.knife", title: "Today")
+                                Text("\(today.count)").font(.ui(size: 12, weight: .bold)).foregroundColor(.white)
+                                    .frame(minWidth: 22, minHeight: 22)
+                                    .padding(.horizontal, 3)
+                                    .vitalisGlass(Capsule(), tint: .ncEmber)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                                    .padding(7)
+                            }
                         }
                     }
                 }
@@ -196,13 +191,26 @@ struct ProfileView: View {
         }
     }
 
+    /// A small tile's face: an icon at the top and its name at the bottom, so no tile is ever blank.
+    private func tileFace(icon: String, title: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: icon).font(.ui(size: 17, weight: .medium)).foregroundColor(.white.opacity(0.9))
+            Spacer(minLength: 4)
+            Text(title).font(.ui(size: 12, weight: .semibold)).foregroundColor(.white)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(11)
+        .accessibilityHidden(true)
+    }
+
     private func smallTile<Content: View>(tint: Color?, photo: Data? = nil, label: String,
                                           action: @escaping () -> Void,
                                           @ViewBuilder content: () -> Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
         return Button(action: action) {
             content()
-                .frame(maxWidth: .infinity, minHeight: 80)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 80)
                 .aspectRatio(1, contentMode: .fit)
                 .background {
                     if let photo, let image = UIImage(data: photo) {
@@ -215,6 +223,7 @@ struct ProfileView: View {
                 .contentShape(shape)
         }
         .buttonStyle(.plain)
+        .frame(minWidth: 0, maxWidth: .infinity)   // the four small tiles always share the width equally
         .accessibilityLabel(label)
     }
 
@@ -339,17 +348,7 @@ struct ProfileView: View {
         .accessibilityValue(spoken)
     }
 
-    // MARK: - Greeting and ask
-
-    private func greeting(_ profile: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Hey, \(displayName(profile))").font(.ui(size: 34, weight: .medium)).foregroundColor(.white)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("What are we eating?").font(.ui(size: 28, weight: .medium)).foregroundColor(.white.opacity(0.55))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-    }
+    // MARK: - Ask
 
     private var askBar: some View {
         GlassGroup(spacing: 4) {
@@ -397,34 +396,6 @@ struct ProfileView: View {
         }
         .padding(18)
         .vitalisGlass(RoundedRectangle(cornerRadius: 32, style: .continuous))
-    }
-
-    /// The screens that moved out of the tab bar (Settings is in the header).
-    private var more: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            moreRow("Raw", icon: "leaf", first: true) { pushed = .raw }
-            moreRow("Sun", icon: "sun.max") { pushed = .sun }
-            moreRow("Friends", icon: "person.2") { pushed = .friends }
-        }
-        .padding(.horizontal, 18)
-        .vitalisGlass(RoundedRectangle(cornerRadius: 32, style: .continuous))
-    }
-
-    private func moreRow(_ title: String, icon: String, first: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon).font(.ui(size: 15, weight: .medium)).foregroundColor(.white).frame(width: 22)
-                Text(title).font(.ui(size: 15, weight: .medium)).foregroundColor(.white)
-                Spacer()
-                Image(systemName: "chevron.right").font(.ui(size: 11, weight: .semibold)).foregroundColor(.white.opacity(0.45))
-            }
-            .frame(minHeight: 52)
-            .contentShape(Rectangle())
-            .overlay(alignment: .top) { if !first { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) } }
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Sheets
@@ -597,32 +568,47 @@ private extension View {
     }
 }
 
-/// The dark base with soft blurred glows for the glass to refract: lime top left, amber top right, teal at the right
-/// of the middle, violet lower left. They drift slowly; still under Reduce Motion.
-private struct ProfileGlowBackdrop: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var drift = false
+/// This month at a glance in a small tile: a tiny dot per day (Moss on target, Ember off target, faint when nothing
+/// was logged, white for today) under a small "Goals" label.
+private struct MiniGoalsMonth: View {
+    let meals: [MealEntry]
+    let goal: Double
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            ZStack {
-                Color(hex: "#050605")
-                glow(.vitalisLime, 0.32, size: w * 0.9).position(x: w * 0.1, y: h * 0.06).offset(x: drift ? 18 : -10, y: drift ? 12 : 0)
-                glow(Color(hex: "#E0A458"), 0.26, size: w * 0.8).position(x: w * 0.95, y: h * 0.1).offset(x: drift ? -14 : 8)
-                glow(Color(hex: "#1F6F6B"), 0.32, size: w * 0.9).position(x: w * 1.0, y: h * 0.5).offset(y: drift ? -20 : 10)
-                glow(Color(hex: "#6B4FA0"), 0.2, size: w * 0.8).position(x: w * 0.05, y: h * 0.85).offset(x: drift ? 14 : -6)
+        let cal = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for m in meals { byDay[cal.startOfDay(for: m.date), default: 0] += m.calories }
+        let month = MonthMath.start(of: .now)
+        let today = cal.startOfDay(for: .now)
+        let blanks = MonthMath.leadingBlanks(month)
+        let days = MonthMath.days(in: month)
+        let onTarget = days.filter { DayGoal(kcal: byDay[$0] ?? 0, goal: goal) == .onTarget }.count
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                AlgizMark().fill(Color.vitalisLime).frame(width: 7, height: 9)
+                Text("Goals").font(.ui(size: 11, weight: .semibold)).foregroundColor(.white)
+            }
+            Spacer(minLength: 0)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(5), spacing: 3), count: 7), alignment: .leading, spacing: 3) {
+                ForEach(0..<blanks, id: \.self) { _ in Color.clear.frame(height: 5) }
+                ForEach(days, id: \.self) { day in
+                    Circle().fill(color(DayGoal(kcal: byDay[day] ?? 0, goal: goal), today: day == today, future: day > today))
+                        .frame(width: 5, height: 5)
+                }
             }
         }
-        .accessibilityHidden(true)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 9).repeatForever(autoreverses: true)) { drift = true }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Goals this month, \(onTarget) days on target")
     }
 
-    private func glow(_ color: Color, _ opacity: Double, size: CGFloat) -> some View {
-        Circle().fill(color.opacity(opacity)).frame(width: size, height: size).blur(radius: 70)
+    private func color(_ g: DayGoal, today: Bool, future: Bool) -> Color {
+        if today { return .white }
+        switch g {
+        case .onTarget: return .ncMoss
+        case .offTarget: return .ncEmber
+        case .none: return .white.opacity(future ? 0.12 : 0.28)
+        }
     }
 }
 

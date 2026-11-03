@@ -42,10 +42,11 @@ struct SettingsView: View {
                                 showManageSubscriptions = true
                             }
                         } else {
-                            SettingsRow(icon: "sparkles", title: "Get Vitalis Pro",
-                                        subtitle: "Scanner, full nutrients, Health sync, app icons", showsChevron: true) {
-                                showPaywall = true
+                            NavigationLink(destination: PaymentView().pushedScreen()) {
+                                SettingsRowLabel(icon: "creditcard", title: "Get Vitalis Pro",
+                                                 subtitle: "Plans and payment", showsChevron: true)
                             }
+                            .buttonStyle(PressScaleStyle(scale: 0.98))
                         }
                         SettingsDivider()
                         SettingsRow(icon: "arrow.clockwise", title: "Restore purchases",
@@ -403,3 +404,41 @@ private struct SettingsToggleRow: View {
         .frame(minHeight: 56)
     }
 }
+
+// MARK: - Payment
+
+/// The payment page, opened from Settings › Subscription. A clear canvas for now: the backdrop and the Vitalis card,
+/// which turns with the phone or a drag. Plans and checkout get built on this.
+struct PaymentView: View {
+    @StateObject private var subManager = SubscriptionManager.shared
+    @StateObject private var social = SocialService.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppBackdrop()
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(spacing: 12) {
+                    Button { dismiss() } label: { Image(systemName: "chevron.left") }
+                        .buttonStyle(.bentoRound)
+                        .accessibilityLabel("Back")
+                    Text("Payment").font(.bentoTitle).foregroundColor(Mono.text)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                }
+                VitalisCard(name: social.myProfile?.name ?? "Your card", isPro: subManager.isSubscribed)
+                Spacer()
+            }
+            .padding(.horizontal, Bento.margin)
+            .padding(.top, 8)
+        }
+        .navigationBarHidden(true)
+    }
+}
+
+#if DEBUG
+#Preview("Payment") {
+    NavigationStack { PaymentView() }
+        .preferredColorScheme(.dark)
+}
+#endif

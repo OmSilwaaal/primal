@@ -27,8 +27,6 @@ struct PaywallView: View {
                         }
                         Text("Vitalis Pro").font(.display(40)).foregroundColor(Mono.text)
                             .accessibilityAddTraits(.isHeader)
-                        VitalisCard(name: SocialService.shared.myProfile?.name ?? "Your card", isPro: subManager.isSubscribed)
-                            .padding(.vertical, 10)
                         Text("Everything Vitalis measures, with nothing held back.")
                             .font(.bentoBody).foregroundColor(Mono.label)
                     }

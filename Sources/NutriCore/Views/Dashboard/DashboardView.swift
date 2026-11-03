@@ -187,7 +187,8 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showWeather) {
-                WeatherSheet(current: weather.current, status: weatherLocation.authorizationStatus, sunGoal: sunGoal) {
+                WeatherSheet(current: weather.current, status: weatherLocation.authorizationStatus, sunGoal: sunGoal,
+                             latitude: weatherLocation.location?.coordinate.latitude) {
                     weatherLocation.requestPermission()
                 }
             }
@@ -699,11 +700,23 @@ struct WeatherSheet: View {
     let current: WeatherService.Current?
     let status: CLAuthorizationStatus
     let sunGoal: Int
+    /// Decides the hemisphere for the season; without a location, the northern one is assumed.
+    let latitude: Double?
     let onAllowLocation: () -> Void
 
     var body: some View {
+        let season = Season(date: .now, latitude: latitude)
         VStack(alignment: .leading, spacing: 14) {
-            Text("Weather").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            HStack(alignment: .center) {
+                Text("Weather").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+                Spacer()
+                // The season, as a glass chip.
+                Label(season.name, systemImage: season.symbol)
+                    .font(.ui(size: 13, weight: .semibold)).foregroundColor(Mono.text)
+                    .padding(.horizontal, 12).frame(minHeight: 32)
+                    .liquidGlassPanel(in: Capsule())
+                    .accessibilityLabel("Season: \(season.name)")
+            }
             switch status {
             case .notDetermined:
                 Text("Allow location to see the weather where you are. Only your rough position is used.")
@@ -752,6 +765,48 @@ struct WeatherSheet: View {
         .presentationDetents([.height(280)])
         .glassSheetBackground()
         .presentationCornerRadius(Bento.radius)
+    }
+}
+
+/// The season by meteorological months (winter is December–February in the north), flipped south of the
+/// equator. "Fall" for US English, "Autumn" elsewhere.
+struct Season {
+    enum Kind { case spring, summer, autumn, winter }
+    let kind: Kind
+
+    init(date: Date, latitude: Double?) {
+        let month = Calendar.current.component(.month, from: date)
+        let north: Kind = switch month {
+        case 3...5: .spring
+        case 6...8: .summer
+        case 9...11: .autumn
+        default: .winter
+        }
+        guard let latitude, latitude < 0 else { kind = north; return }
+        kind = switch north {
+        case .spring: .autumn
+        case .summer: .winter
+        case .autumn: .spring
+        case .winter: .summer
+        }
+    }
+
+    var name: String {
+        switch kind {
+        case .spring: "Spring"
+        case .summer: "Summer"
+        case .autumn: Locale.current.region?.identifier == "US" ? "Fall" : "Autumn"
+        case .winter: "Winter"
+        }
+    }
+
+    var symbol: String {
+        switch kind {
+        case .spring: "camera.macro"
+        case .summer: "sun.max"
+        case .autumn: "leaf"
+        case .winter: "snowflake"
+        }
     }
 }
 

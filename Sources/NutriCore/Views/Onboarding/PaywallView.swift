@@ -276,79 +276,137 @@ private final class CardTiltProxy {
     @objc func tick() { MainActor.assumeIsolated { tilt?.tick() } }
 }
 
-/// A transparent glass membership card that says VITALIS. It turns in 3D with the phone, or with a finger or the
-/// pointer dragged across it: the glass rotates, its edge shows thickness on the side turning away, the light
-/// inside refracts and slides at a different depth from the text, a highlight sweeps across, and the rim's
-/// colours rotate. Still under Reduce Motion.
+/// How a member pays. All of them go through the App Store (Apple's payment sheet confirms the purchase), so the
+/// choice here is shown on the card and named on the button; the charge goes to whatever the Apple Account uses.
+enum PaymentMethod: String, CaseIterable, Identifiable {
+    case applePay, card, paypal, balance
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .applePay: "Apple Pay"
+        case .card: "Credit or debit card"
+        case .paypal: "PayPal"
+        case .balance: "Apple Account balance"
+        }
+    }
+    var short: String {
+        switch self {
+        case .applePay: "Apple Pay"
+        case .card: "Card"
+        case .paypal: "PayPal"
+        case .balance: "Balance"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .applePay: "apple.logo"
+        case .card: "creditcard"
+        case .paypal: "p.circle"
+        case .balance: "giftcard"
+        }
+    }
+}
+
+/// The mark printed bottom right on the card for the chosen payment method.
+private struct PaymentMark: View {
+    let method: PaymentMethod
+
+    var body: some View {
+        Group {
+            switch method {
+            case .applePay:
+                HStack(spacing: 2) {
+                    Image(systemName: "apple.logo").font(.system(size: 17, weight: .semibold))
+                    Text("Pay").font(.system(size: 19, weight: .semibold))
+                }
+            case .card:
+                HStack(spacing: 6) {
+                    Image(systemName: "creditcard.fill").font(.system(size: 17, weight: .semibold))
+                    Text("DEBIT · CREDIT").font(.mono(11, .semibold)).tracking(0.8)
+                }
+            case .paypal:
+                Text("PayPal").font(.system(size: 19, weight: .heavy)).italic()
+            case .balance:
+                HStack(spacing: 6) {
+                    Image(systemName: "giftcard.fill").font(.system(size: 16, weight: .semibold))
+                    Text("BALANCE").font(.mono(11, .semibold)).tracking(0.8)
+                }
+            }
+        }
+        .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.75)], startPoint: .top, endPoint: .bottom))
+        .shadow(color: .black.opacity(0.25), radius: 0.6, y: 0.6)
+        .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.85)), removal: .opacity))
+        .id(method)
+    }
+}
+
+/// The Vitalis card, after the Apple Card: a clean, clear frosted-glass slab with a debossed rune top left, a metal
+/// chip, the member's name in quiet grey-white and the payment mark bottom right. It turns in 3D with the phone, or
+/// with a finger or the pointer dragged across it, light refracting through it. Still under Reduce Motion.
 struct VitalisCard: View {
     let name: String
     let isPro: Bool
-    /// Bottom-right action label ("See plans", "Manage").
-    var action: String? = nil
+    var method: PaymentMethod? = nil
     @StateObject private var tilt = CardTilt()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         let roll = reduceMotion ? 0 : tilt.roll, pitch = reduceMotion ? 0 : tilt.pitch
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)   // a real card's corner
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         GeometryReader { geo in
             ZStack {
-                // Thickness: the glass edge, showing on the side turning away.
-                shape.fill(LinearGradient(colors: [.white.opacity(0.35), .white.opacity(0.06)],
-                                          startPoint: .top, endPoint: .bottom))
-                    .offset(x: -roll * 1.5, y: -pitch * 1.2)   // a card is under 1 mm thick
-                    .opacity(reduceTransparency ? 0 : 0.5)
+                // A card is under 1 mm thick: the faintest edge on the side turning away.
+                shape.fill(Color.white.opacity(0.3))
+                    .offset(x: -roll * 1.4, y: -pitch * 1.1)
+                    .opacity(reduceTransparency ? 0 : 0.6)
 
-                // Glass body: mostly clear, a light frost so text stays readable.
                 if reduceTransparency {
-                    shape.fill(Color(hex: "#141614"))
+                    shape.fill(Color(hex: "#2A2C2A"))
                 } else {
-                    shape.fill(.ultraThinMaterial).opacity(0.55).environment(\.colorScheme, .dark)
-                    shape.fill(Color(hex: "#0A0B0A").opacity(0.12))
-                    // Light refracting inside the glass, at its own depth: it slides further than the card turns.
+                    // Clear frosted glass: very light blur, a touch of white like the Apple Card's titanium white.
+                    shape.fill(.ultraThinMaterial).opacity(0.35).environment(\.colorScheme, .light)
+                    shape.fill(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.05)],
+                                              startPoint: .topLeading, endPoint: .bottomTrailing))
+                    // Light passing through: a soft warm-to-cool refraction that slides as the card turns.
                     ZStack {
-                        Ellipse().fill(Color(hex: "#F37E61").opacity(0.7)).frame(width: 200, height: 130)
-                            .offset(x: 80 - roll * 90, y: -30 + pitch * 50)
-                        Ellipse().fill(Color(hex: "#5FB7C4").opacity(0.55)).frame(width: 220, height: 120)
-                            .offset(x: -100 - roll * 60, y: 60 + pitch * 40)
-                        Ellipse().fill(Color(hex: "#D7F25A").opacity(0.3)).frame(width: 150, height: 90)
-                            .offset(x: -10 + roll * 70, y: -70 - pitch * 30)
+                        Ellipse().fill(Color(hex: "#FFE7B8").opacity(0.35)).frame(width: 220, height: 120)
+                            .offset(x: 70 - roll * 80, y: -40 + pitch * 40)
+                        Ellipse().fill(Color(hex: "#BDE6FF").opacity(0.3)).frame(width: 220, height: 120)
+                            .offset(x: -90 - roll * 60, y: 60 + pitch * 30)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .blur(radius: 38)
+                    .blur(radius: 40)
                     .compositingGroup()
                     .clipShape(shape)
-                    // Prismatic streak: a thin rainbow band, like light split by the glass edge.
+                    .blendMode(.plusLighter)
+                    // A thin prismatic streak where the light splits at the glass.
                     LinearGradient(stops: [
-                        .init(color: .clear, location: 0.30 + roll * 0.25),
-                        .init(color: Color(hex: "#F37E61").opacity(0.22), location: 0.38 + roll * 0.25),
-                        .init(color: Color(hex: "#D7F25A").opacity(0.18), location: 0.42 + roll * 0.25),
-                        .init(color: Color(hex: "#5FB7C4").opacity(0.22), location: 0.46 + roll * 0.25),
-                        .init(color: .clear, location: 0.54 + roll * 0.25),
+                        .init(color: .clear, location: 0.34 + roll * 0.25),
+                        .init(color: Color(hex: "#FFB199").opacity(0.18), location: 0.40 + roll * 0.25),
+                        .init(color: Color(hex: "#E9FF9E").opacity(0.15), location: 0.43 + roll * 0.25),
+                        .init(color: Color(hex: "#9EE3FF").opacity(0.18), location: 0.46 + roll * 0.25),
+                        .init(color: .clear, location: 0.52 + roll * 0.25),
                     ], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        .clipShape(shape)
-                        .blendMode(.plusLighter)
-                    // Specular highlight that sweeps across as the card turns.
-                    LinearGradient(stops: [.init(color: .clear, location: 0.15 + roll * 0.3),
-                                           .init(color: .white.opacity(0.28), location: 0.3 + roll * 0.3),
-                                           .init(color: .clear, location: 0.45 + roll * 0.3)],
+                        .clipShape(shape).blendMode(.plusLighter)
+                    // The sheen sweeping across, like light on the Apple Card's surface.
+                    LinearGradient(stops: [.init(color: .clear, location: 0.1 + roll * 0.3),
+                                           .init(color: .white.opacity(0.3), location: 0.28 + roll * 0.3),
+                                           .init(color: .clear, location: 0.46 + roll * 0.3)],
                                    startPoint: .top, endPoint: .bottom)
-                        .clipShape(shape)
-                        .blendMode(.plusLighter)
+                        .clipShape(shape).blendMode(.plusLighter)
                 }
 
-                // The text sits a little above the glass: it shifts slightly against the turn (parallax).
-                content.padding(18)
-                    .offset(x: roll * 3, y: pitch * 2)
+                content(size: geo.size)
+                    .padding(geo.size.width * 0.07)
+                    .offset(x: roll * 2.5, y: pitch * 2)
             }
             .overlay {
-                // Iridescent rim, its colours turning with the tilt.
-                shape.strokeBorder(AngularGradient(colors: [.white.opacity(0.8), Color(hex: "#F37E61").opacity(0.7),
-                                                            Color(hex: "#D7F25A").opacity(0.55), Color(hex: "#5FB7C4").opacity(0.7),
-                                                            Color(hex: "#9B7BE0").opacity(0.55), .white.opacity(0.8)],
-                                                   center: .center, angle: .degrees(roll * 110 + pitch * 50)),
-                                   lineWidth: 1.3)
+                shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0.2), .white.opacity(0.5)],
+                                                  startPoint: UnitPoint(x: 0.2 - roll * 0.3, y: 0),
+                                                  endPoint: UnitPoint(x: 0.8 - roll * 0.3, y: 1)),
+                                   lineWidth: 1)
             }
             .contentShape(shape)
             .simultaneousGesture(DragGesture(minimumDistance: 0)
@@ -359,46 +417,72 @@ struct VitalisCard: View {
                 .onEnded { _ in tilt.drag(to: nil) })
         }
         .aspectRatio(1.586, contentMode: .fit)
-        .shadow(color: .black.opacity(0.4), radius: 16, x: -roll * 10, y: 12 + pitch * 6)
+        .shadow(color: .black.opacity(0.3), radius: 18, x: -roll * 10, y: 14 + pitch * 6)
         .rotation3DEffect(.degrees(pitch * -16), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
         .rotation3DEffect(.degrees(roll * 20), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: method)
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isPro ? "Vitalis Pro membership card, \(name)" : "Vitalis Pro, \(name)")
+        .accessibilityLabel("Vitalis \(isPro ? "Pro member card" : "card"), \(name)\(method.map { ", paying with \($0.title)" } ?? "")")
     }
 
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                Text(name).font(.ui(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1)
-                Spacer()
-                HStack(spacing: 6) {
-                    AlgizMark().fill(Color.white).frame(width: 10, height: 13)
-                    Text("VITALIS").font(.display(18)).tracking(-0.4).foregroundColor(.white)
-                }
+    private func content(size: CGSize) -> some View {
+        let w = size.width
+        return ZStack(alignment: .topLeading) {
+            // Debossed rune, like the Apple Card's logo: a lit lower edge and a shadowed upper one.
+            ZStack {
+                AlgizMark().fill(Color.black.opacity(0.18)).offset(y: -0.8)
+                AlgizMark().fill(Color.white.opacity(0.55)).offset(y: 0.8)
+                AlgizMark().fill(LinearGradient(colors: [.white.opacity(0.95), .white.opacity(0.7)],
+                                                startPoint: .top, endPoint: .bottom))
             }
-            Spacer(minLength: 8)
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("Pro").font(.display(34)).foregroundColor(.white)
-                Text(isPro ? "Member" : "Membership").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white.opacity(0.85))
-            }
-            Text("Scanner · full nutrients · Health sync").font(.ui(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.75))
-                .lineLimit(1).minimumScaleFactor(0.8)
-            Spacer(minLength: 8)
-            HStack {
-                Text(isPro ? "ACTIVE" : "MEMBER " + String(Calendar.current.component(.year, from: .now)))
-                    .font(.mono(12, .semibold)).tracking(1.2).foregroundColor(.white.opacity(0.85))
+            .frame(width: w * 0.075, height: w * 0.098)
+
+            // Metal chip, right of centre.
+            CardChip()
+                .frame(width: w * 0.13, height: w * 0.1)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .offset(y: -w * 0.04)
+
+            VStack(alignment: .leading, spacing: 4) {
                 Spacer()
-                if let action {
-                    HStack(spacing: 6) {
-                        Text(action).font(.ui(size: 15, weight: .semibold))
-                        Image(systemName: "arrow.up.right").font(.ui(size: 13, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
+                Text(name).font(.system(size: w * 0.05, weight: .medium)).foregroundColor(.white.opacity(0.92))
+                    .shadow(color: .black.opacity(0.3), radius: 0.8, y: 0.6)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                HStack(alignment: .lastTextBaseline) {
+                    Text(isPro ? "VITALIS PRO · ACTIVE" : "VITALIS PRO").font(.mono(10, .semibold)).tracking(1.4)
+                        .foregroundColor(.white.opacity(0.75))
+                    Spacer()
+                    if let method { PaymentMark(method: method) }
                 }
             }
         }
-        .shadow(color: .black.opacity(0.35), radius: 6, y: 1)   // readable over the clearer glass
+    }
+}
+
+/// A brushed-metal EMV chip.
+private struct CardChip: View {
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        ZStack {
+            shape.fill(LinearGradient(colors: [Color(hex: "#D9D9D6"), Color(hex: "#9C9D99"), Color(hex: "#CFCFCB")],
+                                      startPoint: .topLeading, endPoint: .bottomTrailing))
+            GeometryReader { g in
+                Path { p in
+                    let w = g.size.width, h = g.size.height
+                    p.move(to: CGPoint(x: w * 0.5, y: 0)); p.addLine(to: CGPoint(x: w * 0.5, y: h))
+                    p.move(to: CGPoint(x: 0, y: h * 0.34)); p.addLine(to: CGPoint(x: w * 0.36, y: h * 0.34))
+                    p.move(to: CGPoint(x: w * 0.64, y: h * 0.34)); p.addLine(to: CGPoint(x: w, y: h * 0.34))
+                    p.move(to: CGPoint(x: 0, y: h * 0.66)); p.addLine(to: CGPoint(x: w * 0.36, y: h * 0.66))
+                    p.move(to: CGPoint(x: w * 0.64, y: h * 0.66)); p.addLine(to: CGPoint(x: w, y: h * 0.66))
+                    p.addRoundedRect(in: CGRect(x: w * 0.36, y: h * 0.2, width: w * 0.28, height: h * 0.6),
+                                     cornerSize: CGSize(width: 3, height: 3))
+                }
+                .stroke(Color.black.opacity(0.25), lineWidth: 0.8)
+            }
+            shape.stroke(Color.white.opacity(0.6), lineWidth: 0.6)
+        }
+        .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
     }
 }

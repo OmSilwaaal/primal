@@ -31,6 +31,8 @@ targets:
         buildPhase: resources
       - path: Resources/Sounds
         buildPhase: resources
+      - path: Resources/Video
+        buildPhase: resources
     info:
       path: NutriCore/Info.plist
       properties:

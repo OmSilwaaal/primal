@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import StoreKit
 import SwiftData
 
@@ -410,32 +411,221 @@ private struct SettingsToggleRow: View {
 
 // MARK: - Payment
 
-/// The payment page, opened from Settings › Subscription. A clear canvas for now: the backdrop and the Vitalis card,
-/// which turns with the phone or a drag. Plans and checkout get built on this.
+/// The payment page, opened from Settings › Subscription: the Vitalis card centred over a slowly looping forest,
+/// lightly blurred. Without Pro: choose a plan and how to pay — the card shows the chosen method's mark — and
+/// subscribe through the App Store. With Pro: the card reads Active and the button manages the subscription.
+/// The back button sits bottom left in Liquid Glass, refracting the video behind it.
 struct PaymentView: View {
     @StateObject private var subManager = SubscriptionManager.shared
     @StateObject private var social = SocialService.shared
     @Environment(\.dismiss) private var dismiss
+    @State private var plan: SubscriptionManager.Plan = .annual
+    @AppStorage("preferredPaymentMethod") private var methodRaw = PaymentMethod.applePay.rawValue
+    @State private var showManage = false
+
+    private var method: PaymentMethod { PaymentMethod(rawValue: methodRaw) ?? .applePay }
 
     var body: some View {
         ZStack {
-            AppBackdrop()
-            VStack(alignment: .leading, spacing: 24) {
-                HStack(spacing: 12) {
-                    Button { dismiss() } label: { Image(systemName: "chevron.left") }
-                        .buttonStyle(.bentoRound)
-                        .accessibilityLabel("Back")
-                    Text("Payment").font(.bentoTitle).foregroundColor(Mono.text)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                }
-                VitalisCard(name: social.myProfile?.name ?? "Your card", isPro: subManager.isSubscribed)
-                Spacer()
+            LoopingVideo(name: "payment-bg", blur: 0.12)
+                .overlay(Color.black.opacity(0.22))
+                .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                Text(subManager.isSubscribed ? "Your membership" : "Vitalis Pro")
+                    .font(.ui(size: 17, weight: .semibold)).foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 3)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 8)
+                Spacer(minLength: 0)
+                VitalisCard(name: social.myProfile?.name ?? "Vitalis Member", isPro: subManager.isSubscribed,
+                            method: subManager.isSubscribed ? nil : method)
+                    .padding(.horizontal, 6)
+                Spacer(minLength: 0)
+                if subManager.isSubscribed { manage } else { checkout }
+                bottomBar
             }
             .padding(.horizontal, Bento.margin)
-            .padding(.top, 8)
         }
         .navigationBarHidden(true)
+        .hidesTabBar(true)
+        .manageSubscriptionsSheet(isPresented: $showManage)
+        .onChange(of: showManage) { _, shown in if !shown { Task { await subManager.refreshEntitlement() } } }
+        .task { if subManager.products.isEmpty { await subManager.loadProducts() } }
+    }
+
+    // MARK: Checkout
+
+    private var checkout: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Plan.
+            HStack(spacing: 8) {
+                ForEach(SubscriptionManager.Plan.allCases.reversed()) { p in
+                    let on = plan == p
+                    Button {
+                        Haptics.selection()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { plan = p }
+                    } label: {
+                        VStack(spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(p.title).font(.ui(size: 15, weight: .semibold))
+                                if p == .annual, let save = subManager.annualSavingsPercent {
+                                    Text("-\(save)%").font(.mono(10, .semibold))
+                                        .padding(.horizontal, 5).padding(.vertical, 1)
+                                        .background(Capsule().fill(Color.ncMoss)).foregroundColor(Mono.onWhite)
+                                }
+                            }
+                            Text(subManager.priceLabel(for: p).isEmpty ? "—" : subManager.priceLabel(for: p))
+                                .font(.ui(size: 12)).opacity(0.8)
+                        }
+                        .foregroundColor(on ? Mono.onWhite : .white)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .background { if on { Capsule().fill(Color.white) } }
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            .padding(4)
+            .glass(.clear, in: Capsule())
+
+            // How to pay.
+            Text("Pay with").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.white.opacity(0.85))
+                .padding(.leading, 4)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(PaymentMethod.allCases) { m in
+                        let on = m == method
+                        Button {
+                            Haptics.selection()
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { methodRaw = m.rawValue }
+                        } label: {
+                            Label(m.short, systemImage: m.icon).font(.ui(size: 14, weight: .semibold))
+                                .foregroundColor(on ? Mono.onWhite : .white)
+                                .padding(.horizontal, 16).frame(minHeight: 44)
+                                .background { if on { Capsule().fill(Color.white) } }
+                                .glass(.clear, in: Capsule(), interactive: !on)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(m.title)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+
+            Button {
+                Task { await subManager.subscribe(to: plan) }
+            } label: {
+                ZStack {
+                    if subManager.isWorking { ProgressView().tint(Mono.onWhite) }
+                    else {
+                        let price = subManager.priceLabel(for: plan)
+                        Text(price.isEmpty ? "Continue with \(method.short)" : "Subscribe · \(price)")
+                    }
+                }
+            }
+            .buttonStyle(.bentoPrimary)
+            .disabled(subManager.isWorking || subManager.products.isEmpty)
+
+            if let error = subManager.errorMessage {
+                Text(error).font(.ui(size: 12)).foregroundColor(.ncEmber)
+            }
+            Text("Charged to your Apple Account with \(method.title) when you confirm in Apple's payment sheet; you can change the method there. Renews automatically unless cancelled 24 hours before the period ends.")
+                .font(.ui(size: 11)).foregroundColor(.white.opacity(0.8))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .glass(.tinted, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    private var manage: some View {
+        Button("Manage subscription") { showManage = true }
+            .buttonStyle(.bentoPrimary)
+    }
+
+    // MARK: Bottom bar
+
+    private var bottomBar: some View {
+        HStack {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left").font(.ui(size: 18, weight: .semibold)).foregroundColor(.white)
+                    .frame(width: 52, height: 52)
+                    .glass(.clear, in: Circle(), interactive: true)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back")
+            Spacer()
+            if !subManager.isSubscribed {
+                Button("Restore") { Task { await subManager.restorePurchases() } }
+                    .font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                    .padding(.horizontal, 20).frame(height: 52)
+                    .glass(.clear, in: Capsule(), interactive: true)
+                    .disabled(subManager.isWorking)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+}
+
+/// A muted video that loops forever, aspect-filled, with an optional light blur (0…1). Holds still on its first
+/// frame under Reduce Motion.
+struct LoopingVideo: UIViewRepresentable {
+    let name: String
+    var blur: CGFloat = 0
+
+    func makeUIView(context: Context) -> LoopingVideoView {
+        LoopingVideoView(name: name, blur: blur)
+    }
+    func updateUIView(_ view: LoopingVideoView, context: Context) {}
+    static func dismantleUIView(_ view: LoopingVideoView, coordinator: ()) { view.teardown() }
+}
+
+final class LoopingVideoView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+    private var player: AVQueuePlayer?
+    private var looper: AVPlayerLooper?
+    private var blurAnimator: UIViewPropertyAnimator?
+    private let blurView = UIVisualEffectView(effect: nil)
+
+    init(name: String, blur: CGFloat) {
+        super.init(frame: .zero)
+        isUserInteractionEnabled = false
+        backgroundColor = .black
+        guard let url = Bundle.main.url(forResource: name, withExtension: "mp4") else { return }
+        let item = AVPlayerItem(url: url)
+        let player = AVQueuePlayer()
+        player.isMuted = true
+        player.preventsDisplaySleepDuringVideoPlayback = false
+        looper = AVPlayerLooper(player: player, templateItem: item)
+        (layer as? AVPlayerLayer)?.player = player
+        (layer as? AVPlayerLayer)?.videoGravity = .resizeAspectFill
+        self.player = player
+        if UIAccessibility.isReduceMotionEnabled { player.pause() } else { player.play() }
+
+        if blur > 0 {
+            // A partial blur: run a blur animator to `blur` of the way and hold it there.
+            blurView.frame = bounds
+            blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            addSubview(blurView)
+            let animator = UIViewPropertyAnimator(duration: 1, curve: .linear) { [blurView] in
+                blurView.effect = UIBlurEffect(style: .regular)
+            }
+            animator.pausesOnCompletion = true
+            animator.fractionComplete = blur
+            blurAnimator = animator
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func teardown() {
+        player?.pause()
+        blurAnimator?.stopAnimation(true)
+        blurAnimator = nil
     }
 }
 

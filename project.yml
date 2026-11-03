@@ -61,7 +61,8 @@ targets:
       path: NutriCore/NutriCore.entitlements
       properties:
         com.apple.developer.healthkit: true
-        com.apple.developer.applesignin: ["Default"]
+        # TEMP: Sign in with Apple off so the app can be signed onto a personal device. Uncomment to restore.
+        # com.apple.developer.applesignin: ["Default"]
         # Shared with the widgets, which read today's snapshot (WidgetSnapshot).
         com.apple.security.application-groups: ["group.com.omsilwal.NutriCorePrimal"]
     scheme:

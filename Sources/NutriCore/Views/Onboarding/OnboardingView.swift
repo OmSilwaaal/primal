@@ -109,12 +109,13 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var providerButtons: some View {
-        Button { Task { await authManager.signInWithApple() } } label: {
-            AuthButtonLabel(title: "Continue with Apple") {
-                Image(systemName: "applelogo").font(.ui(size: 19, weight: .medium))
-            }
-        }
-        .buttonStyle(CapsuleAuthButtonStyle(filled: true))
+        // TEMP: Sign in with Apple hidden while the entitlement is off (see project.yml). Uncomment to restore.
+        // Button { Task { await authManager.signInWithApple() } } label: {
+        //     AuthButtonLabel(title: "Continue with Apple") {
+        //         Image(systemName: "applelogo").font(.ui(size: 19, weight: .medium))
+        //     }
+        // }
+        // .buttonStyle(CapsuleAuthButtonStyle(filled: true))
 
         Button { Task { await authManager.signInWithGoogle() } } label: {
             AuthButtonLabel(title: "Continue with Google") {

@@ -1,166 +1,117 @@
 import SwiftUI
 import SwiftData
 
-/// The Data tab, Nutrients grouped view, on the app's shared photo backdrop. A title with a Today / Week switch,
-/// then bento tiles: what's low (lowest first), the met / on track / low counts, and one card
-/// per group (Macros, Vitamins, Minerals) as a bar chart: a rounded bar per nutrient, as tall as its share of the
-/// target. Tapping any tile grows it into a full page with every nutrient's amount, bar and status.
-/// Low is under 50% of the target, Met is 90% or more (`NutrientInfo.isDeficient` / `isMet`); status always shows
-/// as a word somewhere on screen and to VoiceOver, never colour alone.
+/// The Data tab: one nutrient group at a time (Macros, Vitamins, Minerals). A header with an info button, the
+/// group's score now with its status word, a 7-day trend line, a stepper to move between groups (or a sideways
+/// swipe), and a thick-glass sheet underneath with Met / On track / Low counts and every nutrient in the group,
+/// lowest first. A group's score is the average share of each item's daily target met, each capped at 100%.
+/// Status always shows as a word: Met is 90% or more, On track 50–89%, Low under 50%.
 struct MicronutrientsView: View {
-    enum Range: Hashable { case today, week }
-    /// A tile that can grow into its full page.
-    enum Panel: Hashable {
-        case low, status, group(NutrientGroup)
-    }
-
     @Query private var meals: [MealEntry]
     @Query private var profiles: [UserProfile]
-    @State private var range: Range = .today
-    @State private var open: Panel?
-    @Namespace private var hero
+    @State private var group: NutrientGroup = .macros
+    /// +1 when the last change moved forward through the groups, for the slide direction.
+    @State private var forward = true
+    @State private var showInfo = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private static let groups = NutrientGroup.allCases
 
     init() {
-        let cal = Calendar.current
-        let start = cal.date(byAdding: .day, value: -6, to: cal.startOfDay(for: .now)) ?? .now
+        let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: .now)) ?? .now
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= start })
     }
 
     private var goals: NutrientGoals { profiles.first.map(NutrientGoals.from) ?? .default }
 
-    private var rangeMeals: [MealEntry] {
-        range == .today ? meals.filter { Calendar.current.isDateInToday($0.date) } : meals
+    /// The last seven days, oldest first, ending today.
+    private var days: [Date] {
+        let cal = Calendar.current, today = cal.startOfDay(for: .now)
+        return (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
     }
 
-    /// Today's totals, or the daily average over the week's logged days (so days before you started don't drag
-    /// it down).
-    private var nutrients: [NutrientInfo] {
+    private func items(on day: Date) -> [NutrientInfo] {
         let cal = Calendar.current
-        let days = range == .today ? 1 : Double(max(1, Set(rangeMeals.map { cal.startOfDay(for: $0.date) }).count))
-        return buildNutrientList(from: rangeMeals, goals: goals)
-            .map { NutrientInfo(id: $0.id, name: $0.name, unit: $0.unit, icon: $0.icon, group: $0.group,
-                                current: $0.current / days, goal: $0.goal) }
+        let dayMeals = meals.filter { cal.isDate($0.date, inSameDayAs: day) }
+        return buildNutrientList(from: dayMeals, goals: goals).filter { $0.group == group }
     }
 
-    /// One spring for every grow and shrink: quick to start, settles without a bounce.
-    private var heroAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.25) : .spring(response: 0.48, dampingFraction: 0.88)
+    /// 0–100: the average of each item's share of its target, capped at 100% each.
+    private static func score(_ list: [NutrientInfo]) -> Double {
+        guard !list.isEmpty else { return 0 }
+        return list.map(\.progress).reduce(0, +) / Double(list.count) * 100
     }
 
     var body: some View {
-        let all = nutrients
+        let series = days.map { Self.score(items(on: $0)) }
+        let today = items(on: days.last ?? .now)
+        let now = series.last ?? 0
+        let rising = now >= (series.dropLast().last ?? 0)
 
-        ZStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 12) {
-                    header.padding(.top, 8)
-
-                    Group {
-                        pair {
-                            tile(.low, radius: 30) { LowTile(nutrients: all, range: range) }
-                        } right: {
-                            tile(.status, radius: 30) { StatusTile(nutrients: all) }
-                        }
-                        tile(.group(.macros)) { GroupTile(group: .macros, rows: all.filter { $0.group == .macros }, hasMeals: !rangeMeals.isEmpty) }
-                        tile(.group(.vitamins)) {
-                            GroupTile(group: .vitamins, rows: all.filter { $0.group == .vitamins }, hasMeals: !rangeMeals.isEmpty)
-                        }
-                        tile(.group(.minerals)) {
-                            GroupTile(group: .minerals, rows: all.filter { $0.group == .minerals }, hasMeals: !rangeMeals.isEmpty)
-                        }
-                        Text("Daily targets follow NIH dietary reference intakes for your age and sex."
-                             + (range == .week ? " Week shows the daily average over days you logged." : ""))
-                            .font(.ui(size: 12)).lineSpacing(3).foregroundColor(Color.ncPrimary.opacity(0.6))
-                            .padding(.top, 4).padding(.horizontal, 4)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 120)
-                .animation(.smooth(duration: 0.35), value: range)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 14) {
+                header
+                ScoreRow(score: now, rising: rising, group: group)
+                TrendChart(series: series)
+                    .id(group)
+                    .transition(slide)
+                GroupStepper(group: group, groups: Self.groups, onStep: step)
             }
-            .glassLightFollowsScroll()
-            .scrollDisabled(open != nil)
-            .accessibilityHidden(open != nil)
+            .padding(.horizontal, Bento.margin)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 24).onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height),
+                      abs(value.translation.width) > 44 else { return }
+                step(value.translation.width < 0 ? 1 : -1)
+            })
 
-            if let open {
-                // Dims the page behind the open tile; tap it to close.
-                Color.black.opacity(0.45).ignoresSafeArea()
-                    .onTapGesture(perform: close)
-                    .transition(.opacity)
-                    .accessibilityHidden(true)
-                DetailPanel(panel: open, nutrients: all, range: range, hero: hero, onClose: close)
-                    .padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 10)
-                    .zIndex(1)
-            }
+            GroupSheet(group: group, items: today)
+                .id(group)
+                .transition(.opacity)
         }
-        .hidesTabBar(open != nil)
+        .sheet(isPresented: $showInfo) { ScoreInfoSheet() }
     }
 
-    private func show(_ panel: Panel) {
-        Haptics.tap()
-        withAnimation(heroAnimation) { open = panel }
+    private var slide: AnyTransition {
+        reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
+                                              removal: .opacity)
     }
 
-    private func close() {
-        withAnimation(heroAnimation) { open = nil }
+    /// Moves to the previous (−1) or next (+1) group, if there is one.
+    private func step(_ by: Int) {
+        guard let i = Self.groups.firstIndex(of: group) else { return }
+        let next = i + by
+        guard Self.groups.indices.contains(next) else { return }
+        Haptics.selection()
+        forward = by > 0
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.42, dampingFraction: 0.88)) {
+            group = Self.groups[next]
+        }
     }
-
-    // MARK: Header
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text("Data").font(.ui(size: 34, weight: .bold)).tracking(-34 * 0.03)
-                .foregroundColor(.ncPrimary)
+        HStack(alignment: .center) {
+            Text("Data").font(.display(36)).foregroundColor(Mono.text)
                 .accessibilityAddTraits(.isHeader)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            RangeSwitch(selection: $range)
-        }
-    }
-
-    // MARK: Tiles
-
-    /// A tappable glass tile whose surface grows into the full page (shared geometry with `DetailPanel`).
-    private func tile<Content: View>(_ panel: Panel, radius: CGFloat = 28,
-                                     @ViewBuilder content: () -> Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let isOpen = open == panel
-        return Button { show(panel) } label: {
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .opacity(isOpen ? 0 : 1)
-                .background {
-                    if !isOpen {
-                        shape.fill(Color.clear)
-                            .glassSheen(in: shape, strength: 0.8)
-                            .glass(.tinted, in: shape)
-                            .matchedGeometryEffect(id: panel, in: hero)
-                    }
-                }
-                .contentShape(shape)
-        }
-        .buttonStyle(PressScaleStyle(scale: 0.97))
-        .accessibilityHint("Opens details")
-    }
-
-    /// Two tiles side by side at equal height; stacked at accessibility text sizes.
-    @ViewBuilder private func pair<L: View, R: View>(@ViewBuilder _ left: () -> L,
-                                                    @ViewBuilder right: () -> R) -> some View {
-        if typeSize.isAccessibilitySize {
-            VStack(spacing: 12) { left(); right() }
-        } else {
-            HStack(alignment: .top, spacing: 12) { left(); right() }
-                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            Button { showInfo = true } label: { Image(systemName: "info") }
+                .buttonStyle(.bentoRound)
+                .accessibilityLabel("How the score works")
         }
     }
 }
 
 // MARK: - Status
 
-private enum Status {
+/// Met is 90% or more of a target, On track 50–89%, Low under 50%.
+enum NutrientStatus {
     case met, onTrack, low
-    init(_ n: NutrientInfo) { self = n.isMet ? .met : n.isDeficient ? .low : .onTrack }
+
+    init(percent: Double) {
+        self = percent >= 90 ? .met : percent >= 50 ? .onTrack : .low
+    }
 
     var word: String {
         switch self {
@@ -169,514 +120,359 @@ private enum Status {
         case .low: "Low"
         }
     }
-    var dot: Color {
+
+    var color: Color {
         switch self {
         case .met: .ncMoss
-        case .onTrack: Color.ncPrimary.opacity(0.85)
+        case .onTrack: .ncPrimary
         case .low: .ncEmber
         }
     }
 }
 
-private extension NutrientInfo {
-    /// Share of the target, uncapped (can pass 100%).
-    var share: Double { goal > 0 ? current / goal : 0 }
-
-    /// The label under a vial: the macro's name, or the vitamin letter / mineral symbol.
-    var short: String {
-        switch id {
-        case "cal": "Kcal"
-        case "pro": "Protein"
-        case "carb": "Carbs"
-        case "fat": "Fat"
-        case "fib": "Fiber"
-        case "va": "A"
-        case "vc": "C"
-        case "vd": "D"
-        case "ve": "E"
-        case "vk": "K"
-        case "b1": "B1"
-        case "b2": "B2"
-        case "b3": "B3"
-        case "b6": "B6"
-        case "fol": "B9"
-        case "b12": "B12"
-        case "ca": "Ca"
-        case "fe": "Fe"
-        case "mg": "Mg"
-        case "ph": "P"
-        case "k": "K"
-        case "zn": "Zn"
-        case "se": "Se"
-        case "cu": "Cu"
-        case "mn": "Mn"
-        default: String(name.prefix(3))
+private extension NutrientGroup {
+    var title: String {
+        switch self {
+        case .macros: "Macros"
+        case .vitamins: "Vitamins"
+        case .minerals: "Minerals"
         }
     }
 }
 
-/// Status counts for a set of nutrients.
-private struct Counts {
-    let met: Int, onTrack: Int, low: Int
-    init(_ list: [NutrientInfo]) {
-        met = list.filter(\.isMet).count
-        low = list.filter(\.isDeficient).count
-        onTrack = list.count - met - low
-    }
-    var spoken: String { "\(met) met, \(onTrack) on track, \(low) low" }
-}
+// MARK: - Score
 
-// MARK: - Top tiles
-
-/// What's low, lowest first: the first one large, the next two by name, then how many more.
-private struct LowTile: View {
-    let nutrients: [NutrientInfo]
-    let range: MicronutrientsView.Range
-
-    var body: some View {
-        let low = nutrients.filter(\.isDeficient).sorted { $0.share < $1.share }
-        VStack(alignment: .leading, spacing: 8) {
-            Text(range == .today ? "Low today" : "Low this week")
-                .font(.mono(11)).tracking(0.88).textCase(.uppercase)
-                .foregroundColor(Color.ncPrimary.opacity(0.78))
-            if let first = low.first {
-                Text(first.name).font(.display(22)).foregroundColor(.ncPrimary)
-                    .lineLimit(2).minimumScaleFactor(0.7)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.opacity)
-                Text("\(Int((first.share * 100).rounded()))% of target")
-                    .font(.mono(11)).tracking(0.88).textCase(.uppercase).foregroundColor(.ncPrimary)
-                Spacer(minLength: 0)
-                let next = low.dropFirst().prefix(2).map(\.name)
-                if !next.isEmpty {
-                    Text(next.joined(separator: " · ")
-                         + (low.count > 3 ? " +\(low.count - 3)" : ""))
-                        .font(.ui(size: 13, weight: .semibold)).foregroundColor(Color.ncPrimary.opacity(0.78))
-                        .lineLimit(2).minimumScaleFactor(0.85)
-                }
-            } else {
-                Text("All clear").font(.display(22)).foregroundColor(.ncPrimary)
-                Text("Nothing is low").font(.mono(11)).tracking(0.88).textCase(.uppercase).foregroundColor(.ncPrimary)
-                Spacer(minLength: 0)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-        .padding(.vertical, 16).padding(.horizontal, 18)
-        .overlay(alignment: .topTrailing) {
-            // The app's rune, quietly signing the tile.
-            AlgizMark().fill(Color.ncPrimary.opacity(0.22)).frame(width: 11, height: 14)
-                .padding(16).accessibilityHidden(true)
-        }
-        .lineArt(.sprig, placement: .init(alignment: .bottomTrailing, size: 120, offset: CGSize(width: 34, height: 46)),
-                 radius: 30)
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Met, On track and Low with their counts.
-private struct StatusTile: View {
-    let nutrients: [NutrientInfo]
-
-    var body: some View {
-        let c = Counts(nutrients)
-        VStack(spacing: 12) {
-            row(.met, c.met)
-            row(.onTrack, c.onTrack)
-            row(.low, c.low)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 16).padding(.horizontal, 18)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func row(_ s: Status, _ n: Int) -> some View {
-        HStack(spacing: 8) {
-            Circle().fill(s.dot).frame(width: 8, height: 8)
-            Text(s.word).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.ncPrimary)
-                .lineLimit(1).minimumScaleFactor(0.8)
-            Spacer(minLength: 6)
-            Text("\(n)").font(.display(22)).foregroundColor(.ncPrimary)
-                .contentTransition(.numericText())
-        }
-    }
-}
-
-// MARK: - Group tile
-
-/// A group as a bar chart (one rounded bar per nutrient, labelled underneath), its counts and size. Macros gets
-/// wide bars; Vitamins and Minerals narrower ones across the full width.
-private struct GroupTile: View {
+/// "NOW ———— ON TRACK", then the score large with a small triangle for the direction since yesterday.
+private struct ScoreRow: View {
+    let score: Double
+    let rising: Bool
     let group: NutrientGroup
-    let rows: [NutrientInfo]
-    let hasMeals: Bool
-
-    private var large: Bool { group == .macros }
 
     var body: some View {
-        let c = Counts(rows)
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text(group.rawValue).font(.mono(13, .semibold)).tracking(1.04).textCase(.uppercase)
-                    .foregroundColor(.ncPrimary)
-                Spacer()
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.ui(size: 15, weight: .medium)).foregroundColor(Color.ncPrimary.opacity(0.78))
+        let status = NutrientStatus(percent: score)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Text("Now").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                Rectangle().fill(Color.ncPrimary.opacity(0.25)).frame(height: 1)
+                Text(status.word).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                    .foregroundColor(status.color)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(Int(score.rounded()))").font(.display(56)).foregroundColor(Mono.text)
+                    .contentTransition(.numericText())
+                    .animation(.smooth, value: Int(score.rounded()))
+                Image(systemName: rising ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill")
+                    .font(.system(size: 11)).foregroundColor(rising ? .ncMoss : .ncEmber)
                     .accessibilityHidden(true)
-            }
-
-            // One rounded bar per nutrient, bottom-aligned, as tall as its share of the target.
-            HStack(alignment: .bottom, spacing: large ? 12 : 6) {
-                ForEach(rows) { n in
-                    VStack(spacing: 8) {
-                        NutrientBar(n: n, maxWidth: large ? 46 : 26)
-                            .frame(height: large ? 96 : 84)
-                        Text(n.short).font(.mono(large ? 10 : 9, .semibold)).tracking(0.5).textCase(.uppercase)
-                            .foregroundColor(Color.ncPrimary.opacity(0.78))
-                            .lineLimit(1).minimumScaleFactor(0.6)
-                    }
-                    .frame(maxWidth: large ? 58 : .infinity)
-                }
-                if large { Spacer(minLength: 0) }
-            }
-
-            Spacer(minLength: 0)
-
-            // Words when they fit; then dots and numbers; then without the item count, so the narrow cards never
-            // overflow (VoiceOver always gets the words).
-            Group {
-                if hasMeals {
-                    ViewThatFits(in: .horizontal) {
-                        footer { legend(c, words: true) }
-                        footer { legend(c, words: false) }
-                        legend(c, words: false).frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                } else {
-                    ViewThatFits(in: .horizontal) {
-                        footer { emptyNote }
-                        emptyNote.frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
+                Text("\(group.title) score · 7 days").font(.ui(size: 13)).foregroundColor(Mono.label)
             }
         }
-        .padding(18)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(group.rawValue.capitalized)
-        .accessibilityValue("\(rows.count) items, \(c.spoken)")
-    }
-
-    private var emptyNote: some View {
-        Text("Nothing logged yet").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-            .foregroundColor(Color.ncPrimary.opacity(0.6))
-            .lineLimit(1).fixedSize()
-    }
-
-    /// A legend (or note) with the item count on the right.
-    private func footer<L: View>(@ViewBuilder _ leading: () -> L) -> some View {
-        HStack(spacing: 10) {
-            leading()
-            Spacer(minLength: 4)
-            Text("\(rows.count) items").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                .foregroundColor(Color.ncPrimary.opacity(0.78)).fixedSize()
-        }
-    }
-
-    private func legend(_ c: Counts, words: Bool) -> some View {
-        HStack(spacing: words ? 12 : 9) {
-            ForEach([(Status.met, c.met), (.onTrack, c.onTrack), (.low, c.low)].filter { $0.1 > 0 }, id: \.0.word) { s, n in
-                HStack(spacing: 5) {
-                    Circle().fill(s.dot).frame(width: 7, height: 7)
-                    Text(words ? "\(n) \(s.word)" : "\(n)")
-                        .font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.ncPrimary)
-                        .fixedSize()
-                }
-            }
-        }
+        .accessibilityLabel("\(group.title) score")
+        .accessibilityValue("\(Int(score.rounded())), \(status.word), \(rising ? "up" : "down") since yesterday")
     }
 }
 
-/// A fully rounded bar, bottom-aligned in its slot, as tall as the nutrient's share of its target (capped at the
-/// slot). Never shorter than a flattened circle, so even an empty nutrient reads. Moss when met, Ember when low,
-/// warm gray otherwise.
-private struct NutrientBar: View {
-    let n: NutrientInfo
-    var maxWidth: CGFloat = 46
+// MARK: - Trend chart
+
+/// The last seven daily scores as a smooth Paper line on faint graph paper, dots on past days and a white knob
+/// with the rune at today. A fixed 30–105 scale keeps the line calm.
+private struct TrendChart: View {
+    let series: [Double]
+    private let lower = 30.0, upper = 105.0
+    private let knob: CGFloat = 44
 
     var body: some View {
-        let share = min(max(n.share, 0), 1)
-        let status = Status(n)
         GeometryReader { geo in
-            let w = min(geo.size.width, maxWidth)
-            let floor = w * 0.74
-            let h = floor + (geo.size.height - floor) * share
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                Capsule().fill(fill(status))
-                    .frame(width: w, height: h)
+            // Room on every side for the 44 pt knob, wherever the line ends.
+            let inset = knob / 2 + 4
+            let w = geo.size.width - inset * 2, h = geo.size.height - inset * 2
+            let points = series.enumerated().map { i, v -> CGPoint in
+                let x = inset + w * CGFloat(i) / CGFloat(max(1, series.count - 1))
+                let t = (min(max(v, lower), upper) - lower) / (upper - lower)
+                return CGPoint(x: x, y: inset + h * (1 - t))
+            }
+            ZStack(alignment: .topLeading) {
+                // Graph paper.
+                Path { p in
+                    let step: CGFloat = 18
+                    var x: CGFloat = 0
+                    while x <= geo.size.width { p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: geo.size.height)); x += step }
+                    var y: CGFloat = 0
+                    while y <= geo.size.height { p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: geo.size.width, y: y)); y += step }
+                }
+                .stroke(Color.ncPrimary.opacity(0.05), lineWidth: 1)
+
+                SmoothLine(points: points)
+                    .stroke(Color.ncPrimary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+
+                ForEach(Array(points.dropLast().enumerated()), id: \.offset) { _, p in
+                    Circle().fill(Color.ncPrimary).frame(width: 7, height: 7).position(p)
+                }
+                if let last = points.last {
+                    ZStack {
+                        Circle().fill(Color.ncPrimary)
+                            .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+                        AlgizMark().fill(Color.ncOnPrimary).frame(width: 13, height: 17)
+                    }
+                    .frame(width: knob, height: knob)
+                    .position(last)
+                }
+            }
+        }
+        .frame(height: 140)
+        .padding(.horizontal, 6)
+        .clipShape(RoundedRectangle(cornerRadius: Bento.radius, style: .continuous))
+        .glassSheen(in: RoundedRectangle(cornerRadius: Bento.radius, style: .continuous), strength: 0.8)
+        .glass(.tinted, in: RoundedRectangle(cornerRadius: Bento.radius, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Last 7 days")
+        .accessibilityValue(series.map { "\(Int($0.rounded()))" }.joined(separator: ", "))
+    }
+}
+
+/// A Catmull-Rom curve through the points, so the line bends smoothly through every day.
+struct SmoothLine: Shape {
+    let points: [CGPoint]
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        guard let first = points.first else { return p }
+        p.move(to: first)
+        guard points.count > 1 else { return p }
+        for i in 0..<(points.count - 1) {
+            let p0 = points[max(0, i - 1)], p1 = points[i], p2 = points[i + 1], p3 = points[min(points.count - 1, i + 2)]
+            let c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
+            let c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
+            p.addCurve(to: p2, control1: c1, control2: c2)
+        }
+        return p
+    }
+}
+
+// MARK: - Stepper
+
+/// Previous (glass) and Next (solid white), 68 pt, with the group's name and three page dots between them.
+private struct GroupStepper: View {
+    let group: NutrientGroup
+    let groups: [NutrientGroup]
+    let onStep: (Int) -> Void
+
+    var body: some View {
+        let i = groups.firstIndex(of: group) ?? 0
+        HStack(spacing: 12) {
+            Button { onStep(-1) } label: { Image(systemName: "arrow.left") }
+                .buttonStyle(BentoRoundButtonStyle(size: 68))
+                .disabled(i == 0)
+                .opacity(i == 0 ? 0.35 : 1)
+                .accessibilityLabel("Previous group")
+
+            VStack(spacing: 8) {
+                Text(group.title).font(.ui(size: 17, weight: .semibold)).foregroundColor(Mono.text)
+                    .contentTransition(.opacity)
+                HStack(spacing: 6) {
+                    ForEach(groups.indices, id: \.self) { j in
+                        Circle().fill(Color.ncPrimary.opacity(j == i ? 1 : 0.25)).frame(width: 6, height: 6)
+                    }
+                }
             }
             .frame(maxWidth: .infinity)
-        }
-        .animation(.spring(response: 0.5, dampingFraction: 0.86), value: share)
-        .accessibilityHidden(true)
-    }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(group.title), group \(i + 1) of \(groups.count)")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: onStep(1)
+                case .decrement: onStep(-1)
+                @unknown default: break
+                }
+            }
 
-    private func fill(_ s: Status) -> LinearGradient {
-        let colors: [Color] = switch s {
-        case .met: [Color(hex: "#A9D293"), Color(hex: "#8FBA79")]
-        case .low: [Color(hex: "#EC8D70"), Color(hex: "#E07C5F")]
-        case .onTrack: [Color(hex: "#A4A39E"), Color(hex: "#8D8C87")]
+            Button { onStep(1) } label: {
+                Image(systemName: "arrow.right").font(.ui(size: 20, weight: .semibold)).foregroundColor(Mono.onWhite)
+                    .frame(width: 68, height: 68)
+                    .background(Circle().fill(Mono.text))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(PressScaleStyle(scale: 0.92))
+            .disabled(i == groups.count - 1)
+            .opacity(i == groups.count - 1 ? 0.35 : 1)
+            .accessibilityLabel("Next group")
         }
-        return LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
     }
 }
 
-// MARK: - Full page
+// MARK: - Sheet
 
-/// The open tile: its glass grows from the tile to fill the screen (shared geometry), then the page fades in —
-/// the title, the counts in words, a vial strip for a group, and every nutrient's amount, bar and status.
-private struct DetailPanel: View {
-    let panel: MicronutrientsView.Panel
-    let nutrients: [NutrientInfo]
-    let range: MicronutrientsView.Range
-    let hero: Namespace.ID
-    let onClose: () -> Void
-    @State private var shown = false
+/// The group in full: name and TODAY, Met / On track / Low counts, then every item lowest first, in a thick-glass
+/// sheet that runs to the bottom of the screen and scrolls on its own.
+private struct GroupSheet: View {
+    let group: NutrientGroup
+    let items: [NutrientInfo]
 
-    private var title: String {
-        switch panel {
-        case .low: "Low"
-        case .status: "Status"
-        case .group(let g): g.rawValue.capitalized
-        }
-    }
-
-    private var rows: [NutrientInfo] {
-        switch panel {
-        case .low: nutrients.filter(\.isDeficient).sorted { $0.share < $1.share }
-        case .status: nutrients
-        case .group(let g): nutrients.filter { $0.group == g }
-        }
-    }
-
-    private var sections: [(String?, [NutrientInfo])] {
-        switch panel {
-        case .status:
-            [("Low", nutrients.filter(\.isDeficient)), ("On track", nutrients.filter { !$0.isDeficient && !$0.isMet }),
-             ("Met", nutrients.filter(\.isMet))].filter { !$0.1.isEmpty }
-        default:
-            [(nil, rows)]
-        }
-    }
-
-    private var art: LineArt {
-        switch panel {
-        case .low: .sprig
-        case .status: .sun
-        case .group(.macros): .leaf
-        case .group(.vitamins): .sun
-        case .group(.minerals): .water
-        }
-    }
+    private func percent(_ n: NutrientInfo) -> Double { n.goal > 0 ? n.current / n.goal * 100 : 0 }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
-        ZStack(alignment: .top) {
-            shape.fill(Color.clear)
-                .glass(.thick, in: shape)
-                .matchedGeometryEffect(id: panel, in: hero)
+        let sorted = items.sorted { percent($0) < percent($1) }
+        let statuses = items.map { NutrientStatus(percent: percent($0)) }
+        let shape = UnevenRoundedRectangle(topLeadingRadius: 44, topTrailingRadius: 44, style: .continuous)
 
-            content
-                .opacity(shown ? 1 : 0)
-                .offset(y: shown ? 0 : 14)
-                .environment(\.glassNested, true)
-        }
-        .clipShape(shape)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.28).delay(0.14)) { shown = true }
-        }
-        .accessibilityAddTraits(.isModal)
-        .accessibilityAction(.escape, onClose)
-    }
-
-    private var content: some View {
-        let c = Counts(rows)
-        return VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(range == .today ? "Today" : "This week") · \(rows.count) items")
-                        .font(.mono(11)).tracking(0.88).textCase(.uppercase)
-                        .foregroundColor(Color.ncPrimary.opacity(0.78))
-                    Text(title).font(.ui(size: 30, weight: .bold)).tracking(-0.9).foregroundColor(.ncPrimary)
-                        .accessibilityAddTraits(.isHeader)
-                }
-                Spacer()
-                Button(action: onClose) { Image(systemName: "arrow.down.right.and.arrow.up.left") }
-                    .buttonStyle(.bentoRound)
-                    .accessibilityLabel("Close")
-            }
-
-            if case .low = panel, rows.isEmpty {
-                Text("Nothing is low \(range == .today ? "today" : "this week").")
-                    .font(.ui(size: 15)).foregroundColor(Color.ncPrimary.opacity(0.78))
-            } else {
-                HStack(spacing: 14) {
-                    ForEach([(Status.met, c.met), (.onTrack, c.onTrack), (.low, c.low)], id: \.0.word) { s, n in
-                        HStack(spacing: 6) {
-                            Circle().fill(s.dot).frame(width: 8, height: 8)
-                            Text("\(n) \(s.word)").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                                .foregroundColor(.ncPrimary)
-                        }
-                    }
-                }
-                .accessibilityElement(children: .combine)
-
-                if case .group = panel {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .bottom, spacing: 10) {
-                            ForEach(rows) { n in
-                                VStack(spacing: 6) {
-                                    NutrientBar(n: n, maxWidth: 34).frame(width: 34, height: 72)
-                                    Text("\(Int((n.share * 100).rounded()))%").font(.display(11))
-                                        .foregroundColor(.ncPrimary).lineLimit(1).minimumScaleFactor(0.7)
-                                }
-                                .frame(width: 40)
-                            }
-                        }
-                    }
-                    .accessibilityHidden(true)
-                }
-
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        ForEach(sections, id: \.1.first?.id) { heading, list in
-                            VStack(alignment: .leading, spacing: 0) {
-                                if let heading {
-                                    Text(heading).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                                        .foregroundColor(.ncPrimary)
-                                        .padding(.bottom, 8)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .overlay(alignment: .bottom) {
-                                            Rectangle().fill(Color.ncPrimary.opacity(0.2)).frame(height: 1)
-                                        }
-                                        .accessibilityAddTraits(.isHeader)
-                                }
-                                ForEach(Array(list.enumerated()), id: \.element.id) { i, n in
-                                    NutrientListRow(n: n)
-                                        .overlay(alignment: .top) {
-                                            if i > 0 || heading != nil {
-                                                Rectangle().fill(Color.ncPrimary.opacity(0.12)).frame(height: 1)
-                                            }
-                                        }
-                                }
-                            }
-                        }
-                        Text("Targets follow NIH dietary reference intakes for your age and sex.")
-                            .font(.ui(size: 12)).foregroundColor(Color.ncPrimary.opacity(0.6))
-                            .padding(.top, 4)
-                    }
-                    .padding(.bottom, 24)
-                }
-            }
-        }
-        .padding(.top, 20).padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(alignment: .bottomTrailing) {
-            Image(art.rawValue).resizable().scaledToFit().frame(width: 240, height: 240)
-                .opacity(0.12).offset(x: 50, y: 40)
+        VStack(alignment: .leading, spacing: 0) {
+            Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5)
+                .frame(maxWidth: .infinity).padding(.top, 10).padding(.bottom, 14)
                 .accessibilityHidden(true)
-        }
-    }
-}
 
-// MARK: - Controls
-
-/// TODAY | WEEK on a glass capsule; the selected segment is a Paper capsule with dark text that slides across.
-private struct RangeSwitch: View {
-    @Binding var selection: MicronutrientsView.Range
-    @Namespace private var pill
-
-    var body: some View {
-        HStack(spacing: 0) {
-            segment(.today, "Today")
-            segment(.week, "Week")
-        }
-        .padding(4)
-        .glass(.clear, in: Capsule())
-    }
-
-    private func segment(_ value: MicronutrientsView.Range, _ label: String) -> some View {
-        let on = selection == value
-        return Button {
-            guard !on else { return }
-            Haptics.selection()
-            withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) { selection = value }
-        } label: {
-            Text(label).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                .foregroundColor(on ? .ncOnPrimary : .ncPrimary)
-                .padding(.horizontal, 16)
-                .frame(minWidth: 64, minHeight: 36)
-                .background { if on { Capsule().fill(Color.ncPrimary).matchedGeometryEffect(id: "pill", in: pill) } }
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-}
-
-// MARK: - Row
-
-/// Name, a LOW / MET pill when it applies, amount against target; then the bar and the percent.
-private struct NutrientListRow: View {
-    let n: NutrientInfo
-
-    private var status: Status { Status(n) }
-    private var fill: Color {
-        switch status {
-        case .met: .ncMoss
-        case .low: .ncEmber
-        case .onTrack: .ncPrimary
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(n.name).font(.ui(size: 14, weight: .semibold)).foregroundColor(.ncPrimary).lineLimit(1)
-                switch status {
-                case .met: pill("Met", .ncMoss)
-                case .low: pill("Low", .ncEmber)
-                case .onTrack: EmptyView()
-                }
-                Spacer(minLength: 8)
-                Text("\(NutrientRow.dec(n.current)) / \(NutrientRow.dec(n.goal)) \(n.unit)")
-                    .font(.mono(11)).textCase(.uppercase).foregroundColor(.ncPrimary)
-                    .lineLimit(1).minimumScaleFactor(0.8)
+            HStack(alignment: .firstTextBaseline) {
+                Text(group.title).font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Text("Today").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
             }
-            HStack(spacing: 10) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.ncPrimary.opacity(0.18))
-                        Capsule().fill(fill).frame(width: geo.size.width * min(max(n.share, 0), 1))
+            .padding(.horizontal, 22)
+
+            HStack(spacing: 0) {
+                count(.met, statuses.filter { $0 == .met }.count)
+                count(.onTrack, statuses.filter { $0 == .onTrack }.count)
+                count(.low, statuses.filter { $0 == .low }.count)
+            }
+            .padding(.horizontal, 22).padding(.top, 16).padding(.bottom, 12)
+
+            Rectangle().fill(Color.ncPrimary.opacity(0.15)).frame(height: 1).padding(.horizontal, 22)
+
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(sorted.enumerated()), id: \.element.id) { i, n in
+                        row(n)
+                            .overlay(alignment: .top) {
+                                if i > 0 { Rectangle().fill(Color.ncPrimary.opacity(0.1)).frame(height: 1) }
+                            }
                     }
                 }
-                .frame(height: 5)
-                Text("\(Int((n.share * 100).rounded()))%").font(.display(13)).foregroundColor(.ncPrimary)
-                    .monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                    .frame(minWidth: 44, alignment: .trailing)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 130)   // the last row clears the floating tab bar
             }
         }
-        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .glass(.thick, in: shape)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private func count(_ s: NutrientStatus, _ n: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Circle().fill(s.color).frame(width: 8, height: 8)
+                Text("\(n)").font(.display(26)).foregroundColor(Mono.text)
+                    .contentTransition(.numericText())
+            }
+            Text(s.word).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func row(_ n: NutrientInfo) -> some View {
+        let pct = percent(n)
+        let status = NutrientStatus(percent: pct)
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(n.name).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text).lineLimit(1)
+                Text(status.word).font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase)
+                    .foregroundColor(status.color)
+                    .lineLimit(1).fixedSize()
+                Spacer(minLength: 8)
+                Text("\(Int(pct.rounded()))%").font(.display(17)).foregroundColor(Mono.text).monospacedDigit()
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.ncPrimary.opacity(0.15))
+                    Capsule().fill(status.color).frame(width: geo.size.width * min(max(pct / 100, 0), 1))
+                }
+            }
+            .frame(height: 5)
+            Text("\(NutrientRow.dec(n.current)) / \(NutrientRow.dec(n.goal)) \(n.unit)")
+                .font(.mono(11)).textCase(.uppercase).foregroundColor(Mono.label)
+        }
+        .padding(.vertical, 12)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(n.name)
-        .accessibilityValue("\(Int((n.share * 100).rounded())) percent, \(NutrientRow.dec(n.current)) of \(NutrientRow.dec(n.goal)) \(n.unit)"
-                            + (status == .met ? ", met" : status == .low ? ", low" : ""))
-    }
-
-    private func pill(_ text: String, _ color: Color) -> some View {
-        Text(text).font(.mono(9, .semibold)).tracking(0.72).textCase(.uppercase)
-            .foregroundColor(.ncOnPrimary)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(Capsule().fill(color))
-            .fixedSize()
+        .accessibilityValue("\(Int(pct.rounded())) percent, \(status.word), \(NutrientRow.dec(n.current)) of \(NutrientRow.dec(n.goal)) \(n.unit)")
     }
 }
+
+// MARK: - Info
+
+private struct ScoreInfoSheet: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("How the score works").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            Text("Each group's score is the average of how much of every item's daily target you've met, with each item counting up to 100%. Going over one target doesn't make up for being short on another.")
+                .font(.bentoBody).foregroundColor(Mono.label).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 8) {
+                legend(.met, "90% or more of the target")
+                legend(.onTrack, "50 to 89%")
+                legend(.low, "Under 50%")
+            }
+            Text("The line shows the last seven days. Targets follow NIH dietary reference intakes for your age and sex, and energy comes from your weight, height, age and activity.")
+                .font(.ui(size: 12)).foregroundColor(Mono.label).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(22)
+        .presentationDetents([.medium])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+
+    private func legend(_ s: NutrientStatus, _ text: String) -> some View {
+        HStack(spacing: 10) {
+            Circle().fill(s.color).frame(width: 8, height: 8)
+            Text(s.word).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(s.color)
+                .frame(width: 84, alignment: .leading)
+            Text(text).font(.ui(size: 14)).foregroundColor(Mono.text)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Preview
+
+#if DEBUG
+/// An in-memory store with a profile and a week of meals, for previews.
+@MainActor
+enum VitalisPreviewData {
+    static let container: ModelContainer = {
+        let container = try! ModelContainer(
+            for: MealEntry.self, UserProfile.self, BiomarkerReading.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = container.mainContext
+        let profile = UserProfile()
+        profile.name = "Om"
+        ctx.insert(profile)
+        let cal = Calendar.current
+        for back in 0..<7 {
+            let day = cal.date(byAdding: .day, value: -back, to: .now) ?? .now
+            let meal = MealEntry()
+            meal.date = day
+            meal.foodName = "Ribeye"
+            let k = 0.6 + Double((back * 37) % 50) / 100
+            meal.calories = 2000 * k; meal.protein = 120 * k; meal.carbohydrates = 80 * k
+            meal.totalFat = 110 * k; meal.fiber = 12 * k
+            meal.vitaminA = 600 * k; meal.vitaminC = 20 * k; meal.vitaminD = 6 * k; meal.vitaminB12 = 6 * k
+            meal.iron = 9 * k; meal.zinc = 12 * k; meal.magnesium = 180 * k; meal.potassium = 2400 * k
+            ctx.insert(meal)
+            let weight = BiomarkerReading()
+            weight.date = day
+            weight.kind = BiomarkerKind.weight.rawValue
+            weight.value = 74 + Double(back) * 0.3
+            ctx.insert(weight)
+        }
+        return container
+    }()
+}
+
+#Preview("Data") {
+    MicronutrientsView()
+        .background { AppBackdrop().ignoresSafeArea() }
+        .modelContainer(VitalisPreviewData.container)
+        .preferredColorScheme(.dark)
+}
+#endif

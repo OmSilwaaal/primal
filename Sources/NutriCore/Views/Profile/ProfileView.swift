@@ -1,79 +1,88 @@
 import SwiftUI
 import SwiftData
 
-/// The Profile tab, in bento glass tiles on the shared backdrop: one box for who you are (avatar, name, handle,
-/// weight, height, age, activity), Vitalis Pro, the daily energy it works out to, the Goals calendar (tap for the
-/// Goals page), then at the bottom the screens that live here (Raw, Sun, Friends, Settings) and signing out. Edit opens the same fields in place. Today's intake and the macro targets
-/// live on Home and Data, and the legal documents in Settings, so they aren't repeated here.
 enum ProfileRoute: Hashable { case settings, goals }
 
+/// The Profile tab: a top bar with "<name> · Profile" and Settings, then Body / Goals / Plan pills.
+/// • Body: the Weight card (last 7 days as a line, tap a day to move the marker) and capsule stats — Height, Age,
+///   Goal and any added ones — each shown as a dot-matrix number; tap one to edit it.
+/// • Goals: goal weight with progress from start to now to goal, daily energy, and this week's days in range.
+/// • Plan: today's calorie target and the macro targets with today's progress, and Edit plan.
+/// Raw, Sun and Friends stay reachable at the bottom; Pro, legal and signing out live in Settings.
 struct ProfileView: View {
-    @State private var pushed: SecondaryScreen?
+    enum Tab: String, CaseIterable, Identifiable {
+        case body = "Body", goals = "Goals", plan = "Plan"
+        var id: Self { self }
+    }
 
-    @Environment(\.modelContext) private var modelContext
-    @Query private var profiles: [UserProfile]
-    @StateObject private var authManager = AuthManager.shared
-    @StateObject private var social = SocialService.shared
-    @StateObject private var subscription = SubscriptionManager.shared
-
-    @State private var isEditing = false
-    /// Settings or Goals, pushed from here (one destination: SwiftUI honours only one `isPresented` push per view).
-    @State private var route: ProfileRoute?
-    @State private var showPaywall = false
-    @State private var showManageSubscription = false
-    @State private var goalsMonth = MonthMath.start(of: .now)
-    @State private var draft = Draft()
-
-    struct Draft {
-        var sex = "Male", age = "", weight = "", height = "", activity = "moderate"
-        var tdee: Double? {
-            guard let a = Int(age), let w = Double(weight), let h = Double(height) else { return nil }
-            return UserProfile.tdee(male: sex == "Male", weightKg: w, heightCm: h, age: a, activity: activity)
+    enum Sheet: Identifiable {
+        case edit(StatField), addStat, weightHistory, plan
+        var id: String {
+            switch self {
+            case .edit(let f): "edit-\(f.rawValue)"
+            case .addStat: "add"
+            case .weightHistory: "weight"
+            case .plan: "plan"
+            }
         }
     }
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.isPresented) private var isPresented
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Query private var profiles: [UserProfile]
+    @Query(sort: \BiomarkerReading.date) private var readings: [BiomarkerReading]
+    @Query private var weekMeals: [MealEntry]
+    @StateObject private var social = SocialService.shared
+
+    @State private var tab: Tab = .body
+    @State private var route: ProfileRoute?
+    @State private var pushed: SecondaryScreen?
+    @State private var sheet: Sheet?
+    /// Which of the Weight card's seven days is selected (6 = today).
+    @State private var selectedDay = 6
+    @State private var removing: ExtraStat?
+    /// Extra stats added with the + capsule, comma-separated.
+    @AppStorage("profileExtraStats") private var extraStatsRaw = ""
+
+    init() {
+        let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: .now)) ?? .now
+        _weekMeals = Query(filter: #Predicate<MealEntry> { $0.date >= start })
+    }
+
+    private var profile: UserProfile? { profiles.first }
+    private var extraStats: [ExtraStat] { extraStatsRaw.split(separator: ",").compactMap { ExtraStat(rawValue: String($0)) } }
 
     private static let activities: [(String, String)] = [
         ("sedentary", "Sedentary"), ("light", "Light"), ("moderate", "Moderate"), ("active", "Active"), ("veryActive", "Very active"),
     ]
-
-    private var profile: UserProfile? { profiles.first }
 
     var body: some View {
         NavigationStack {
             // No backdrop here: ContentView draws one that stays still while tabs change.
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: Bento.gap) {
-                    header.padding(.top, 8)
-
+                    topBar.padding(.top, 4)
                     if let profile {
-                        identity(profile)
-                        if isEditing {
-                            editor(profile)
-                                .transition(.opacity.combined(with: .offset(y: 12)))
-                        } else {
-                            proTile
-                            bodyTiles(profile)
-                                .transition(.opacity)
-                            GoalsCalendarTile(goal: profile.dailyCalorieGoal, month: $goalsMonth) {
-                                Haptics.tap()
-                                route = .goals
+                        pills
+                        Group {
+                            switch tab {
+                            case .body: bodyTab(profile)
+                            case .goals: goalsTab(profile)
+                            case .plan: planTab(profile)
                             }
                         }
+                        .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 8)))
                     } else {
                         setUp
-                        proTile
                     }
-
-                    if !isEditing {
-                        more
-                        accountButton
-                    }
+                    more.padding(.top, 8)
                 }
                 .padding(.horizontal, Bento.margin)
                 .padding(.bottom, 120)
-                .animation(.spring(response: 0.42, dampingFraction: 0.88), value: isEditing)
+                .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 0.88), value: tab)
             }
-            .scrollDismissesKeyboard(.interactively)
             .glassLightFollowsScroll()
             .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
@@ -82,165 +91,259 @@ struct ProfileView: View {
             .navigationDestination(item: $route) { route in
                 switch route {
                 case .settings: SettingsView().pushedScreen()
-                case .goals: GoalsDestination(month: goalsMonth).pushedScreen()
+                case .goals: GoalsDestination(month: MonthMath.start(of: .now)).pushedScreen()
                 }
             }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView(onNotNow: { showPaywall = false }, showsAccountButton: false)
+            .sheet(item: $sheet) { sheet in
+                if let profile { sheetContent(sheet, profile) }
             }
-            .manageSubscriptionsSheet(isPresented: $showManageSubscription)
-            .onChange(of: showManageSubscription) { _, shown in
-                if !shown { Task { await subscription.refreshEntitlement() } }
+            .confirmationDialog("Remove \(removing?.title ?? "stat") from Profile?",
+                                isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                                titleVisibility: .visible, presenting: removing) { stat in
+                Button("Remove", role: .destructive) { setExtra(stat, on: false) }
+                Button("Cancel", role: .cancel) {}
             }
         }
     }
 
-    // MARK: - Pro
+    // MARK: - Top bar
 
-    /// Vitalis Pro: what you have and a way to manage it, or what it adds and the plans.
-    private var proTile: some View {
-        let pro = subscription.isSubscribed
-        return Button {
-            Haptics.tap()
-            if pro { showManageSubscription = true } else { showPaywall = true }
-        } label: {
-            HStack(spacing: 14) {
-                AlgizMark().fill(pro ? Mono.onWhite : Mono.text)
-                    .frame(width: 14, height: 18)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(pro ? Mono.text : Color.white.opacity(0.08)))
-                    .overlay(Circle().strokeBorder(Color.white.opacity(pro ? 0 : 0.16), lineWidth: 1))
+    private var topBar: some View {
+        HStack {
+            if isPresented {
+                Button { dismiss() } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(BentoRoundButtonStyle(size: 48))
+                    .accessibilityLabel("Back")
+            } else {
+                // As a tab there's nowhere to go back to: the rune holds the corner instead.
+                AlgizMark().fill(Mono.text).frame(width: 14, height: 18)
+                    .frame(width: 48, height: 48)
+                    .liquidGlassPanel(in: Circle())
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(pro ? "Vitalis Pro" : "Get Vitalis Pro").font(.ui(size: 16, weight: .semibold))
-                        .foregroundColor(Mono.text)
-                    Text(pro ? "Active · manage or change plan" : "Scanner, full nutrients, Health sync, app icons")
-                        .font(.ui(size: 12)).foregroundColor(Mono.label)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                if pro {
-                    Image(systemName: "chevron.right").font(.ui(size: 12, weight: .semibold)).foregroundColor(Mono.label)
-                } else {
-                    Text("See plans").font(.ui(size: 13, weight: .semibold)).foregroundColor(Mono.onWhite)
-                        .padding(.horizontal, 14).frame(minHeight: 34)
-                        .background(Capsule().fill(Mono.text))
-                        .fixedSize()
-                }
             }
-            .bentoTile(padding: 16)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PressScaleStyle(scale: 0.98))
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Text("Profile").font(.bentoTitle).foregroundColor(Mono.text)
+            Spacer(minLength: 8)
+            Text(profile.map { "\(displayName($0)) · Profile" } ?? "Profile")
+                .font(.ui(size: 17, weight: .semibold)).foregroundColor(Mono.text)
+                .lineLimit(1).minimumScaleFactor(0.7)
                 .accessibilityAddTraits(.isHeader)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if let profile, !isEditing {
-                Button { startEditing(profile) } label: { Image(systemName: "pencil") }
-                    .buttonStyle(.bentoRound)
-                    .accessibilityLabel("Edit profile")
-            }
+            Spacer(minLength: 8)
             Button { route = .settings } label: { Image(systemName: "gearshape") }
-                .buttonStyle(.bentoRound)
+                .buttonStyle(BentoRoundButtonStyle(size: 48))
                 .accessibilityLabel("Settings")
         }
     }
 
-    // MARK: - Identity
-
-    /// One box for who you are: avatar, name and handle (or diet), then weight, height and age and your activity,
-    /// with the rune large and faint in the corner.
-    private func identity(_ profile: UserProfile) -> some View {
-        let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1 ?? profile.activityLevel
-        return VStack(alignment: .leading, spacing: 16) {
-        HStack(spacing: 14) {
-            AvatarView(url: social.myProfile?.avatarUrl, name: displayName(profile), size: 60)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.2), lineWidth: 1))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(displayName(profile)).font(.display(26)).foregroundColor(Mono.text)
-                    .lineLimit(2).minimumScaleFactor(0.6)
-                Text(social.myProfile.map { "@\($0.username)" } ?? profile.dietType)
-                    .font(.mono(11)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label).lineLimit(1)
+    private var pills: some View {
+        HStack(spacing: 8) {
+            ForEach(Tab.allCases) { t in
+                let on = tab == t
+                Button {
+                    guard !on else { return }
+                    Haptics.selection()
+                    tab = t
+                } label: {
+                    Text(t.rawValue).font(.ui(size: 15, weight: .semibold))
+                        .foregroundColor(on ? Mono.onWhite : Mono.text)
+                        .frame(maxWidth: .infinity).frame(minHeight: 44)
+                        .background {
+                            if on {
+                                Capsule().fill(Mono.text)
+                            } else {
+                                Capsule().fill(Color.clear).liquidGlassPanel(in: Capsule())
+                                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressScaleStyle(scale: 0.96))
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
-            Spacer(minLength: 0)
         }
-
-        if !isEditing {
-            // Side by side when they fit; stacked at large text sizes.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 0) { stats(profile, divided: true) }
-                VStack(alignment: .leading, spacing: 10) { stats(profile, divided: false) }
-            }
-            .padding(.top, 14)
-            .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1) }
-            .transition(.opacity)
-
-            Text("\(activity) activity · \(profile.isMale ? "Male" : "Female")")
-                .font(.mono(11)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
-        }
-        }
-        .background(alignment: .bottomTrailing) {
-            AlgizMark().fill(Mono.text.opacity(0.07))
-                .frame(width: 96, height: 124)
-                .offset(x: 26, y: 46)
-                .accessibilityHidden(true)
-        }
-        .bentoTile(padding: 18)
-        .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Body
+    // MARK: - Body tab
 
-    /// The daily energy your body and activity work out to.
-    private func bodyTiles(_ profile: UserProfile) -> some View {
+    /// The last seven days of weight, oldest first: each day's latest reading, carrying the previous one forward
+    /// on days without; today falls back to the profile's weight.
+    private func weekWeights(_ profile: UserProfile) -> [(day: Date, kg: Double)] {
+        let cal = Calendar.current, today = cal.startOfDay(for: .now)
+        let weights = readings.filter { $0.kind == BiomarkerKind.weight.rawValue }
+        return (0..<7).reversed().compactMap { back -> (Date, Double)? in
+            guard let day = cal.date(byAdding: .day, value: -back, to: today),
+                  let end = cal.date(byAdding: .day, value: 1, to: day) else { return nil }
+            let latest = weights.last { $0.date < end }?.value
+            if back == 0 {
+                let todays = weights.last { cal.isDate($0.date, inSameDayAs: day) }?.value
+                return (day, todays ?? profile.weightKg)
+            }
+            return (day, latest ?? profile.weightKg)
+        }
+    }
+
+    private func bodyTab(_ profile: UserProfile) -> some View {
         VStack(spacing: Bento.gap) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Daily energy").font(.bentoLabel).foregroundColor(Mono.label)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(Int(profile.dailyCalorieGoal).formatted()).font(.display(48)).foregroundColor(Mono.text)
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                        .contentTransition(.numericText())
-                    Text("kcal").font(.ui(size: 15, weight: .medium)).foregroundColor(Mono.label)
+            WeightCard(days: weekWeights(profile), selected: $selectedDay) { sheet = .weightHistory }
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                StatCapsule(label: "Height", value: "\(Int(profile.heightCm))", unit: "cm", glow: .ncPrimary) {
+                    sheet = .edit(.height)
                 }
-                Text("From your weight, height, age and activity")
-                    .font(.ui(size: 12)).foregroundColor(Mono.label)
+                StatCapsule(label: "Age", value: "\(profile.age)", unit: "yrs", glow: .ncPrimary) {
+                    sheet = .edit(.age)
+                }
+                StatCapsule(label: "Goal", value: NutrientRow.dec(profile.goalWeightKg), unit: "kg", glow: .ncMoss) {
+                    sheet = .edit(.goal)
+                }
+                ForEach(extraStats) { stat in
+                    StatCapsule(label: stat.title, value: stat.value(profile: profile, readings: readings) ?? "—",
+                                unit: stat.unit, glow: .ncEmber) { removing = stat }
+                }
+                Button { sheet = .addStat } label: {
+                    Image(systemName: "plus").font(.ui(size: 22, weight: .semibold)).foregroundColor(Mono.onWhite)
+                        .frame(maxWidth: .infinity).frame(height: 84)
+                        .background(Capsule().fill(Mono.text))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressScaleStyle(scale: 0.96))
+                .accessibilityLabel("Add a stat")
+            }
+        }
+    }
+
+    // MARK: - Goals tab
+
+    private func goalsTab(_ profile: UserProfile) -> some View {
+        let weights = readings.filter { $0.kind == BiomarkerKind.weight.rawValue }
+        let horizon = Calendar.current.date(byAdding: .day, value: -180, to: .now) ?? .now
+        let start = weights.first { $0.date >= horizon }?.value ?? profile.weightKg
+        let now = profile.weightKg, goal = profile.goalWeightKg
+        let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1.lowercased() ?? profile.activityLevel
+        let byDay = caloriesByDay()
+        let cal = Calendar.current, today = cal.startOfDay(for: .now)
+        let week = (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+        let inRange = week.map { DayGoal(kcal: byDay[$0] ?? 0, goal: profile.dailyCalorieGoal) == .onTarget }
+
+        return VStack(spacing: Bento.gap) {
+            GoalWeightTile(start: start, now: now, goal: goal) { sheet = .edit(.goal) }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Daily energy").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                HStack(alignment: .lastTextBaseline, spacing: 8) {
+                    DotMatrixText(text: Int(profile.dailyCalorieGoal).formatted(), pitch: 5)
+                    Text("kcal").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                }
+                Text("From your weight, height, age and \(activity) activity.")
+                    .font(.ui(size: 13)).foregroundColor(Mono.label).fixedSize(horizontal: false, vertical: true)
             }
             .bentoTile(padding: 18, art: .sun)
             .accessibilityElement(children: .combine)
-        }
-    }
 
-    @ViewBuilder private func stats(_ profile: UserProfile, divided: Bool) -> some View {
-        stat("Weight", "\(Int(profile.weightKg))", unit: "kg")
-        if divided { divider }
-        stat("Height", "\(Int(profile.heightCm))", unit: "cm")
-        if divided { divider }
-        stat("Age", "\(profile.age)", unit: nil)
-    }
-
-    private var divider: some View {
-        Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 36).padding(.horizontal, 14)
-    }
-
-    private func stat(_ label: String, _ value: String, unit: String?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.bentoLabel).foregroundColor(Mono.label).lineLimit(1).fixedSize()
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value).font(.bentoNumber(24)).tracking(Font.bentoTracking(24)).foregroundColor(Mono.text)
-                    .lineLimit(1).fixedSize()
-                    .contentTransition(.numericText())
-                if let unit { Text(unit).font(.ui(size: 12)).foregroundColor(Mono.label).fixedSize() }
+            Button { route = .goals } label: {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text("This week").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.ui(size: 12, weight: .semibold)).foregroundColor(Mono.label)
+                    }
+                    HStack(spacing: 0) {
+                        ForEach(Array(week.enumerated()), id: \.offset) { i, day in
+                            VStack(spacing: 6) {
+                                ZStack {
+                                    if inRange[i] {
+                                        Circle().fill(Color.ncMoss)
+                                        Image(systemName: "checkmark").font(.ui(size: 13, weight: .bold)).foregroundColor(Mono.onWhite)
+                                    } else {
+                                        Circle().strokeBorder(Color.ncPrimary.opacity(0.4), lineWidth: 1.5)
+                                    }
+                                }
+                                .frame(width: 34, height: 34)
+                                Text(day.formatted(.dateTime.weekday(.narrow))).font(.mono(11, .semibold))
+                                    .foregroundColor(cal.isDateInToday(day) ? Mono.text : Mono.label)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                    Text("\(inRange.filter { $0 }.count) of 7 days in range")
+                        .font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                }
+                .bentoTile(padding: 18)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(PressScaleStyle(scale: 0.98))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("This week")
+            .accessibilityValue("\(inRange.filter { $0 }.count) of 7 days in range")
+            .accessibilityHint("Opens your goals calendar")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+    }
+
+    private func caloriesByDay() -> [Date: Double] {
+        var out: [Date: Double] = [:]
+        for m in weekMeals { out[Calendar.current.startOfDay(for: m.date), default: 0] += m.calories }
+        return out
+    }
+
+    // MARK: - Plan tab
+
+    private func planTab(_ profile: UserProfile) -> some View {
+        let goals = NutrientGoals.from(profile)
+        let today = weekMeals.filter { Calendar.current.isDateInToday($0.date) }
+        let rows: [(String, Double, Double)] = [
+            ("Protein", today.totalProtein, goals.protein),
+            ("Carbs", today.totalCarbs, goals.carbohydrates),
+            ("Fat", today.totalFat, goals.fat),
+            ("Fiber", today.totalFiber, goals.fiber),
+        ]
+        return VStack(spacing: Bento.gap) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Daily targets").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                HStack(alignment: .lastTextBaseline, spacing: 8) {
+                    DotMatrixText(text: Int(goals.calories).formatted(), pitch: 5)
+                    Text("kcal").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                }
+                .accessibilityElement(children: .combine)
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                        let (name, cur, target) = row
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(name).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                                Spacer()
+                                Text("\(Int(target.rounded())) g").font(.mono(12)).foregroundColor(Mono.text)
+                            }
+                            BentoBar(value: target > 0 ? cur / target : 0, height: 4)
+                        }
+                        .padding(.vertical, 12)
+                        .overlay(alignment: .top) {
+                            if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(name)
+                        .accessibilityValue("Target \(Int(target.rounded())) grams, \(Int(cur.rounded())) today")
+                    }
+                }
+            }
+            .bentoTile(padding: 18, art: .meat)
+
+            Button { sheet = .plan } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Edit plan").font(.ui(size: 16, weight: .semibold)).foregroundColor(Mono.text)
+                        Text("Sex and activity set your targets").font(.ui(size: 12)).foregroundColor(Mono.label)
+                    }
+                    Spacer()
+                    Image(systemName: "pencil").font(.ui(size: 16, weight: .semibold)).foregroundColor(Mono.onWhite)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Mono.text))
+                        .accessibilityHidden(true)
+                }
+                .padding(.leading, 24).padding(.trailing, 10)
+                .frame(minHeight: 64)
+                .liquidGlassPanel(in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(PressScaleStyle(scale: 0.98))
+        }
     }
 
     // MARK: - No profile
@@ -258,14 +361,13 @@ struct ProfileView: View {
 
     // MARK: - More
 
-    /// The screens that moved out of the tab bar, as rows in one glass tile.
+    /// The screens that moved out of the tab bar (Settings is in the top bar).
     private var more: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("More").font(.bentoLabel).foregroundColor(Mono.label).padding(.bottom, 4)
             row("Raw", "Diet position, food safety, organ rotation", icon: "leaf", first: true) { pushed = .raw }
             row("Sun", "Time outside and today's vitamin D window", icon: "sun.max") { pushed = .sun }
             row("Friends", "Eat together, shared meals", icon: "person.2") { pushed = .friends }
-            row("Settings", "Account, privacy, subscription, legal", icon: "gearshape") { route = .settings }
         }
         .bentoTile(padding: 18)
     }
@@ -297,118 +399,581 @@ struct ProfileView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    /// Signs out, or for a guest, returns to the login screen.
-    private var accountButton: some View {
-        Button(authManager.isGuest ? "Log in or sign up" : "Sign out") { Task { await authManager.signOut() } }
-            .buttonStyle(.bentoSecondary)
-            .padding(.top, 4)
-    }
+    // MARK: - Sheets
 
-    // MARK: - Editor
-
-    private func editor(_ profile: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            BentoSegmented(options: [("Male", "Male"), ("Female", "Female")], selection: $draft.sex)
-
-            VStack(spacing: 0) {
-                field("Age", $draft.age, .numberPad, first: true)
-                field("Weight", $draft.weight, .decimalPad, unit: "kg")
-                field("Height", $draft.height, .decimalPad, unit: "cm")
+    @ViewBuilder private func sheetContent(_ sheet: Sheet, _ profile: UserProfile) -> some View {
+        switch sheet {
+        case .edit(.height):
+            StatEditor(title: "Height", unit: "cm", range: 120...220, step: 1, major: 10, value: profile.heightCm) {
+                profile.heightCm = $0; save("Height saved")
             }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Activity").font(.bentoLabel).foregroundColor(Mono.label)
-                FlowLayout(spacing: 8) {
-                    ForEach(Self.activities, id: \.0) { key, label in
-                        activityChip(key, label)
-                    }
-                }
+        case .edit(.age):
+            StatEditor(title: "Age", unit: "yrs", range: 13...100, step: 1, major: 5, value: Double(profile.age)) {
+                profile.age = Int($0); save("Age saved")
             }
-
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("New daily energy").font(.bentoLabel).foregroundColor(Mono.label)
-                Spacer()
-                Text(draft.tdee.map { Int($0).formatted() } ?? "—").font(.bentoNumber(22)).foregroundColor(Mono.text)
-                    .contentTransition(.numericText())
-                    .animation(.smooth, value: draft.tdee.map(Int.init))
-                Text("kcal").font(.ui(size: 12)).foregroundColor(Mono.label)
+        case .edit(.goal):
+            StatEditor(title: "Goal weight", unit: "kg", range: 30...200, step: 1, major: 10, value: profile.goalWeightKg.rounded()) {
+                profile.goalWeightKg = $0; save("Goal saved")
             }
-
-            HStack(spacing: 10) {
-                Button("Cancel") { isEditing = false }.buttonStyle(.bentoSecondary)
-                Button("Save") { saveProfile(profile) }.buttonStyle(.bentoPrimary)
+        case .addStat:
+            AddStatSheet(shown: Set(extraStats)) { stat, on in setExtra(stat, on: on) }
+        case .weightHistory:
+            WeightHistorySheet(current: profile.weightKg,
+                               history: readings.filter { $0.kind == BiomarkerKind.weight.rawValue }.reversed()) { kg in
+                let reading = BiomarkerReading()
+                reading.date = .now
+                reading.kind = BiomarkerKind.weight.rawValue
+                reading.value = kg
+                reading.source = "manual"
+                modelContext.insert(reading)
+                profile.weightKg = kg
+                save("Weight logged")
             }
-        }
-        .bentoTile(padding: 18)
-    }
-
-    private func activityChip(_ key: String, _ label: String) -> some View {
-        let on = draft.activity == key
-        return Button {
-            Haptics.selection()
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { draft.activity = key }
-        } label: {
-            Text(label).font(.ui(size: 14, weight: .semibold))
-                .foregroundColor(on ? Mono.onWhite : Mono.text)
-                .padding(.horizontal, 16).frame(minHeight: 40)
-                .background {
-                    Capsule().fill(on ? Mono.text : Color.white.opacity(0.08))
-                        .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0 : 0.16), lineWidth: 1))
-                }
-                .padding(.vertical, 2)
-                .contentShape(Capsule())
-        }
-        .buttonStyle(PressScaleStyle(scale: 0.96))
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-
-    private func field(_ label: String, _ text: Binding<String>, _ keyboard: UIKeyboardType,
-                       unit: String? = nil, first: Bool = false) -> some View {
-        HStack(spacing: 8) {
-            Text(label).font(.bentoBody).foregroundColor(Mono.text)
-            Spacer()
-            TextField("", text: text)
-                .keyboardType(keyboard)
-                .multilineTextAlignment(.trailing)
-                .font(.bentoNumber(18)).foregroundColor(Mono.text)
-                .frame(width: 100)
-                .accessibilityLabel(label)
-            if let unit { Text(unit).font(.ui(size: 13)).foregroundColor(Mono.label).frame(width: 22, alignment: .leading) }
-        }
-        .frame(minHeight: 52)
-        .overlay(alignment: .top) {
-            if !first { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
+        case .plan:
+            PlanEditor(sex: profile.isMale ? "Male" : "Female", activity: profile.activityLevel,
+                       activities: Self.activities, profile: profile) { sex, activity in
+                profile.sex = sex
+                profile.activityLevel = activity
+                save("Plan saved")
+            }
         }
     }
 
-    // MARK: - Actions
+    private func setExtra(_ stat: ExtraStat, on: Bool) {
+        var list = extraStats.filter { $0 != stat }
+        if on { list.append(stat) }
+        extraStatsRaw = list.map(\.rawValue).joined(separator: ",")
+    }
+
+    private func save(_ message: String) {
+        try? modelContext.save()
+        Haptics.success()
+        ToastCenter.shared.show(message)
+    }
 
     private func displayName(_ profile: UserProfile) -> String {
         if let name = social.myProfile?.name, !name.isEmpty { return name }
-        return profile.name.isEmpty ? "Your profile" : profile.name
-    }
-
-    private func startEditing(_ profile: UserProfile) {
-        Haptics.tap()
-        draft = Draft(sex: profile.isMale ? "Male" : "Female",
-                      age: "\(profile.age)",
-                      weight: "\(Int(profile.weightKg))",
-                      height: "\(Int(profile.heightCm))",
-                      activity: profile.activityLevel)
-        isEditing = true
-    }
-
-    private func saveProfile(_ profile: UserProfile) {
-        if let w = Double(draft.weight) { profile.weightKg = w }
-        if let h = Double(draft.height) { profile.heightCm = h }
-        if let a = Int(draft.age) { profile.age = a }
-        profile.sex = draft.sex
-        profile.activityLevel = draft.activity
-        try? modelContext.save()
-        isEditing = false
-        ToastCenter.shared.show("Profile saved")
+        return profile.name.isEmpty ? "Your" : profile.name
     }
 }
+
+// MARK: - Stats
+
+enum StatField: String { case height, age, goal }
+
+/// Stats that can be added to Body with the + capsule, read from Health / Biomarkers readings.
+enum ExtraStat: String, CaseIterable, Identifiable {
+    case bmi, bodyFat, waist, restingHR
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .bmi: "BMI"
+        case .bodyFat: "Body fat"
+        case .waist: "Waist"
+        case .restingHR: "Resting HR"
+        }
+    }
+    var unit: String {
+        switch self {
+        case .bmi: ""
+        case .bodyFat: "%"
+        case .waist: "cm"
+        case .restingHR: "bpm"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .bmi: "From your weight and height"
+        case .bodyFat: "Latest reading from Health or Biomarkers"
+        case .waist: "Latest reading from Health or Biomarkers"
+        case .restingHR: "Latest reading from Health or Biomarkers"
+        }
+    }
+
+    func value(profile: UserProfile, readings: [BiomarkerReading]) -> String? {
+        let kind: BiomarkerKind
+        switch self {
+        case .bmi:
+            let m = profile.heightCm / 100
+            guard m > 0 else { return nil }
+            return String(format: "%.1f", profile.weightKg / (m * m))
+        case .bodyFat: kind = .bodyFat
+        case .waist: kind = .waist
+        case .restingHR: kind = .restingHR
+        }
+        guard let v = readings.last(where: { $0.kind == kind.rawValue })?.value else { return nil }
+        return NutrientRow.dec(v)
+    }
+}
+
+/// An 84 pt capsule: a small label over the value in dot-matrix numerals and its unit, with a faint glow.
+private struct StatCapsule: View {
+    let label: String
+    let value: String
+    let unit: String
+    let glow: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(label).font(.ui(size: 12, weight: .medium)).foregroundColor(Mono.label).lineLimit(1)
+                HStack(alignment: .lastTextBaseline, spacing: 5) {
+                    DotMatrixText(text: value, pitch: 3.4)
+                    if !unit.isEmpty {
+                        Text(unit).font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase).foregroundColor(Mono.label)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .frame(height: 84)
+            .background {
+                RadialGradient(colors: [glow.opacity(0.16), .clear], center: .topLeading, startRadius: 0, endRadius: 140)
+                    .clipShape(Capsule())
+            }
+            .liquidGlassPanel(in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleStyle(scale: 0.97))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(value) \(unit)")
+        .accessibilityHint("Edits \(label.lowercased())")
+    }
+}
+
+// MARK: - Weight card
+
+/// The week of weight as a smooth line over seven day circles. The selected day carries a white marker with a soft
+/// ring and a dashed drop line to its circle; tapping a circle moves the marker along the curve.
+private struct WeightCard: View {
+    let days: [(day: Date, kg: Double)]
+    @Binding var selected: Int
+    let onHistory: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 44, style: .continuous)
+        let sel = min(max(selected, 0), max(0, days.count - 1))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Weight").font(.ui(size: 20, weight: .bold)).foregroundColor(Mono.text)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button(action: onHistory) { Image(systemName: "arrow.up.right") }
+                    .buttonStyle(BentoRoundButtonStyle(size: 36))
+                    .accessibilityLabel("Weight history")
+            }
+
+            GeometryReader { geo in
+                let w = geo.size.width
+                let chartTop: CGFloat = 18, chartBottom: CGFloat = 104, circlesY: CGFloat = 140
+                let values = days.map(\.kg)
+                let lo = (values.min() ?? 0) - 0.6, hi = (values.max() ?? 1) + 0.6
+                let points = days.indices.map { i -> CGPoint in
+                    let x = w * (CGFloat(i) + 0.5) / CGFloat(max(1, days.count))
+                    let t = hi > lo ? (values[i] - lo) / (hi - lo) : 0.5
+                    return CGPoint(x: x, y: chartBottom - (chartBottom - chartTop) * t)
+                }
+                ZStack(alignment: .topLeading) {
+                    SmoothLine(points: points)
+                        .stroke(Color.ncPrimary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    if points.indices.contains(sel) {
+                        let p = points[sel]
+                        // Dashed drop line from the marker to the day circles.
+                        Path { path in
+                            path.move(to: CGPoint(x: p.x, y: p.y + 14))
+                            path.addLine(to: CGPoint(x: p.x, y: circlesY - 22))
+                        }
+                        .stroke(Color.ncPrimary.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                        ZStack {
+                            Circle().fill(Color.white.opacity(0.14)).frame(width: 40, height: 40)
+                            Circle().fill(Color.white).frame(width: 24, height: 24)
+                                .shadow(color: .black.opacity(0.3), radius: 6, y: 2)
+                        }
+                        .position(p)
+                    }
+                    ForEach(days.indices, id: \.self) { i in
+                        let on = i == sel
+                        Button {
+                            Haptics.selection()
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.82)) { selected = i }
+                        } label: {
+                            Text(days[i].day.formatted(.dateTime.weekday(.narrow)))
+                                .font(.mono(12, .semibold))
+                                .foregroundColor(on ? Mono.onWhite : Mono.text)
+                                .frame(width: 38, height: 38)
+                                .background {
+                                    if on { Circle().fill(Mono.text) }
+                                    else { Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1) }
+                                }
+                                .frame(width: 44, height: 44)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .position(x: points.indices.contains(i) ? points[i].x : 0, y: circlesY)
+                        .accessibilityLabel(days[i].day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                        .accessibilityValue("\(String(format: "%.1f", days[i].kg)) kilograms")
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+            }
+            .frame(height: 164)
+
+            if days.indices.contains(sel) {
+                Text("\(days[sel].day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) · \(String(format: "%.1f", days[sel].kg)) kg")
+                    .font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                    .frame(maxWidth: .infinity)
+                    .contentTransition(.numericText())
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+        }
+        .padding(22)
+        .background {
+            ZStack {
+                RadialGradient(colors: [Color.ncMoss.opacity(0.22), .clear], center: .topLeading, startRadius: 0, endRadius: 240)
+                RadialGradient(colors: [Color.ncEmber.opacity(0.18), .clear], center: .bottomTrailing, startRadius: 0, endRadius: 220)
+            }
+            .clipShape(shape)
+        }
+        .glassSheen(in: shape, strength: 0.8)
+        .glass(.tinted, in: shape)
+    }
+}
+
+// MARK: - Goal weight
+
+/// The goal in dot-matrix numerals, a status word in an outlined pill, and a bar from where you started through where
+/// you are now to the goal.
+private struct GoalWeightTile: View {
+    let start: Double
+    let now: Double
+    let goal: Double
+    let onEdit: () -> Void
+
+    private var progress: Double {
+        guard abs(start - goal) > 0.05 else { return abs(now - goal) < 0.5 ? 1 : 0 }
+        return min(max((start - now) / (start - goal), 0), 1)
+    }
+    private var status: String {
+        if abs(now - goal) < 0.5 { return "Reached" }
+        return abs(now - goal) <= abs(start - goal) + 0.05 ? "On track" : "Off track"
+    }
+
+    var body: some View {
+        Button(action: onEdit) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    Text("Goal weight").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                    Spacer()
+                    Text(status).font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase)
+                        .foregroundColor(status == "Off track" ? .ncEmber : .ncMoss)
+                        .padding(.horizontal, 10).frame(minHeight: 26)
+                        .overlay(Capsule().strokeBorder(status == "Off track" ? Color.ncEmber : Color.ncMoss, lineWidth: 1))
+                }
+                HStack(alignment: .lastTextBaseline, spacing: 8) {
+                    DotMatrixText(text: NutrientRow.dec(goal), pitch: 5)
+                    Text("kg").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.ncPrimary.opacity(0.15))
+                        Capsule().fill(Color.ncMoss).frame(width: max(6, geo.size.width * progress))
+                        Circle().fill(Color.white).frame(width: 12, height: 12)
+                            .offset(x: max(0, geo.size.width * progress - 6))
+                    }
+                }
+                .frame(height: 6)
+                HStack {
+                    label("Start", start)
+                    Spacer()
+                    label("Now", now)
+                    Spacer()
+                    label("Goal", goal)
+                }
+            }
+            .bentoTile(padding: 18, art: .leaf)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressScaleStyle(scale: 0.98))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Goal weight \(NutrientRow.dec(goal)) kilograms, \(status)")
+        .accessibilityValue("Started at \(NutrientRow.dec(start)), now \(NutrientRow.dec(now))")
+        .accessibilityHint("Edits your goal weight")
+    }
+
+    private func label(_ title: String, _ kg: Double) -> some View {
+        Text("\(title) \(NutrientRow.dec(kg))").font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase)
+            .foregroundColor(Mono.label)
+    }
+}
+
+// MARK: - Dot-matrix numerals
+
+/// Numbers drawn in a 5 × 7 dot font, in Paper. `pitch` is the distance between dot centres.
+struct DotMatrixText: View {
+    let text: String
+    var pitch: CGFloat = 4
+    @ScaledMetric(relativeTo: .title) private var scale: CGFloat = 1
+
+    private static let glyphs: [Character: [String]] = [
+        "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+        "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+        "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+        "3": ["11111", "00010", "00100", "00010", "00001", "10001", "01110"],
+        "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+        "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+        "6": ["00110", "01000", "10000", "11110", "10001", "10001", "01110"],
+        "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+        "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+        "9": ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
+        ".": ["0", "0", "0", "0", "0", "0", "1"],
+        ",": ["0", "0", "0", "0", "0", "1", "1"],
+        "-": ["000", "000", "000", "111", "000", "000", "000"],
+        "—": ["000", "000", "000", "111", "000", "000", "000"],
+        " ": ["00", "00", "00", "00", "00", "00", "00"],
+    ]
+
+    private var glyphs: [[String]] { text.map { Self.glyphs[$0] ?? Self.glyphs[" "]! } }
+
+    var body: some View {
+        let p = pitch * min(scale, 1.6)
+        let columns = glyphs.reduce(0) { $0 + ($1.first?.count ?? 0) } + max(0, glyphs.count - 1)
+        Canvas { ctx, _ in
+            var x: CGFloat = 0
+            let r = p * 0.36
+            for g in glyphs {
+                let width = g.first?.count ?? 0
+                for (row, bits) in g.enumerated() {
+                    for (col, bit) in bits.enumerated() where bit == "1" {
+                        let c = CGPoint(x: x + CGFloat(col) * p + p / 2, y: CGFloat(row) * p + p / 2)
+                        ctx.fill(Circle().path(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
+                                 with: .color(.ncPrimary))
+                    }
+                }
+                x += CGFloat(width + 1) * p
+            }
+        }
+        .frame(width: CGFloat(columns) * p, height: 7 * p)
+        .accessibilityElement()
+        .accessibilityLabel(text)
+    }
+}
+
+// MARK: - Sheets
+
+/// Sets one stat on the line slider.
+private struct StatEditor: View {
+    let title: String
+    let unit: String
+    let range: ClosedRange<Int>
+    let step: Int
+    let major: Int
+    @State var value: Double
+    let onSave: (Double) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    init(title: String, unit: String, range: ClosedRange<Int>, step: Int, major: Int, value: Double,
+         onSave: @escaping (Double) -> Void) {
+        self.title = title; self.unit = unit; self.range = range; self.step = step; self.major = major
+        _value = State(initialValue: min(max(value, Double(range.lowerBound)), Double(range.upperBound)))
+        self.onSave = onSave
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title).font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                DotMatrixText(text: "\(Int(value))", pitch: 5)
+                Text(unit).font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+            }
+            .frame(maxWidth: .infinity)
+            LineRuler(amount: $value, range: range, step: step, major: major, spokenUnit: unit) { "\($0)" }
+                .padding(.horizontal, -20)
+            Button("Save") { onSave(value); dismiss() }.buttonStyle(.bentoPrimary)
+        }
+        .padding(20)
+        .presentationDetents([.height(360)])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+}
+
+/// Choose which extra stats show on Body.
+private struct AddStatSheet: View {
+    let shown: Set<ExtraStat>
+    let onToggle: (ExtraStat, Bool) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Add a stat").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            VStack(spacing: 0) {
+                ForEach(Array(ExtraStat.allCases.enumerated()), id: \.element) { i, stat in
+                    let on = shown.contains(stat)
+                    Button {
+                        Haptics.selection()
+                        onToggle(stat, !on)
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(stat.title).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                                Text(stat.detail).font(.ui(size: 12)).foregroundColor(Mono.label)
+                            }
+                            Spacer()
+                            Image(systemName: on ? "checkmark.circle.fill" : "plus.circle")
+                                .font(.ui(size: 20)).foregroundColor(on ? .ncMoss : Mono.text)
+                                .accessibilityHidden(true)
+                        }
+                        .frame(minHeight: 56)
+                        .contentShape(Rectangle())
+                        .overlay(alignment: .top) {
+                            if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
+                        }
+                    }
+                    .buttonStyle(PressScaleStyle(scale: 0.98))
+                    .accessibilityValue(on ? "Shown" : "Not shown")
+                }
+            }
+            .bentoTile(padding: 16)
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .presentationDetents([.medium])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+}
+
+/// Weight readings, newest first, and logging today's weight in half-kilo steps.
+private struct WeightHistorySheet: View {
+    let current: Double
+    let history: [BiomarkerReading]
+    let onLog: (Double) -> Void
+    /// The slider works in half kilos.
+    @State private var halves: Double
+    @Environment(\.dismiss) private var dismiss
+
+    init(current: Double, history: [BiomarkerReading], onLog: @escaping (Double) -> Void) {
+        self.current = current
+        self.history = history
+        self.onLog = onLog
+        _halves = State(initialValue: min(max((current * 2).rounded(), 60), 500))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Weight").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                DotMatrixText(text: String(format: "%.1f", halves / 2), pitch: 5)
+                Text("kg").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+            }
+            .frame(maxWidth: .infinity)
+            LineRuler(amount: $halves, range: 60...500, step: 1, major: 10, spokenUnit: "half kilograms") {
+                "\($0 / 2)"
+            }
+            .padding(.horizontal, -20)
+            Button("Log \(String(format: "%.1f", halves / 2)) kg today") { onLog(halves / 2); dismiss() }
+                .buttonStyle(.bentoPrimary)
+
+            Text("History").font(.bentoLabel).foregroundColor(Mono.label).padding(.top, 6)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    if history.isEmpty {
+                        Text("No weight readings yet. Log one above, or sync from Apple Health on Biomarkers.")
+                            .font(.ui(size: 13)).foregroundColor(Mono.label)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                    }
+                    ForEach(Array(history.prefix(60).enumerated()), id: \.element.id) { i, r in
+                        HStack {
+                            Text(r.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
+                                .font(.ui(size: 14)).foregroundColor(Mono.text)
+                            Spacer()
+                            Text("\(String(format: "%.1f", r.value)) kg").font(.mono(12)).foregroundColor(Mono.text)
+                        }
+                        .frame(minHeight: 44)
+                        .overlay(alignment: .top) {
+                            if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .presentationDetents([.large])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+}
+
+/// Sex and activity, with the daily energy they work out to.
+private struct PlanEditor: View {
+    @State var sex: String
+    @State var activity: String
+    let activities: [(String, String)]
+    let profile: UserProfile
+    let onSave: (String, String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private var energy: Double {
+        UserProfile.tdee(male: sex == "Male", weightKg: profile.weightKg, heightCm: profile.heightCm,
+                         age: profile.age, activity: activity)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Edit plan").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            BentoSegmented(options: [("Male", "Male"), ("Female", "Female")], selection: $sex)
+            Text("Activity").font(.bentoLabel).foregroundColor(Mono.label)
+            FlowLayout(spacing: 8) {
+                ForEach(activities, id: \.0) { key, label in
+                    let on = activity == key
+                    Button {
+                        Haptics.selection()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { activity = key }
+                    } label: {
+                        Text(label).font(.ui(size: 14, weight: .semibold))
+                            .foregroundColor(on ? Mono.onWhite : Mono.text)
+                            .padding(.horizontal, 16).frame(minHeight: 44)
+                            .background {
+                                Capsule().fill(on ? Mono.text : Color.white.opacity(0.08))
+                                    .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0 : 0.16), lineWidth: 1))
+                            }
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(PressScaleStyle(scale: 0.96))
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            HStack(alignment: .lastTextBaseline, spacing: 8) {
+                Text("Daily energy").font(.bentoLabel).foregroundColor(Mono.label)
+                Spacer()
+                DotMatrixText(text: Int(energy).formatted(), pitch: 4)
+                Text("kcal").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
+            }
+            Spacer(minLength: 0)
+            Button("Save") { onSave(sex, activity); dismiss() }.buttonStyle(.bentoPrimary)
+        }
+        .padding(20)
+        .presentationDetents([.medium, .large])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+}
+
+#if DEBUG
+#Preview("Profile") {
+    ProfileView()
+        .background { AppBackdrop().ignoresSafeArea() }
+        .modelContainer(VitalisPreviewData.container)
+        .preferredColorScheme(.dark)
+}
+#endif
 
 // MARK: - ═══ Goals ═══
 
@@ -577,56 +1142,6 @@ extension View {
                 month.wrappedValue = MonthMath.adding(value.translation.width < 0 ? 1 : -1, to: month.wrappedValue)
             }
         })
-    }
-}
-
-// MARK: - Profile tile
-
-/// The Goals bento on Profile: today large on the left (weekday over the date, then the daily goal), the month on
-/// the right with a dot per day. Switch months with the arrows or a swipe; tap anywhere else for the Goals page.
-struct GoalsCalendarTile: View {
-    let goal: Double
-    @Binding var month: Date
-    var onOpen: () -> Void
-    @State private var forward = true
-
-    var body: some View {
-        let now = Date.now
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(now.formatted(.dateTime.weekday(.wide)))
-                    .font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncMoss)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                Text(now.formatted(.dateTime.day()))
-                    .font(.display(64)).foregroundColor(Mono.text)
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                Spacer(minLength: 10)
-                HStack(spacing: 8) {
-                    Capsule().fill(Color.ncMoss).frame(width: 3, height: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Goals").font(.ui(size: 13, weight: .semibold)).foregroundColor(Mono.text)
-                        Text("\(Int(goal).formatted()) kcal a day").font(.ui(size: 11)).foregroundColor(Mono.label)
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                    }
-                }
-            }
-            .frame(width: 104, alignment: .leading)
-            .accessibilityElement(children: .combine)
-
-            VStack(spacing: 4) {
-                MonthSwitcher(month: $month)
-                MonthCalendar(month: month, goal: goal)
-                    .id(month)
-                    .transition(.push(from: forward ? .trailing : .leading))
-                    .monthSwipe($month)
-            }
-            .clipped()
-        }
-        .bentoTile(padding: 16)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onOpen)
-        .onChange(of: month) { old, new in forward = new > old }
-        .accessibilityAction(named: "Open goals", onOpen)
     }
 }
 

@@ -52,16 +52,23 @@ struct ProfileView: View {
                         bento(profile)
                         details(profile)
                         greeting(profile).padding(.top, 10)
-                        askBar
                     } else {
                         setUp
                     }
                     more.padding(.top, 10)
                 }
                 .padding(.horizontal, Bento.margin)
-                .padding(.bottom, 130)   // clears the floating tab bar
+                .padding(.bottom, 210)   // clears the ask bar and the floating tab bar
             }
             .glassLightFollowsScroll()
+            // The ask bar rides just above the tab bar, fixed in place while the page scrolls.
+            .overlay(alignment: .bottom) {
+                if profile != nil {
+                    askBar
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 80)   // the tab bar is 62 pt tall, 8 pt off the bottom
+                }
+            }
             .background { ProfileGlowBackdrop().ignoresSafeArea() }
             .sharedBackdropRoot()
             .toolbar(.hidden, for: .navigationBar)
@@ -211,78 +218,100 @@ struct ProfileView: View {
 
     // MARK: - Details
 
+    /// Body stats as capsules, like the Body tab before: a small label over the value in dot-matrix numerals with
+    /// its unit and a faint glow. Weight, height, age and goal first; More info adds BMI, daily energy, activity and
+    /// sex. Tap one to change it.
     private func details(_ profile: UserProfile) -> some View {
         let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1 ?? profile.activityLevel
         let bmi = profile.heightCm > 0 ? profile.weightKg / pow(profile.heightCm / 100, 2) : 0
-        return GlassGroup(spacing: 0) {
-            VStack(spacing: 0) {
-                detailRow("Weight", "\(NutrientRow.dec(profile.weightKg)) kg", first: true) { sheet = .weight }
-                detailRow("Height", "\(Int(profile.heightCm)) cm") { sheet = .editHeight }
-                detailRow("Age", "\(profile.age)") { sheet = .editAge }
-                detailRow("Activity", activity) { sheet = .plan }
-                if expanded {
-                    Group {
-                        detailRow("Sex", profile.isMale ? "Male" : "Female") { sheet = .plan }
-                        detailRow("Goal weight", "\(NutrientRow.dec(profile.goalWeightKg)) kg") { sheet = .editGoal }
-                        detailRow("BMI", bmi > 0 ? String(format: "%.1f", bmi) : "—", action: nil)
-                        detailRow("Diet", profile.dietType, action: nil)
-                        detailRow("Daily energy", "\(Int(profile.dailyCalorieGoal).formatted()) kcal") { sheet = .energy }
+        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+        return VStack(spacing: 10) {
+            GlassGroup(spacing: 10) {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    statCapsule("Weight", NutrientRow.dec(profile.weightKg), "kg", glow: .vitalisLime) { sheet = .weight }
+                    statCapsule("Height", "\(Int(profile.heightCm))", "cm", glow: .ncPrimary) { sheet = .editHeight }
+                    statCapsule("Age", "\(profile.age)", "yrs", glow: .ncPrimary) { sheet = .editAge }
+                    statCapsule("Goal", NutrientRow.dec(profile.goalWeightKg), "kg", glow: .ncMoss) { sheet = .editGoal }
+                    if expanded {
+                        Group {
+                            statCapsule("BMI", bmi > 0 ? String(format: "%.1f", bmi) : "-", "", glow: .ncPrimary, action: nil)
+                            statCapsule("Daily", "\(Int(profile.dailyCalorieGoal))", "kcal", glow: .ncEmber) { sheet = .energy }
+                            wordCapsule("Activity", activity) { sheet = .plan }
+                            wordCapsule("Sex", profile.isMale ? "Male" : "Female") { sheet = .plan }
+                        }
+                        .transition(.opacity.combined(with: .scale(scale: 0.92)))
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                Button {
-                    Haptics.tap()
-                    withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) { expanded.toggle() }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(expanded ? "Less info" : "More info").font(.ui(size: 15, weight: .medium))
-                        Image(systemName: "chevron.down").font(.ui(size: 12, weight: .semibold))
-                            .rotationEffect(.degrees(expanded ? 180 : 0))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .contentShape(Rectangle())
-                    .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) }
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint(expanded ? "Hides the extra body details" : "Shows the rest of your body details")
             }
-            .padding(.horizontal, 18)
-            .vitalisGlass(RoundedRectangle(cornerRadius: 32, style: .continuous))
-            .vitalisGlassID("details", in: glassSpace)
+
+            Button {
+                Haptics.tap()
+                withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(expanded ? "Less info" : "More info").font(.ui(size: 15, weight: .medium))
+                    Image(systemName: "chevron.down").font(.ui(size: 12, weight: .semibold))
+                        .rotationEffect(.degrees(expanded ? 180 : 0))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .vitalisGlass(Capsule(), interactive: true)
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(expanded ? "Hides the extra body details" : "Shows the rest of your body details")
         }
     }
 
-    @ViewBuilder private func detailRow(_ label: String, _ value: String, first: Bool = false,
-                                        action: (() -> Void)?) -> some View {
-        if let action {
-            Button(action: action) { detailRowLabel(label, value, first: first, editable: true) }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .combine)
-                .accessibilityHint("Changes \(label.lowercased())")
-        } else {
-            // Read-only rows stay at full contrast (a disabled button would dim them).
-            detailRowLabel(label, value, first: first, editable: false)
-                .accessibilityElement(children: .combine)
+    /// An 84 pt capsule: label, dot-matrix value and mono unit, with a faint glow at the top left.
+    private func statCapsule(_ label: String, _ value: String, _ unit: String, glow: Color,
+                             action: (() -> Void)?) -> some View {
+        capsule(label: label, glow: glow, action: action, spoken: "\(value) \(unit)") {
+            HStack(alignment: .lastTextBaseline, spacing: 5) {
+                DotMatrixText(text: value, pitch: 3.4)
+                if !unit.isEmpty {
+                    Text(unit).font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase)
+                        .foregroundColor(.white.opacity(0.72))
+                }
+            }
         }
     }
 
-    private func detailRowLabel(_ label: String, _ value: String, first: Bool, editable: Bool) -> some View {
-            HStack {
-                Text(label).font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
-                Spacer(minLength: 12)
-                Text(value).font(.ui(size: 15, weight: .medium)).foregroundColor(.white)
-                    .multilineTextAlignment(.trailing)
-                if editable {
-                    Image(systemName: "chevron.right").font(.ui(size: 11, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.45)).accessibilityHidden(true)
-                }
+    /// The same capsule for a word value (activity, sex).
+    private func wordCapsule(_ label: String, _ value: String, action: @escaping () -> Void) -> some View {
+        capsule(label: label, glow: .ncPrimary, action: action, spoken: value) {
+            Text(value).font(.ui(size: 17, weight: .semibold)).foregroundColor(.white)
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+    }
+
+    private func capsule<V: View>(label: String, glow: Color, action: (() -> Void)?, spoken: String,
+                                  @ViewBuilder value: () -> V) -> some View {
+        let content = VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.ui(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.72)).lineLimit(1)
+            value()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 22)
+        .frame(minHeight: 84)
+        .background {
+            RadialGradient(colors: [glow.opacity(0.18), .clear], center: .topLeading, startRadius: 0, endRadius: 140)
+                .clipShape(Capsule())
+        }
+        .vitalisGlass(Capsule(), interactive: action != nil)
+        .contentShape(Capsule())
+        return Group {
+            if let action {
+                Button(action: action) { content }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Changes \(label.lowercased())")
+            } else {
+                content
             }
-            .frame(minHeight: 52)
-            .contentShape(Rectangle())
-            .overlay(alignment: .top) {
-                if !first { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) }
-            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(spoken)
     }
 
     // MARK: - Greeting and ask

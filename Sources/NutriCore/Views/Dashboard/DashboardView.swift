@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
+import CoreLocation
 
 // MARK: - Home
 struct DashboardView: View {
@@ -19,6 +20,11 @@ struct DashboardView: View {
     var onOpenProfile: () -> Void = {}
     @State private var pushed: SecondaryScreen?
     @State private var showWater = false
+    @State private var showSun = false
+    @State private var showWeather = false
+    /// One coarse fix for the weather, only once location is allowed (asked from the weather button).
+    @StateObject private var weatherLocation = LocationManager(continuous: false)
+    @ObservedObject private var weather = WeatherService.shared
     /// The day Home shows. Past days are view-only.
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @AppStorage(HealthPrimingView.pendingKey) private var healthPrimingPending = false
@@ -78,6 +84,7 @@ struct DashboardView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: Bento.gap) {
                     BentoHomeHeader(day: selectedDay, onToday: isToday ? nil : { select(Calendar.current.startOfDay(for: .now)) },
+                                    weatherSymbol: weather.current?.symbol, onWeather: openWeather,
                                     onProfile: onOpenProfile) {
                         DaySummaryCard(day: selectedDay, calories: dayMeals.totalCalories, goal: goals.calories,
                                        protein: dayMeals.totalProtein, carbs: dayMeals.totalCarbs, fat: dayMeals.totalFat,
@@ -118,12 +125,24 @@ struct DashboardView: View {
                         .disabled(!isToday)
                         .accessibilityHint(isToday ? "Adds water" : "")
                     } right: {
-                        Button { pushed = .sun } label: {
+                        Button { showSun = true } label: {
                             BentoTile(title: "Sun", value: "\(Int(daySunMinutes))", detail: "of \(sunGoal) min",
                                       progress: sunGoal > 0 ? daySunMinutes / Double(sunGoal) : 0, symbol: "sun.max", art: .sun)
+                                // The add cue, top right; the whole tile is the button.
+                                .overlay(alignment: .topTrailing) {
+                                    if isToday {
+                                        Image(systemName: "plus")
+                                            .font(.ui(size: 13, weight: .bold)).foregroundColor(Mono.text)
+                                            .frame(width: 28, height: 28)
+                                            .glass(.clear, in: Circle(), interactive: true)
+                                            .padding(10)
+                                            .accessibilityHidden(true)
+                                    }
+                                }
                         }
                         .buttonStyle(PressScaleStyle())
-                        .accessibilityHint("Opens Sun")
+                        .disabled(!isToday)
+                        .accessibilityHint(isToday ? "Adds time outside" : "")
                     }
 
                     MealsTile(meals: dayMeals, readOnly: !isToday, onAdd: onSearch) { meal in
@@ -154,6 +173,31 @@ struct DashboardView: View {
                     Haptics.success()
                     ToastCenter.shared.show("Added \(Int(ml)) ml water", branded: true)
                 }
+            }
+            .sheet(isPresented: $showSun) {
+                SunSheet(minutes: daySunMinutes, goal: sunGoal) { minutes in
+                    let session = SunSession()
+                    session.start = .now
+                    session.minutes = minutes
+                    session.source = "manual"
+                    withAnimation(.smooth(duration: 0.45)) { modelContext.insert(session) }
+                    try? modelContext.save()
+                    Haptics.success()
+                    ToastCenter.shared.show("Added \(Int(minutes)) min outside", branded: true)
+                }
+            }
+            .sheet(isPresented: $showWeather) {
+                WeatherSheet(current: weather.current, status: weatherLocation.authorizationStatus, sunGoal: sunGoal) {
+                    weatherLocation.requestPermission()
+                }
+            }
+            .task(id: weatherLocation.authorizationStatus) {
+                if [.authorizedWhenInUse, .authorizedAlways].contains(weatherLocation.authorizationStatus) {
+                    weatherLocation.requestOnce()
+                }
+            }
+            .onChange(of: weatherLocation.location) { _, location in
+                if let location { Task { await weather.refresh(location: location) } }
             }
             // Offered once after profile setup, explaining what's read and written before the system prompt.
             .sheet(isPresented: $healthPrimingPending) {
@@ -193,6 +237,15 @@ struct DashboardView: View {
 
     private func publishSnapshot() {
         if todaySnapshot.save() { WidgetCenter.shared.reloadAllTimelines() }
+    }
+
+    /// The weather card; asks for location the first time (the card explains why and offers the prompt).
+    private func openWeather() {
+        Haptics.tap()
+        if [.authorizedWhenInUse, .authorizedAlways].contains(weatherLocation.authorizationStatus) {
+            weatherLocation.requestOnce()
+        }
+        showWeather = true
     }
 
     /// Moves Home to another day; every section follows with the same smooth animation.
@@ -265,12 +318,16 @@ extension EatingCycle.Mark {
 
 // MARK: - Header
 
-/// "Sunday, Nov 1" over the big title (Today, Yesterday or the weekday), with round glass Share and Profile buttons.
+/// "Sunday, Nov 1" over the big title (Today, Yesterday or the weekday), with round glass Weather, Share and Profile
+/// buttons.
 /// A "Today" capsule appears on past days. One fixed row, so nothing below jumps when it appears.
 private struct BentoHomeHeader<Card: View>: View {
     let day: Date
     /// Set when a past day is showing.
     let onToday: (() -> Void)?
+    /// The current conditions' symbol, once known.
+    let weatherSymbol: String?
+    let onWeather: () -> Void
     let onProfile: () -> Void
     @ViewBuilder let shareCard: () -> Card
 
@@ -303,6 +360,13 @@ private struct BentoHomeHeader<Card: View>: View {
                         .accessibilityHint("Shows today")
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
+                Button(action: onWeather) {
+                    Image(systemName: weatherSymbol ?? "cloud.sun")
+                        .symbolRenderingMode(.hierarchical)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.bentoRound)
+                .accessibilityLabel("Weather")
                 ShareCardButton(title: "Share day", round: true, card: shareCard)
                 Button(action: onProfile) { Image(systemName: "person") }
                     .buttonStyle(.bentoRound)
@@ -562,8 +626,10 @@ struct WaterSheet: View {
             .frame(maxWidth: .infinity)
             .accessibilityHidden(true)
 
-            WaterRuler(amount: $amount)
-                .padding(.horizontal, -20)
+            LineRuler(amount: $amount, range: 50...1500, step: 50, major: 250, spokenUnit: "millilitres") { ml in
+                ml >= 1000 ? String(format: "%.2g L", Double(ml) / 1000) : "\(ml)"
+            }
+            .padding(.horizontal, -20)
 
             Button("Add \(label(amount))", action: add).buttonStyle(.bentoPrimary)
         }
@@ -579,26 +645,146 @@ struct WaterSheet: View {
     }
 }
 
-/// A slider made of lines, like a measuring tape: a tick every 50 ml from 50 ml to 1.5 L, a longer labelled line
-/// every 250 ml. Drag it sideways; the line under the fixed centre marker is the amount, and it snaps line to line
-/// with a light tick. Lines grow and brighten towards the centre. VoiceOver adjusts it in 50 ml steps.
-private struct WaterRuler: View {
-    @Binding var amount: Double
-    @State private var centred: Int?
+// MARK: - Sun
 
-    private static let step = 50.0
-    private static let values: [Int] = Array(stride(from: 50, through: 1500, by: 50))
+/// Adding time outside, from the Sun tile — the same sheet as water, in minutes: drag the line slider (5 to 120
+/// minutes) and add it as a session.
+struct SunSheet: View {
+    /// Today's minutes so far (manual sessions or Apple Watch daylight, whichever is larger) and the goal.
+    let minutes: Double
+    let goal: Int
+    let onAdd: (Double) -> Void
+    @State private var amount = 15.0
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Add time outside").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+                Text("\(Int(minutes)) of \(goal) min today").font(.bentoBody).foregroundColor(Mono.label)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(Int(amount))").font(.bentoNumber(44)).tracking(Font.bentoTracking(44))
+                    .contentTransition(.numericText())
+                    .animation(.snappy(duration: 0.2), value: amount)
+                Text("min").font(.ui(size: 15, weight: .medium)).foregroundColor(Mono.label)
+            }
+            .foregroundColor(Mono.text)
+            .frame(maxWidth: .infinity)
+            .accessibilityHidden(true)
+
+            LineRuler(amount: $amount, range: 5...120, step: 5, major: 15, spokenUnit: "minutes") { "\($0)" }
+                .padding(.horizontal, -20)
+
+            Button("Add \(Int(amount)) min", action: add).buttonStyle(.bentoPrimary)
+        }
+        .padding(20)
+        .presentationDetents([.height(380)])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+
+    private func add() {
+        onAdd(amount)
+        dismiss()
+    }
+}
+
+// MARK: - Weather
+
+/// The weather card from Home's header: the conditions' symbol, the temperature large and a short summary, with a
+/// nudge towards the sun goal in clear daylight. Without location it explains why and offers the prompt.
+struct WeatherSheet: View {
+    let current: WeatherService.Current?
+    let status: CLAuthorizationStatus
+    let sunGoal: Int
+    let onAllowLocation: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Weather").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+            switch status {
+            case .notDetermined:
+                Text("Allow location to see the weather where you are. Only your rough position is used.")
+                    .font(.bentoBody).foregroundColor(Mono.label).fixedSize(horizontal: false, vertical: true)
+                Button("Allow location", action: onAllowLocation).buttonStyle(.bentoPrimary)
+            case .denied, .restricted:
+                Text("Location is off for Vitalis. Turn it on in Settings to see the weather here.")
+                    .font(.bentoBody).foregroundColor(Mono.label).fixedSize(horizontal: false, vertical: true)
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .buttonStyle(.bentoPrimary)
+            default:
+                if let current {
+                    HStack(alignment: .center, spacing: 18) {
+                        Image(systemName: current.symbol).symbolRenderingMode(.multicolor)
+                            .font(.system(size: 54))
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(current.temperature).font(.display(52)).foregroundColor(Mono.text)
+                                .lineLimit(1).minimumScaleFactor(0.6)
+                            Text(current.summary).font(.bentoBody).foregroundColor(Mono.label)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    if current.isDay && current.code <= 2 {
+                        Text("Clear and light out — a good time for your \(sunGoal) minutes outside.")
+                            .font(.ui(size: 13)).foregroundColor(Mono.label)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        ProgressView().tint(Mono.text)
+                        Text("Checking the weather…").font(.bentoBody).foregroundColor(Mono.label)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(alignment: .bottomTrailing) {
+            Image(LineArt.sun.rawValue).resizable().scaledToFit().frame(width: 150, height: 150)
+                .opacity(0.14).offset(x: 30, y: 30).accessibilityHidden(true)
+        }
+        .presentationDetents([.height(280)])
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+}
+
+// MARK: - Line slider
+
+/// A slider made of lines, like a measuring tape: a tick every `step`, a longer labelled line every `major`. Drag it
+/// sideways; the line under the fixed centre marker is the amount, and it snaps line to line with a light tick.
+/// Lines grow and brighten towards the centre. VoiceOver adjusts it a step at a time. Used for water (ml) and time
+/// outside (minutes).
+struct LineRuler: View {
+    @Binding var amount: Double
+    let range: ClosedRange<Int>
+    let step: Int
+    let major: Int
+    let spokenUnit: String
+    let label: (Int) -> String
+    @State private var centred: Int?
+    /// False while the sheet is still presenting: the scroll view reports positions as it settles, which mustn't
+    /// overwrite the starting amount.
+    @State private var ready = false
     private let spacing: CGFloat = 12
+
+    private var values: [Int] { Array(stride(from: range.lowerBound, through: range.upperBound, by: step)) }
 
     var body: some View {
         GeometryReader { geo in
             let centreX = geo.frame(in: .global).midX
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .bottom, spacing: spacing) {
-                    ForEach(Self.values, id: \.self) { ml in
-                        tick(ml)
+                    ForEach(values, id: \.self) { v in
+                        tick(v)
                             .visualEffect { content, proxy in
-                                // Taller and brighter near the centre, like light catching the water line.
+                                // Taller and brighter near the centre.
                                 let d = abs(proxy.frame(in: .global).midX - centreX)
                                 let near = max(0, 1 - d / 140)
                                 return content
@@ -622,19 +808,26 @@ private struct WaterRuler: View {
             .drumRimFade()
         }
         .frame(height: 74)
-        .onAppear { centred = Int(amount) }
+        .task {
+            // Place the start once layout has settled, then start listening.
+            centred = Int(amount)
+            try? await Task.sleep(for: .milliseconds(350))
+            centred = Int(amount)
+            try? await Task.sleep(for: .milliseconds(100))
+            ready = true
+        }
         .onChange(of: centred) { _, new in
-            guard let new, Double(new) != amount else { return }
+            guard ready, let new, Double(new) != amount else { return }
             Haptics.selection()
             amount = Double(new)
         }
         .accessibilityElement()
         .accessibilityLabel("Amount")
-        .accessibilityValue("\(Int(amount)) millilitres")
+        .accessibilityValue("\(Int(amount)) \(spokenUnit)")
         .accessibilityAdjustableAction { direction in
             let next: Double = switch direction {
-            case .increment: min(1500, amount + Self.step)
-            case .decrement: max(50, amount - Self.step)
+            case .increment: min(Double(range.upperBound), amount + Double(step))
+            case .decrement: max(Double(range.lowerBound), amount - Double(step))
             @unknown default: amount
             }
             amount = next
@@ -642,18 +835,18 @@ private struct WaterRuler: View {
         }
     }
 
-    private func tick(_ ml: Int) -> some View {
-        let major = ml % 250 == 0
+    private func tick(_ v: Int) -> some View {
+        let isMajor = v % major == 0
         return VStack(spacing: 6) {
             Capsule().fill(Mono.text)
-                .frame(width: major ? 2.5 : 1.5, height: major ? 40 : 24)
-            Text(major ? (ml >= 1000 ? String(format: "%.2g L", Double(ml) / 1000) : "\(ml)") : " ")
+                .frame(width: isMajor ? 2.5 : 1.5, height: isMajor ? 40 : 24)
+            Text(isMajor ? label(v) : " ")
                 .font(.mono(9, .semibold)).foregroundColor(Mono.label)
                 .fixedSize()
                 .frame(width: 2)   // labels overflow their 2 pt slot so spacing stays even
         }
         .frame(width: 2)
-        .id(ml)
+        .id(v)
     }
 }
 

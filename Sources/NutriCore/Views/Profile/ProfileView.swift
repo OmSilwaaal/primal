@@ -85,7 +85,7 @@ struct ProfileView: View {
             }
             .sheet(item: $sheet) { sheet in sheetContent(sheet) }
             .bottomPanel(isPresented: Binding(get: { panel != nil }, set: { if !$0 { panel = nil } }),
-                         fraction: panel == .info ? 0.62 : 0.52) {
+                         fraction: panel == .info ? 0.62 : panel == .energy ? 0.8 : 0.52) {
                 if let profile { panelContent(profile) }
             }
             .fullScreenCover(isPresented: $showScan) { CameraView(onClose: { showScan = false }) }
@@ -818,12 +818,9 @@ private struct DailyEnergySheet: View {
         let eaten = today.totalCalories
         VStack(alignment: .leading, spacing: 16) {
             Text("Daily energy").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
-            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text(Int(eaten).formatted()).font(.display(44)).foregroundColor(.white).bloom()
-                Text("of \(Int(goals.calories).formatted()) kcal today").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
-            }
-            .accessibilityElement(children: .combine)
-            BentoBar(value: goals.calories > 0 ? eaten / goals.calories : 0)
+            DailyRing(eaten: eaten, goal: goals.calories)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
             Text("Worked out from your weight, height, age, sex and activity (Mifflin–St Jeor), plus what Apple Health says you've burned today on Home.")
                 .font(.ui(size: 13)).foregroundColor(.white.opacity(0.72)).fixedSize(horizontal: false, vertical: true)
             // What they ate today, newest first.
@@ -861,6 +858,49 @@ private struct DailyEnergySheet: View {
         .presentationDragIndicator(.visible)
         .glassSheetBackground()
         .presentationCornerRadius(Bento.radius)
+    }
+}
+
+/// Home's calorie ring: a 16 pt gray track with the white progress arc, the rune, today's kcal and what's left.
+private struct DailyRing: View {
+    let eaten: Double
+    let goal: Double
+    private let size: CGFloat = 210
+    private let width: CGFloat = 16
+
+    var body: some View {
+        let progress = goal > 0 ? eaten / goal : 0
+        let left = Int((goal - eaten).rounded())
+        ZStack {
+            Circle().stroke(Mono.track, lineWidth: width)
+            Circle()
+                .trim(from: 0, to: min(progress, 1))
+                .stroke(Mono.text, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.smooth(duration: 0.6), value: progress)
+            VStack(spacing: 2) {
+                AlgizMark().fill(Mono.text.opacity(progress >= 1 ? 1 : 0.45))
+                    .frame(width: 13, height: 17)
+                    .padding(.bottom, 5)
+                Text(Int(eaten).formatted()).font(.bentoNumber(50)).tracking(Font.bentoTracking(50))
+                    .foregroundColor(Mono.text)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
+                    .bloom()
+                Text("kcal").font(.ui(size: 14, weight: .medium)).foregroundColor(Mono.label)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(max(0, left).formatted()).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                    Text("left of \(Int(goal).formatted())").font(.ui(size: 13)).foregroundColor(Mono.label)
+                }
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, width + 16)
+        }
+        .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Calories today")
+        .accessibilityValue("\(Int(eaten)) of \(Int(goal)) kcal, \(max(0, left)) left")
     }
 }
 

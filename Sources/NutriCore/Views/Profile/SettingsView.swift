@@ -448,12 +448,14 @@ struct PaymentView: View {
                     .padding(.top, 8)
                 Spacer(minLength: 0)
                 VitalisCard(name: social.myProfile?.name ?? "Vitalis Member", isPro: subManager.isSubscribed,
-                            method: subManager.isSubscribed ? nil : method, expires: expires)
+                            method: method, expires: expires)
                     .padding(.horizontal, 6)
+                    // Its own size, always: nothing below (the note's line count changes with the method) may shrink it.
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(expiryLine).font(.ui(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.85))
                     .contentTransition(.opacity)
                 Spacer(minLength: 0)
-                if subManager.isSubscribed { manage } else { checkout }
+                checkout
                 bottomBar
             }
             .padding(.horizontal, Bento.margin)
@@ -469,37 +471,39 @@ struct PaymentView: View {
 
     private var checkout: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if !subManager.isSubscribed {
             // Plan.
-            HStack(spacing: 8) {
-                ForEach(SubscriptionManager.Plan.allCases.reversed()) { p in
-                    let on = plan == p
-                    Button {
-                        Haptics.selection()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { plan = p }
-                    } label: {
-                        VStack(spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(p.title).font(.ui(size: 15, weight: .semibold))
-                                if p == .annual, let save = subManager.annualSavingsPercent {
-                                    Text("-\(save)%").font(.mono(10, .semibold))
-                                        .padding(.horizontal, 5).padding(.vertical, 1)
-                                        .background(Capsule().fill(Color.ncMoss)).foregroundColor(Mono.onWhite)
+                HStack(spacing: 8) {
+                    ForEach(SubscriptionManager.Plan.allCases.reversed()) { p in
+                        let on = plan == p
+                        Button {
+                            Haptics.selection()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { plan = p }
+                        } label: {
+                            VStack(spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(p.title).font(.ui(size: 15, weight: .semibold))
+                                    if p == .annual, let save = subManager.annualSavingsPercent {
+                                        Text("-\(save)%").font(.mono(10, .semibold))
+                                            .padding(.horizontal, 5).padding(.vertical, 1)
+                                            .background(Capsule().fill(Color.ncMoss)).foregroundColor(Mono.onWhite)
+                                    }
                                 }
+                                Text(subManager.priceLabel(for: p).isEmpty ? "—" : subManager.priceLabel(for: p))
+                                    .font(.ui(size: 12)).opacity(0.8)
                             }
-                            Text(subManager.priceLabel(for: p).isEmpty ? "—" : subManager.priceLabel(for: p))
-                                .font(.ui(size: 12)).opacity(0.8)
+                            .foregroundColor(on ? Mono.onWhite : .white)
+                            .frame(maxWidth: .infinity, minHeight: 54)
+                            .background { if on { Capsule().fill(Color.white) } }
+                            .contentShape(Capsule())
                         }
-                        .foregroundColor(on ? Mono.onWhite : .white)
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                        .background { if on { Capsule().fill(Color.white) } }
-                        .contentShape(Capsule())
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(on ? .isSelected : [])
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
+                .padding(4)
+                .glass(.clear, in: Capsule())
             }
-            .padding(4)
-            .glass(.clear, in: Capsule())
 
             // How to pay.
             Text("Pay with").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.white.opacity(0.85))
@@ -527,6 +531,10 @@ struct PaymentView: View {
                 .padding(.horizontal, 2)
             }
 
+            if subManager.isSubscribed {
+                Button("Manage subscription") { showManage = true }
+                    .buttonStyle(.bentoPrimary)
+            } else {
             Button {
                 Task { await subManager.subscribe(to: plan) }
             } label: {
@@ -540,21 +548,19 @@ struct PaymentView: View {
             }
             .buttonStyle(.bentoPrimary)
             .disabled(subManager.isWorking || subManager.products.isEmpty)
+            }
 
             if let error = subManager.errorMessage {
                 Text(error).font(.ui(size: 12)).foregroundColor(.ncEmber)
             }
-            Text("Charged to your Apple Account with \(method.title) when you confirm in Apple's payment sheet; you can change the method there. Renews automatically unless cancelled 24 hours before the period ends.")
+            Text(subManager.isSubscribed
+                 ? "Renews through your Apple Account with \(method.title). Change the method or cancel in Manage subscription."
+                 : "Charged to your Apple Account with \(method.title) when you confirm in Apple's payment sheet; you can change the method there. Renews automatically unless cancelled 24 hours before the period ends.")
                 .font(.ui(size: 11)).foregroundColor(.white.opacity(0.8))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
         .glass(.tinted, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private var manage: some View {
-        Button("Manage subscription") { showManage = true }
-            .buttonStyle(.bentoPrimary)
     }
 
     // MARK: Bottom bar

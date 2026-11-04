@@ -339,6 +339,8 @@ private struct PaymentMark: View {
         }
         .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.75)], startPoint: .top, endPoint: .bottom))
         .shadow(color: .black.opacity(0.25), radius: 0.6, y: 0.6)
+        // One fixed slot for every mark, so switching methods never changes the card's layout.
+        .frame(width: 130, height: 24, alignment: .trailing)
         .transition(.asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.85)), removal: .opacity))
         .id(method)
     }

@@ -12,7 +12,6 @@ struct NutrientPill: View {
             .font(.ui(size: 13, weight: .semibold))
             .foregroundColor(.white)
             .lineLimit(1)
-            .grained(0.25)
             .padding(.horizontal, 11).padding(.vertical, 6)
             .background {
                 Capsule().fill(fill)

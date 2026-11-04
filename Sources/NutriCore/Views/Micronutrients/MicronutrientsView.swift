@@ -37,24 +37,42 @@ private struct DataScreen: View {
     @Binding var open: DataGroupSummary?
     let zoom: Namespace.ID
 
+    /// Its own header rather than the other tabs' plain title: the ᛉ beside today's date and season over
+    /// "Nutrients" in the cards' display face.
+    private var header: some View {
+        let date = Date.now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        let season = Season(date: .now, latitude: nil).name
+        return HStack(alignment: .center, spacing: 12) {
+            AlgizMark().fill(Color.ncPrimary)
+                .frame(width: 22, height: 28)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(date) · \(season)")
+                    .font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                    .foregroundColor(Mono.label)
+                Text("Nutrients").font(.display(30)).foregroundColor(Mono.text)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var current: DataGroupSummary? { summaries.first { $0.kind == centred } ?? summaries.first }
 
     var body: some View {
         GeometryReader { geo in
-            // 270 × 400 on a 390 pt screen, scaled to the phone.
-            let cardWidth = min(270, geo.size.width * 0.69)
-            let card = CGSize(width: cardWidth, height: cardWidth * 400 / 270)
+            // 304 × 440 on a 390 pt screen, scaled to the phone.
+            let cardWidth = min(330, geo.size.width * 0.78)
+            let card = CGSize(width: cardWidth, height: cardWidth * 1.45)
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 18) {
-                    // The same title as Home's "Today" and the other tabs.
-                    Text("Data").font(.bentoTitle).foregroundColor(Mono.text)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    header
                         .padding(.horizontal, Bento.margin)
-                        .accessibilityAddTraits(.isHeader)
                         .padding(.top, 8)
 
                     DataWheel(summaries: summaries, card: card, centred: $centred, zoom: zoom) { open = $0 }
-                        .frame(width: geo.size.width, height: card.height + 60)
+                        .frame(width: geo.size.width, height: card.height + 40)
 
                     if let current {
                         Group {
@@ -65,8 +83,8 @@ private struct DataScreen: View {
                                     .contentTransition(.numericText())
                             }
                         }
-                        .font(.outermost(15)).foregroundColor(Mono.label)
-                        .grained()
+                        .font(.mono(12, .semibold)).tracking(0.9).textCase(.uppercase)
+                        .foregroundColor(Mono.label)
                         .accessibilityLabel(current.isComingSoon ? "Seasonal: coming soon"
                             : "\(current.kind.title): \(current.met) met, \(current.onTrack) on track, \(current.low) low")
                     }
@@ -78,8 +96,6 @@ private struct DataScreen: View {
                 .padding(.bottom, 130)   // clear of the tab bar
             }
         }
-        // A whisper of grain over the whole page, so it shares the cards' printed texture.
-        .overlay { GrainLayer(opacity: 0.05, blend: .overlay).ignoresSafeArea().allowsHitTesting(false) }
         .sheet(item: $open) { summary in
             GroupDetailSheet(summary: summary)
                 .zoomsFrom(id: summary.kind, in: zoom)
@@ -105,11 +121,11 @@ private struct DataWheel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var count: Int { summaries.count }
-    private var step: CGFloat { card.width * 0.78 }   // how far one card turns the wheel
+    private var step: CGFloat { card.width * 0.62 }   // how far a drag moves to turn the wheel by one card
     private var index: Int { count == 0 ? 0 : ((Int(position.rounded()) % count) + count) % count }
 
     var body: some View {
-        WheelStage(position: position, count: count, step: step, still: reduceMotion) { i in
+        WheelStage(position: position, count: count, card: card, still: reduceMotion) { i in
             CarouselCard(summary: summaries[i], size: card) { tapped(i) }
                 .zoomSource(id: summaries[i].kind, in: zoom)
         }
@@ -147,7 +163,8 @@ private struct DataWheel: View {
     }
 
     private var settle: Animation? {
-        reduceMotion ? .easeOut(duration: 0.2) : .interpolatingSpring(mass: 1, stiffness: 170, damping: 24)
+        // Long and critically damped: the card glides out from behind and settles without a bounce.
+        reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.6, dampingFraction: 0.92)
     }
 
     /// The centred card opens; a neighbour turns the wheel to itself. Taps right after a swipe are the swipe's.
@@ -162,15 +179,22 @@ private struct DataWheel: View {
     }
 }
 
-/// Lays the cards round the drum for a given position. Animatable on `position`, so SwiftUI interpolates the
-/// position itself and recomputes every card per frame — not each card's offset, which would sweep the long way
-/// round when a card wraps from one side to the other.
+/// Lays the cards out for a given position: the centred card full size, and on each side a smaller neighbour
+/// tucked behind it so only its outer edge shows. Turning, a card slides out from behind, passes beside the
+/// centre card at its widest and settles in front, like a card drawn from a deck. Animatable on `position`, so
+/// SwiftUI interpolates the position itself and recomputes every card per frame — not each card's offset,
+/// which would sweep the long way round when a card wraps from one side to the other.
 private struct WheelStage<Card: View>: View, Animatable {
     var position: Double
     let count: Int
-    let step: CGFloat
+    let card: CGSize
     let still: Bool
     @ViewBuilder let content: (Int) -> Card
+
+    /// Neighbours' size against the centred card, as in the reference: about three quarters.
+    private let sideScale = 0.77
+    /// How much of a neighbour shows past the centred card's edge.
+    private let peek: Double = 24
 
     var animatableData: Double {
         get { position }
@@ -187,23 +211,53 @@ private struct WheelStage<Card: View>: View, Animatable {
         return r
     }
 
+    private struct Place { var rel, x, scale, opacity: Double }
+
+    private func place(_ i: Int) -> Place {
+        let w = Double(card.width)
+        // A neighbour's centre, so its outer edge sits `peek` past the centred card's.
+        let side = w * (1 - sideScale) / 2 + peek
+        // How far a moving card swings out at the halfway point, so the two passing cards clear each other
+        // when they swap which one is in front.
+        let swing = w * 0.3
+        let rel = Self.wrap(Double(i) - position, count)
+        let a = abs(rel), sign: Double = rel < 0 ? -1 : 1
+        if still { return Place(rel: rel, x: rel * (w + 16), scale: 1, opacity: a < 0.5 ? 1 : 0) }
+        let x = a <= 1 ? sign * (side * a + swing * sin(.pi * a))
+                       : sign * (side + (a - 1) * side * 0.4)   // further cards tuck in behind and fade
+        let scale = 1 - (1 - sideScale) * min(a, 1) - 0.1 * max(0, min(a - 1, 1))
+        return Place(rel: rel, x: x, scale: scale, opacity: a <= 1 ? 1 : max(0, 1 - (a - 1) * 2.5))
+    }
+
     var body: some View {
+        let places = (0..<count).map(place)
+        let radius = 58 * card.width / 270
         ZStack {
             ForEach(0..<count, id: \.self) { i in
-                let rel = Self.wrap(Double(i) - position, count)
-                let d = min(abs(rel), 2)
-                // Past one card away, a card tucks behind its neighbour and fades, so only one peeks on each side.
-                let x = still ? rel * Double(step) * 1.1
-                              : (abs(rel) <= 1 ? rel : (rel > 0 ? 1 : -1) * (1 + (abs(rel) - 1) * 0.35)) * Double(step)
+                let p = places[i], a = abs(p.rel)
+                // Cards in front of this one: their shapes are cut out of it, so the frosted glass of a card
+                // never shows the card tucked behind it — only the edge that peeks out is drawn.
+                let front = places.indices.filter { abs(places[$0].rel) < a && places[$0].opacity > 0.01 }
                 content(i)
-                    .scaleEffect(still ? 1 : 1 - 0.14 * min(d, 1.4))
-                    .rotation3DEffect(.degrees(still ? 0 : -rel * 22), axis: (0, 1, 0), anchor: .center, perspective: 0.55)
-                    .brightness(-0.12 * min(d, 1))
-                    .opacity(d <= 1.2 ? 1 : max(0, 1 - (d - 1.2) * 2))
-                    .offset(x: x)
-                    .zIndex(-abs(rel))
-                    .allowsHitTesting(d < 1.3)
-                    .accessibilityHidden(d > 0.5)
+                    .scaleEffect(p.scale)
+                    .brightness(-0.06 * min(a, 1))
+                    .opacity(p.opacity)
+                    .offset(x: p.x)
+                    .mask {
+                        ZStack {
+                            Rectangle().padding(-400)
+                            ForEach(front, id: \.self) { j in
+                                RoundedRectangle(cornerRadius: radius * places[j].scale, style: .continuous)
+                                    .frame(width: card.width * places[j].scale, height: card.height * places[j].scale)
+                                    .offset(x: places[j].x)
+                                    .blendMode(.destinationOut)
+                            }
+                        }
+                        .compositingGroup()
+                    }
+                    .zIndex(-a)
+                    .allowsHitTesting(a < 1.2)
+                    .accessibilityHidden(a > 0.5)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

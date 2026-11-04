@@ -186,67 +186,6 @@ struct StreakSummary {
     }
 }
 
-// MARK: - Type and texture
-
-extension Font {
-    /// "The Outermost House" for the Data screen's quiet secondary text (captions, labels, amounts) once its font
-    /// file is bundled (it isn't yet); until then a refined serif.
-    static func outermost(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        for name in ["TheOutermostHouse-Regular", "TheOutermostHouse", "The Outermost House", "OutermostHouse-Regular"]
-        where UIFont(name: name, size: size) != nil {
-            return .custom(name, size: size, relativeTo: .footnote)
-        }
-        return .system(size: size, weight: weight, design: .serif)
-    }
-}
-
-/// A fine film grain: one 192 pt tile of soft monochrome noise, made once and tiled.
-enum Grain {
-    static let tile: UIImage = {
-        let side = 192
-        var bytes = [UInt8](repeating: 0, count: side * side * 4)
-        var seed: UInt64 = 0x9E3779B97F4A7C15
-        for i in 0..<(side * side) {
-            // xorshift: repeatable, so the grain never shimmers between redraws.
-            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
-            let v = UInt8(110 + Int(seed % 146))   // mid-grey to white: grain, not specks
-            bytes[i * 4] = v; bytes[i * 4 + 1] = v; bytes[i * 4 + 2] = v; bytes[i * 4 + 3] = 255
-        }
-        let ctx = CGContext(data: &bytes, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
-                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        return ctx?.makeImage().map { UIImage(cgImage: $0, scale: 2, orientation: .up) } ?? UIImage()
-    }()
-}
-
-/// The grain as a view, for overlays.
-struct GrainLayer: View {
-    var opacity: Double = 0.1
-    var blend: BlendMode = .overlay
-    var body: some View {
-        Image(uiImage: Grain.tile).resizable(resizingMode: .tile)
-            .blendMode(blend).opacity(opacity)
-            .allowsHitTesting(false).accessibilityHidden(true)
-    }
-}
-
-extension View {
-    /// A slight grain inside text (or any shape): fine speckle that reads like ink on paper, kept to the glyphs.
-    /// Off under Reduce Transparency.
-    func grained(_ amount: Double = 0.35) -> some View { modifier(GrainedText(amount: amount)) }
-}
-
-private struct GrainedText: ViewModifier {
-    let amount: Double
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    func body(content: Content) -> some View {
-        if reduceTransparency {
-            content
-        } else {
-            content.overlay { GrainLayer(opacity: amount, blend: .multiply).mask(content) }
-        }
-    }
-}
-
 extension View {
     /// The card a sheet zooms out of (iOS 18+).
     @ViewBuilder func zoomSource(id: some Hashable, in ns: Namespace.ID) -> some View {

@@ -230,6 +230,9 @@ final class CardTilt: ObservableObject {
     private var dragTarget: (roll: Double, pitch: Double)?
     private let motion = CMMotionManager()
     private var link: CADisplayLink?
+    /// On a phone the card follows only the phone's movement; touch tilts it only where there's no motion sensor
+    /// (the Simulator, some iPads).
+    var followsTouch: Bool { !motion.isDeviceMotionAvailable }
 
     func start() {
         guard !UIAccessibility.isReduceMotionEnabled else { return }
@@ -419,6 +422,7 @@ struct VitalisCard: View {
             .contentShape(shape)
             .simultaneousGesture(DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    guard tilt.followsTouch else { return }
                     tilt.drag(to: CGPoint(x: value.location.x / max(1, geo.size.width),
                                           y: value.location.y / max(1, geo.size.height)))
                 }

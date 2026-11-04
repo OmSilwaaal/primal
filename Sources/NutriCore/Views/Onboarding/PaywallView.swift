@@ -261,7 +261,12 @@ final class CardTilt: ObservableObject {
     }
 
     fileprivate func tick() {
-        let t = dragTarget ?? target
+        // Idle sway: a slow, slight drift (two out-of-step sine waves, ~7 s and ~9 s) on top of the phone's tilt,
+        // so the card feels alive when the phone is still. A held finger takes over completely.
+        let now = CACurrentMediaTime()
+        let sway = dragTarget == nil ? (0.09 * sin(now * 2 * .pi / 7), 0.06 * sin(now * 2 * .pi / 9 + 1.3)) : (0, 0)
+        let base = dragTarget ?? target
+        let t = (roll: base.roll + sway.0, pitch: base.pitch + sway.1)
         // Critically damped easing: quick to follow, no wobble. A held finger follows a little tighter.
         let k = dragTarget == nil ? 0.10 : 0.2
         let r = roll + (t.roll - roll) * k, p = pitch + (t.pitch - pitch) * k
@@ -366,8 +371,8 @@ struct VitalisCard: View {
                     shape.fill(Color(hex: "#2A2C2A"))
                 } else {
                     // Clear frosted glass: very light blur, a touch of white like the Apple Card's titanium white.
-                    shape.fill(.ultraThinMaterial).opacity(0.35).environment(\.colorScheme, .light)
-                    shape.fill(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.05)],
+                    shape.fill(.ultraThinMaterial).opacity(0.14).environment(\.colorScheme, .light)
+                    shape.fill(LinearGradient(colors: [.white.opacity(0.09), .white.opacity(0.02)],
                                               startPoint: .topLeading, endPoint: .bottomTrailing))
                     // Light passing through: a soft warm-to-cool refraction that slides as the card turns.
                     ZStack {

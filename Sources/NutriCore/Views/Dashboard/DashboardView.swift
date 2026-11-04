@@ -99,6 +99,24 @@ struct DashboardView: View {
                     DateWheel(days: EatingCycle(meals: meals, calorieGoal: baseGoals.calories).history,
                               selected: selectedDay, onSelect: select)
                         .padding(.horizontal, -Bento.margin)
+                        // Back to today sits at the wheel's right end (where today is), so the title never squeezes.
+                        .overlay(alignment: .trailing) {
+                            if !isToday {
+                                Button { select(Calendar.current.startOfDay(for: .now)) } label: {
+                                    Label("Today", systemImage: "arrow.uturn.forward").labelStyle(.titleAndIcon)
+                                        .font(.ui(size: 13, weight: .semibold)).foregroundColor(Mono.onWhite)
+                                        .padding(.horizontal, 12).frame(height: 34)
+                                        .background(Capsule().fill(Mono.text))
+                                        .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+                                        .frame(minHeight: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(PressScaleStyle(scale: 0.94))
+                                .accessibilityHint("Shows today")
+                                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
+                        }
+                        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isToday)
 
                     CalorieTile(total: dayMeals.totalCalories, goal: goals.calories, isToday: isToday, macros: [
                         ("Protein", dayMeals.totalProtein, goals.protein),
@@ -359,13 +377,6 @@ private struct BentoHomeHeader<Card: View>: View {
 
             GlassGroup(spacing: 10) {
             HStack(spacing: 10) {
-                if let onToday {
-                    Button("Today", action: onToday)
-                        .buttonStyle(BentoCapsuleButtonStyle(solid: false, height: 44))
-                        .fixedSize()
-                        .accessibilityHint("Shows today")
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
-                }
                 Button(action: onWeather) {
                     Image(systemName: weatherSymbol ?? "cloud.sun")
                         .symbolRenderingMode(.hierarchical)

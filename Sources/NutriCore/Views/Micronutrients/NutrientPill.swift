@@ -12,6 +12,7 @@ struct NutrientPill: View {
             .font(.ui(size: 13, weight: .semibold))
             .foregroundColor(.white)
             .lineLimit(1)
+            .grained(0.25)
             .padding(.horizontal, 11).padding(.vertical, 6)
             .background {
                 Capsule().fill(fill)
@@ -33,7 +34,7 @@ struct NutrientPill: View {
     HStack {
         NutrientPill(model: PillModel(id: "a", text: "Prot", isLow: false))
         NutrientPill(model: PillModel(id: "b", text: "D", isLow: true))
-        NutrientPill(model: PillModel(id: "c", text: "Minerals 68", isLow: true))
+        NutrientPill(model: PillModel(id: "c", text: "Coming soon", isLow: false))
     }
     .padding()
     .background(Color(hex: "#0D1710"))

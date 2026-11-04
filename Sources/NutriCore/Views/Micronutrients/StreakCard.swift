@@ -10,12 +10,12 @@ struct StreakCard: View {
         let shape = RoundedRectangle(cornerRadius: 30, style: .continuous)
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Daily streak").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                    .foregroundColor(Mono.label)
+                Text("Daily streak").font(.outermost(13)).foregroundColor(Mono.label).grained()
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
                     Text("\(streak.days)").font(.display(40)).foregroundColor(.white)
                         .contentTransition(.numericText())
-                    Text(streak.days == 1 ? "day" : "days").font(.ui(size: 17, weight: .semibold)).foregroundColor(.white)
+                        .grained(0.3)
+                    Text(streak.days == 1 ? "day" : "days").font(.outermost(17)).foregroundColor(.white).grained()
                 }
             }
             Spacer(minLength: 8)
@@ -32,9 +32,9 @@ struct StreakCard: View {
                         .frame(width: 8, height: 30)
                     }
                 }
-                Text("In range · \(inRange) of 7").font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase)
-                    .foregroundColor(Mono.label)
+                Text("In range · \(inRange) of 7").font(.outermost(13)).foregroundColor(Mono.label)
                     .lineLimit(1).minimumScaleFactor(0.8)
+                    .grained()
             }
         }
         .padding(.horizontal, 20).padding(.vertical, 18)

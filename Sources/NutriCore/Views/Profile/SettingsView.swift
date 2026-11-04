@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var showManageSubscriptions = false
     @State private var showPaywall = false
     @State private var showPayment = false
+    @State private var showLegal = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
@@ -137,10 +138,7 @@ struct SettingsView: View {
                                           subtitle: "A soft knock when you log or hit a goal", isOn: $isSoundEnabled)
                     }
 
-                    SettingsSection(title: "App icon",
-                                    footer: subManager.isSubscribed ? nil : "App icons come with Vitalis Pro.") {
-                        AppIconPicker(locked: !subManager.isSubscribed) { showPaywall = true }
-                    }
+                    // App icons are hidden for now (AppIconPicker stays in the code).
 
                     SettingsSection(title: "Reminders",
                                     footer: reminderDenied ? "Notifications are off for Vitalis. Turn them on in iOS Settings to use reminders." : nil) {
@@ -155,25 +153,6 @@ struct SettingsView: View {
                     }
                     .onChange(of: morningReminder) { _, on in
                         Task { if !(await Reminders.set(.morningSun, on: on)) { morningReminder = false; reminderDenied = true } }
-                    }
-
-                    // ── Legal ───────────────────────────────────────────────
-                    SettingsSection(title: "About") {
-                        SettingsRow(icon: "lock.shield", title: "Privacy policy", subtitle: "How your data is handled") {
-                            legalDocument = .privacy
-                        }
-                        SettingsDivider()
-                        SettingsRow(icon: "doc.text", title: "Terms of service", subtitle: "Usage agreement") {
-                            legalDocument = .terms
-                        }
-                        SettingsDivider()
-                        SettingsRow(icon: "cross.case", title: "Health & safety policy", subtitle: "Not medical advice; use at your own risk") {
-                            legalDocument = .safety
-                        }
-                        SettingsDivider()
-                        SettingsRow(icon: "questionmark.circle", title: "Support", subtitle: "Report issues and feedback") {
-                            open("mailto:support@vitalis.app")
-                        }
                     }
 
                     // ── Session & data ──────────────────────────────────────
@@ -193,6 +172,14 @@ struct SettingsView: View {
                         if let deleteError {
                             Text(deleteError).font(.ui(size: 13)).foregroundColor(.ncEmber)
                                 .padding(.bottom, 12)
+                        }
+                    }
+
+                    // ── Legal & support, all in one page, at the very bottom ─
+                    SettingsSection(title: "About") {
+                        SettingsRow(icon: "doc.text", title: "Legal & support",
+                                    subtitle: "Privacy, terms, health & safety, contact", showsChevron: true) {
+                            showLegal = true
                         }
                     }
 
@@ -220,6 +207,7 @@ struct SettingsView: View {
         }
         .sheet(item: $legalDocument) { LegalView(document: $0) }
         .navigationDestination(isPresented: $showPayment) { PaymentView().pushedScreen() }
+        .navigationDestination(isPresented: $showLegal) { LegalHubView().pushedScreen() }
         .sheet(isPresented: $showPaywall) {
             PaywallView(onNotNow: { showPaywall = false }, showsAccountButton: false)
         }
@@ -405,6 +393,55 @@ private struct SettingsToggleRow: View {
         }
         .padding(.vertical, 12)
         .frame(minHeight: 56)
+    }
+}
+
+// MARK: - Legal & support
+
+/// Every policy and the support contact on one page.
+struct LegalHubView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var document: LegalDocument?
+
+    var body: some View {
+        ZStack {
+            AppBackdrop()
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 22) {
+                    HStack(spacing: 12) {
+                        Button { dismiss() } label: { Image(systemName: "chevron.left") }
+                            .buttonStyle(.bentoRound)
+                            .accessibilityLabel("Back")
+                        Text("Legal & support").font(.bentoTitle).foregroundColor(Mono.text)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer()
+                    }
+                    SettingsSection(title: "Policies") {
+                        SettingsRow(icon: "lock.shield", title: "Privacy policy", subtitle: "How your data is handled",
+                                    showsChevron: true) { document = .privacy }
+                        SettingsDivider()
+                        SettingsRow(icon: "doc.text", title: "Terms of service", subtitle: "Usage agreement",
+                                    showsChevron: true) { document = .terms }
+                        SettingsDivider()
+                        SettingsRow(icon: "cross.case", title: "Health & safety policy",
+                                    subtitle: "Not medical advice; use at your own risk", showsChevron: true) { document = .safety }
+                    }
+                    SettingsSection(title: "Support") {
+                        SettingsRow(icon: "questionmark.circle", title: "Contact support", subtitle: "Report issues and feedback") {
+                            if let url = URL(string: "mailto:support@vitalis.app") { UIApplication.shared.open(url) }
+                        }
+                    }
+                    if let date = LegalAcceptance.acceptedAt {
+                        Text("Agreed \(date.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.ui(size: 12)).foregroundColor(Mono.label).padding(.leading, 4)
+                    }
+                }
+                .padding(.horizontal, Bento.margin).padding(.top, 8).padding(.bottom, 120)
+            }
+        }
+        .navigationBarHidden(true)
+        .sheet(item: $document) { LegalView(document: $0) }
     }
 }
 

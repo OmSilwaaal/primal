@@ -193,12 +193,9 @@ struct PlaceDetailCard: View {
                     }
                 }
                 Spacer()
-                Button(action: onClose) {
-                    Text("CLOSE").font(.mono(11, .semibold)).foregroundColor(.ncPrimary)
-                        .padding(.horizontal, 12).frame(minHeight: 44)
-                        .background(Color.white.opacity(0.12))
-                }
-                .buttonStyle(.plain)
+                Button(action: onClose) { Image(systemName: "xmark") }
+                    .buttonStyle(.bentoRound)
+                    .accessibilityLabel("Close")
             }
 
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 0, verticalSpacing: 6) {
@@ -219,10 +216,10 @@ struct PlaceDetailCard: View {
             .overlay(alignment: .top) { Hairline(opacity: 0.14) }
 
             Button("Open in Maps") { item.openInMaps(launchOptions: nil) }
-                .buttonStyle(PrimaryButtonStyle(height: 52))
+                .buttonStyle(.bentoPrimary)
         }
         .padding(20)
-        .glass(.thick)
+        .glass(.thick, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 }
 

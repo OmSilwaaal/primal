@@ -2,11 +2,12 @@ import SwiftUI
 
 /// A group in full, as a large sheet tinted with the group colour: "Today · N items", the name, the dot-matrix
 /// score and a close button; Met / On track / Low counters; then every item, lowest percent first so what needs
-/// attention leads, the lowest row tinted Ember. Overall lists every nutrient.
+/// attention leads, the lowest row tinted Ember. Seasonal shows a placeholder until its guides arrive.
 struct GroupDetailSheet: View {
     let summary: DataGroupSummary
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var kind: DataGroupKind { summary.kind }
 
@@ -15,16 +16,19 @@ struct GroupDetailSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Today · \(summary.items.count) items").font(.mono(11, .semibold)).tracking(0.88)
-                        .textCase(.uppercase).foregroundColor(Mono.label)
+                    Text(summary.isComingSoon ? "This season · \(summary.pills.first?.text ?? "")"
+                                              : "Today · \(summary.items.count) items")
+                        .font(.outermost(14)).foregroundColor(Mono.label).grained()
                     Text(kind.title).font(.ui(size: 28, weight: .bold)).foregroundColor(.white)
                         .accessibilityAddTraits(.isHeader)
-                    HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        DotMatrixText(text: "\(summary.score)", pitch: 3)
-                        Text("/ 100").font(.mono(11, .semibold)).foregroundColor(.white.opacity(0.8))
+                    if !summary.isComingSoon {
+                        HStack(alignment: .lastTextBaseline, spacing: 6) {
+                            DotMatrixText(text: "\(summary.score)", pitch: 3)
+                            Text("/ 100").font(.outermost(13)).foregroundColor(.white.opacity(0.85)).grained()
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Score \(summary.score) out of 100")
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Score \(summary.score) out of 100")
                 }
                 Spacer()
                 Button { dismiss() } label: {
@@ -37,19 +41,23 @@ struct GroupDetailSheet: View {
                 .accessibilityLabel("Close")
             }
 
-            HStack(spacing: 0) {
-                counter(.ncMoss, summary.met, "Met")
-                counter(.ncPrimary, summary.onTrack, "On track")
-                counter(.ncEmber, summary.low, "Low")
-            }
-
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 8) {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { i, n in
-                        row(n, emphasised: i == 0)
-                    }
+            if summary.isComingSoon {
+                comingSoon
+            } else {
+                HStack(spacing: 0) {
+                    counter(.ncMoss, summary.met, "Met")
+                    counter(.ncPrimary, summary.onTrack, "On track")
+                    counter(.ncEmber, summary.low, "Low")
                 }
-                .padding(.bottom, 30)
+
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 8) {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { i, n in
+                            row(n, emphasised: i == 0)
+                        }
+                    }
+                    .padding(.bottom, 30)
+                }
             }
         }
         .padding(.horizontal, 20).padding(.top, 24)
@@ -59,18 +67,54 @@ struct GroupDetailSheet: View {
         .presentationCornerRadius(Bento.radius)
     }
 
+    /// Placeholder for the Seasonal group until its guides ship.
+    private var comingSoon: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Eating with the seasons").font(.ui(size: 17, weight: .semibold)).foregroundColor(.white)
+            Text("What's ripe, in season and at its most nourishing where you live — coming soon.")
+                .font(.outermost(16)).foregroundColor(.white.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+                .grained()
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.white.opacity(0.05))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
     @ViewBuilder private var background: some View {
         if reduceTransparency {
             kind.base.ignoresSafeArea()
+        } else if reduceMotion {
+            tint(at: 0)
         } else {
-            ZStack {
-                kind.base.opacity(0.7)
-                RadialGradient(colors: [kind.color.opacity(0.32), .clear], center: .top, startRadius: 0, endRadius: 420)
+            // The group colour breathes slowly at the top of the sheet.
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                tint(at: context.date.timeIntervalSinceReferenceDate)
             }
-            .background(.ultraThinMaterial)
-            .environment(\.colorScheme, .dark)
-            .ignoresSafeArea()
         }
+    }
+
+    private func tint(at t: Double) -> some View {
+        func wave(_ period: Double, _ phase: Double = 0) -> Double { sin(t * 2 * .pi / period + phase) }
+        return ZStack {
+            kind.base.opacity(0.7)
+            RadialGradient(colors: [kind.color.opacity(0.32 + 0.05 * wave(9)), .clear],
+                           center: UnitPoint(x: 0.5 + 0.15 * wave(14), y: 0),
+                           startRadius: 0, endRadius: 420 + 40 * wave(11, 1))
+            RadialGradient(colors: [kind.color.opacity(0.12 + 0.04 * wave(8, 2)), .clear],
+                           center: UnitPoint(x: 0.5 + 0.3 * wave(17, 3), y: 1),
+                           startRadius: 0, endRadius: 360)
+            GrainLayer(opacity: 0.12, blend: .overlay)
+        }
+        .background(.ultraThinMaterial)
+        .environment(\.colorScheme, .dark)
+        .ignoresSafeArea()
     }
 
     private func counter(_ color: Color, _ n: Int, _ word: String) -> some View {
@@ -79,7 +123,7 @@ struct GroupDetailSheet: View {
                 Circle().fill(color).frame(width: 8, height: 8)
                 Text("\(n)").font(.display(22)).foregroundColor(.white)
             }
-            Text(word).font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase).foregroundColor(Mono.label)
+            Text(word).font(.outermost(13)).foregroundColor(Mono.label).grained()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -94,7 +138,8 @@ struct GroupDetailSheet: View {
                 Circle().fill(status.color).frame(width: 8, height: 8)
                 Text(n.name).font(.ui(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                 Text("\(NutrientRow.dec(n.current)) / \(NutrientRow.dec(n.goal)) \(n.unit)")
-                    .font(.mono(11)).foregroundColor(Mono.label).lineLimit(1).minimumScaleFactor(0.8)
+                    .font(.outermost(12)).foregroundColor(Mono.label).lineLimit(1).minimumScaleFactor(0.8)
+                    .grained()
                 Spacer(minLength: 6)
                 Text("\(Int(pct.rounded()))%").font(.display(15)).foregroundColor(.white).monospacedDigit()
             }
@@ -121,12 +166,12 @@ struct GroupDetailSheet: View {
 
 #if DEBUG
 #Preview("Sheet · Vitamins") {
-    Color.black.sheet(isPresented: .constant(true)) { GroupDetailSheet(summary: DataPreview.summaries[2]) }
+    Color.black.sheet(isPresented: .constant(true)) { GroupDetailSheet(summary: DataPreview.summaries[1]) }
         .preferredColorScheme(.dark)
 }
 
-#Preview("Sheet · Overall") {
-    Color.black.sheet(isPresented: .constant(true)) { GroupDetailSheet(summary: DataPreview.summaries[0]) }
+#Preview("Sheet · Seasonal") {
+    Color.black.sheet(isPresented: .constant(true)) { GroupDetailSheet(summary: DataPreview.summaries[3]) }
         .preferredColorScheme(.dark)
 }
 #endif

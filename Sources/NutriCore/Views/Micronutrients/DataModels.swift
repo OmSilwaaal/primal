@@ -28,43 +28,44 @@ enum NutrientStatus {
     }
 }
 
-/// The carousel's four cards, each with its own colour inside the Liquid Glass look.
+/// The wheel's four cards, each with its own colour inside the Liquid Glass look. Seasonal eating is a placeholder
+/// for now.
 enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
-    case overall, macros, vitamins, minerals
+    case macros, vitamins, minerals, seasonal
     var id: Self { self }
 
     var title: String {
         switch self {
-        case .overall: "Overall"
         case .macros: "Macros"
         case .vitamins: "Vitamins"
         case .minerals: "Minerals"
+        case .seasonal: "Seasonal"
         }
     }
 
     /// The group's colour: sand, Moss, lime-green, Ember.
     var color: Color {
         switch self {
-        case .overall: .ncOrange               // sand #D2B98A
         case .macros: .ncMoss                  // #A2CD8B
         case .vitamins: Color(hex: "#BEDD7A")
         case .minerals: .ncEmber               // #F37E61
+        case .seasonal: .ncOrange              // sand #D2B98A
         }
     }
 
     /// The dark base under the colour.
     var base: Color {
         switch self {
-        case .overall: Color(hex: "#17120C")
         case .macros: Color(hex: "#0D1710")
         case .vitamins: Color(hex: "#111808")
         case .minerals: Color(hex: "#1D0E0A")
+        case .seasonal: Color(hex: "#17120C")
         }
     }
 
     var group: NutrientGroup? {
         switch self {
-        case .overall: nil
+        case .seasonal: nil
         case .macros: .macros
         case .vitamins: .vitamins
         case .minerals: .minerals
@@ -72,7 +73,7 @@ enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// One pill on a card: a nutrient's short name (or, on Overall, a group and its score); low ones are Ember.
+/// One pill on a card: a nutrient's short name (or, on Seasonal, the season); low ones are Ember.
 struct PillModel: Identifiable, Hashable {
     let id: String
     let text: String
@@ -84,10 +85,13 @@ struct DataGroupSummary: Identifiable, Hashable {
     let kind: DataGroupKind
     /// 0–100, the repo's scoring: the average share of each item's target met, each capped at 100%.
     let score: Int
-    /// The nutrients behind it (all of them for Overall).
+    /// The nutrients behind it (none yet for Seasonal).
     let items: [NutrientInfo]
     let pills: [PillModel]
     var id: DataGroupKind { kind }
+
+    /// Seasonal eating has no data yet.
+    var isComingSoon: Bool { kind == .seasonal }
 
     var met: Int { items.filter(\.isMet).count }
     var low: Int { items.filter(\.isDeficient).count }
@@ -101,19 +105,17 @@ struct DataGroupSummary: Identifiable, Hashable {
         return Int((list.map(\.progress).reduce(0, +) / Double(list.count) * 100).rounded())
     }
 
-    /// The four summaries, Overall first.
-    static func make(from nutrients: [NutrientInfo]) -> [DataGroupSummary] {
+    /// Macros, Vitamins, Minerals, then Seasonal eating (coming soon: this season's name as its only pill).
+    static func make(from nutrients: [NutrientInfo], season: String = Season(date: .now, latitude: nil).name) -> [DataGroupSummary] {
         let groups: [DataGroupSummary] = [DataGroupKind.macros, .vitamins, .minerals].map { kind in
             let items = nutrients.filter { $0.group == kind.group }
             return DataGroupSummary(kind: kind, score: score(items), items: items,
                                     pills: items.map { PillModel(id: $0.id, text: $0.short, isLow: $0.isDeficient) })
         }
-        // Overall's pills are the groups; the one with the most low items is Ember.
-        let mostLow = groups.max { $0.low < $1.low }.flatMap { $0.low > 0 ? $0.kind : nil }
-        let overall = DataGroupSummary(kind: .overall, score: score(nutrients), items: nutrients,
-                                       pills: groups.map { PillModel(id: $0.kind.rawValue, text: "\($0.kind.title) \($0.score)",
-                                                                     isLow: $0.kind == mostLow) })
-        return [overall] + groups
+        let seasonal = DataGroupSummary(kind: .seasonal, score: 0, items: [],
+                                        pills: [PillModel(id: "season", text: season, isLow: false),
+                                                PillModel(id: "soon", text: "Coming soon", isLow: false)])
+        return groups + [seasonal]
     }
 }
 
@@ -181,6 +183,67 @@ struct StreakSummary {
             day = prev
         }
         return StreakSummary(days: n, week: week)
+    }
+}
+
+// MARK: - Type and texture
+
+extension Font {
+    /// "The Outermost House" for the Data screen's quiet secondary text (captions, labels, amounts) once its font
+    /// file is bundled (it isn't yet); until then a refined serif.
+    static func outermost(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        for name in ["TheOutermostHouse-Regular", "TheOutermostHouse", "The Outermost House", "OutermostHouse-Regular"]
+        where UIFont(name: name, size: size) != nil {
+            return .custom(name, size: size, relativeTo: .footnote)
+        }
+        return .system(size: size, weight: weight, design: .serif)
+    }
+}
+
+/// A fine film grain: one 192 pt tile of soft monochrome noise, made once and tiled.
+enum Grain {
+    static let tile: UIImage = {
+        let side = 192
+        var bytes = [UInt8](repeating: 0, count: side * side * 4)
+        var seed: UInt64 = 0x9E3779B97F4A7C15
+        for i in 0..<(side * side) {
+            // xorshift: repeatable, so the grain never shimmers between redraws.
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
+            let v = UInt8(110 + Int(seed % 146))   // mid-grey to white: grain, not specks
+            bytes[i * 4] = v; bytes[i * 4 + 1] = v; bytes[i * 4 + 2] = v; bytes[i * 4 + 3] = 255
+        }
+        let ctx = CGContext(data: &bytes, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        return ctx?.makeImage().map { UIImage(cgImage: $0, scale: 2, orientation: .up) } ?? UIImage()
+    }()
+}
+
+/// The grain as a view, for overlays.
+struct GrainLayer: View {
+    var opacity: Double = 0.1
+    var blend: BlendMode = .overlay
+    var body: some View {
+        Image(uiImage: Grain.tile).resizable(resizingMode: .tile)
+            .blendMode(blend).opacity(opacity)
+            .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+extension View {
+    /// A slight grain inside text (or any shape): fine speckle that reads like ink on paper, kept to the glyphs.
+    /// Off under Reduce Transparency.
+    func grained(_ amount: Double = 0.35) -> some View { modifier(GrainedText(amount: amount)) }
+}
+
+private struct GrainedText: ViewModifier {
+    let amount: Double
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content
+        } else {
+            content.overlay { GrainLayer(opacity: amount, blend: .multiply).mask(content) }
+        }
     }
 }
 
@@ -254,7 +317,7 @@ enum VitalisPreviewData {
 }
 
 
-/// Synthetic summaries matching the design (Overall 82, Macros 77, Vitamins 80, Minerals 68; Vitamin D 34%,
+/// Synthetic summaries matching the design (Macros 77, Vitamins 80, Minerals 68; Vitamin D 34%,
 /// Copper 44% and Magnesium 48% low; a 5-of-7 streak), for the card and sheet previews.
 enum DataPreview {
     private static func item(_ id: String, _ name: String, _ unit: String, _ group: NutrientGroup, _ pct: Double,
@@ -283,11 +346,7 @@ enum DataPreview {
         item("mn", "Manganese", "mg", .minerals, 68, goal: 2.3),
     ]
 
-    static var summaries: [DataGroupSummary] {
-        let built = DataGroupSummary.make(from: macros + vitamins + minerals)
-        // The design's overall score (the repo's own scoring gives a little less for these items).
-        return [DataGroupSummary(kind: .overall, score: 82, items: built[0].items, pills: built[0].pills)] + built.dropFirst()
-    }
+    static var summaries: [DataGroupSummary] { DataGroupSummary.make(from: macros + vitamins + minerals, season: "Fall") }
 
     static let streak = StreakSummary(days: 5, week: [false, false, true, true, true, true, true])
 }

@@ -364,17 +364,18 @@ struct VitalisCard: View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         GeometryReader { geo in
             ZStack {
-                // A card is under 1 mm thick: the faintest edge on the side turning away.
-                shape.fill(Color.white.opacity(0.3))
+                // A card is under 1 mm thick: just a hairline edge on the side turning away (an outline, not a fill,
+                // so nothing behind the glass is covered).
+                shape.stroke(Color.white.opacity(0.35), lineWidth: 1)
                     .offset(x: -roll * 1.4, y: -pitch * 1.1)
-                    .opacity(reduceTransparency ? 0 : 0.6)
+                    .opacity(reduceTransparency ? 0 : 1)
 
                 if reduceTransparency {
                     shape.fill(Color(hex: "#2A2C2A"))
                 } else {
                     // Clear frosted glass: very light blur, a touch of white like the Apple Card's titanium white.
-                    shape.fill(.ultraThinMaterial).opacity(0.14).environment(\.colorScheme, .light)
-                    shape.fill(LinearGradient(colors: [.white.opacity(0.09), .white.opacity(0.02)],
+                    shape.fill(.ultraThinMaterial).opacity(0.07).environment(\.colorScheme, .light)
+                    shape.fill(LinearGradient(colors: [.white.opacity(0.06), .white.opacity(0.0)],
                                               startPoint: .topLeading, endPoint: .bottomTrailing))
                     // Light passing through: a soft warm-to-cool refraction that slides as the card turns.
                     ZStack {

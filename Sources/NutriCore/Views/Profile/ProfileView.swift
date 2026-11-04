@@ -361,8 +361,8 @@ struct ProfileView: View {
                     HStack(spacing: 10) {
                         Text("Ask").font(.ui(size: 13, weight: .semibold)).foregroundColor(.white)
                             .padding(.horizontal, 12).frame(minHeight: 32)
-                            .vitalisGlass(Capsule())
-                        Text("What has the most iron?").font(.ui(size: 15)).foregroundColor(.white.opacity(0.7))
+                            .background(Capsule().fill(Color.white.opacity(0.12)))
+                        Text("What has the most iron?").font(.ui(size: 15)).foregroundColor(.white.opacity(0.78))
                             .lineLimit(1).minimumScaleFactor(0.85)
                         Spacer(minLength: 0)
                     }
@@ -376,7 +376,7 @@ struct ProfileView: View {
                 Button { showScan = true } label: {
                     Image(systemName: "viewfinder").font(.ui(size: 17, weight: .semibold)).foregroundColor(.white)
                         .frame(width: 44, height: 44)
-                        .vitalisGlass(Circle(), interactive: true)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -384,7 +384,7 @@ struct ProfileView: View {
             }
             .padding(.leading, 8).padding(.trailing, 7)
             .frame(minHeight: 58)
-            .vitalisGlass(Capsule(), interactive: true)
+            .vitalisGlass(Capsule(), interactive: true, dark: true)
         }
     }
 
@@ -563,6 +563,8 @@ private struct VitalisGlass<S: Shape>: ViewModifier {
     var tint: Color?
     var interactive = false
     var holder = false
+    /// Dark, unlit glass for controls that need contrast (the ask bar): an ink tint and no moving light.
+    var dark = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
@@ -575,6 +577,16 @@ private struct VitalisGlass<S: Shape>: ViewModifier {
             content
                 .background(shape.fill(Color.white.opacity(0.03)))
                 .overlay(shape.stroke(Color.white.opacity(0.16), lineWidth: 1))
+        } else if dark {
+            if #available(iOS 26.0, *) {
+                content.glassEffect(.regular.tint(Color.black.opacity(0.55)).interactive(interactive), in: shape)
+            } else {
+                content
+                    .background(shape.fill(Color.black.opacity(0.5)))
+                    .background(shape.fill(.ultraThinMaterial))
+                    .overlay(shape.stroke(Color.white.opacity(0.12), lineWidth: 1))
+                    .environment(\.colorScheme, .dark)
+            }
         } else if #available(iOS 26.0, *) {
             // The moving light caught inside the glass, behind the content.
             content.glassSheen(in: shape, strength: 0.9).glassEffect(glass, in: shape)
@@ -597,8 +609,9 @@ private struct VitalisGlass<S: Shape>: ViewModifier {
 }
 
 private extension View {
-    func vitalisGlass<S: Shape>(_ shape: S, tint: Color? = nil, interactive: Bool = false, holder: Bool = false) -> some View {
-        modifier(VitalisGlass(shape: shape, tint: tint, interactive: interactive, holder: holder))
+    func vitalisGlass<S: Shape>(_ shape: S, tint: Color? = nil, interactive: Bool = false, holder: Bool = false,
+                                dark: Bool = false) -> some View {
+        modifier(VitalisGlass(shape: shape, tint: tint, interactive: interactive, holder: holder, dark: dark))
     }
 
     /// Lets a glass shape morph as it changes (iOS 26), unless Reduce Motion is on.

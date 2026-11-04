@@ -194,6 +194,8 @@ struct ProfileView: View {
             .padding(10)
             .vitalisGlass(RoundedRectangle(cornerRadius: 38, style: .continuous), holder: true)
         }
+        // No moving light on these tiles: they stay calm and static while the cluster tilts.
+        .environment(\.vitalisUnlit, true)
         // Turns in 3D with the phone, like the Vitalis card (gentler, being bigger).
         .tiltsWithPhone(roll: 9, pitch: 7)
     }
@@ -526,6 +528,11 @@ struct ProfileView: View {
 
 // MARK: - Liquid Glass
 
+extension EnvironmentValues {
+    /// Turns off the moving light on Vitalis glass inside (the Profile bento keeps still glass).
+    @Entry var vitalisUnlit = false
+}
+
 extension Color {
     static let vitalisLime = Color(hex: "#D7F25A")
 }
@@ -569,6 +576,7 @@ private struct VitalisGlass<S: Shape>: ViewModifier {
     var dark = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.vitalisUnlit) private var unlit
 
     func body(content: Content) -> some View {
         if reduceTransparency || contrast == .increased {
@@ -590,11 +598,11 @@ private struct VitalisGlass<S: Shape>: ViewModifier {
                     .environment(\.colorScheme, .dark)
             }
         } else if #available(iOS 26.0, *) {
-            // The moving light caught inside the glass, behind the content.
-            content.glassSheen(in: shape, strength: 0.9).glassEffect(glass, in: shape)
+            // The moving light caught inside the glass, behind the content (none where unlit).
+            content.glassSheen(in: shape, strength: unlit ? 0 : 0.9).glassEffect(glass, in: shape)
         } else {
             content
-                .glassSheen(in: shape, strength: 0.9)
+                .glassSheen(in: shape, strength: unlit ? 0 : 0.9)
                 .background(shape.fill(.ultraThinMaterial))
                 .background(shape.fill((tint ?? .clear).opacity(0.25)))
                 .overlay(shape.stroke(LinearGradient(colors: [.white.opacity(0.35), .white.opacity(0.08)],

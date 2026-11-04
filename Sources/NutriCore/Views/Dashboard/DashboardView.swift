@@ -21,6 +21,9 @@ struct DashboardView: View {
     @State private var pushed: SecondaryScreen?
     @State private var showWater = false
     @State private var showSun = false
+    /// Bumped after adding water / time outside, to play the tile's drawing animation.
+    @State private var waterRipple = 0
+    @State private var sunSpin = 0
     @State private var showWeather = false
     /// One coarse fix for the weather, only once location is allowed (asked from the weather button).
     @StateObject private var weatherLocation = LocationManager(continuous: false)
@@ -108,7 +111,7 @@ struct DashboardView: View {
                             BentoTile(title: "Water", value: String(format: "%.1f", (drinksMl + foodWaterMl) / 1000),
                                       detail: "of \(String(format: "%.1f", WaterSheet.goalMl / 1000)) L",
                                       progress: (drinksMl + foodWaterMl) / WaterSheet.goalMl, symbol: "drop",
-                                      art: .water, artPlacement: .band)
+                                      art: .water, artPlacement: .band, artTrigger: waterRipple)
                                 // The add cue, top right; the whole tile is the button.
                                 .overlay(alignment: .topTrailing) {
                                     if isToday {
@@ -127,7 +130,7 @@ struct DashboardView: View {
                     } right: {
                         Button { showSun = true } label: {
                             BentoTile(title: "Sun", value: "\(Int(daySunMinutes))", detail: "of \(sunGoal) min",
-                                      progress: sunGoal > 0 ? daySunMinutes / Double(sunGoal) : 0, symbol: "sun.max", art: .sun)
+                                      progress: sunGoal > 0 ? daySunMinutes / Double(sunGoal) : 0, symbol: "sun.max", art: .sun, artTrigger: sunSpin)
                                 // The add cue, top right; the whole tile is the button.
                                 .overlay(alignment: .topTrailing) {
                                     if isToday {
@@ -170,6 +173,7 @@ struct DashboardView: View {
                     withAnimation(.smooth(duration: 0.45)) { hydration.waterOunces += ounces }
                     try? modelContext.save()
                     healthManager.saveDietaryWater(ounces: ounces)
+                    waterRipple += 1
                     Haptics.success()
                     ToastCenter.shared.show("Added \(Int(ml)) ml water", branded: true)
                 }
@@ -182,6 +186,7 @@ struct DashboardView: View {
                     session.source = "manual"
                     withAnimation(.smooth(duration: 0.45)) { modelContext.insert(session) }
                     try? modelContext.save()
+                    sunSpin += 1
                     Haptics.success()
                     ToastCenter.shared.show("Added \(Int(minutes)) min outside", branded: true)
                 }

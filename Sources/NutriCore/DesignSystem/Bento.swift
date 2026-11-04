@@ -62,21 +62,23 @@ extension Font {
 extension View {
     /// A bento tile: content padded inside see-through glass with 28 pt corners, so the photo shows through, and the
     /// moving light (coloured from the photo) on its rim. Solid under Reduce Transparency / Increase Contrast.
-    func bentoTile(padding: CGFloat = 16, art: LineArt? = nil, artPlacement: LineArt.Placement = .corner) -> some View {
+    func bentoTile(padding: CGFloat = 16, art: LineArt? = nil, artPlacement: LineArt.Placement = .corner,
+                   artTrigger: Int = 0) -> some View {
         self
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
-            .lineArt(art, placement: artPlacement)
+            .lineArt(art, placement: artPlacement, trigger: artTrigger)
             .liquidGlassPanel(in: Bento.shape)
     }
 
     /// Faint line art inside a tile, behind its content, anchored to an edge and cropped by the tile's corners.
+    /// `trigger`: bump it to play the drawing's animation once (water ripples, the sun turns).
     @ViewBuilder func lineArt(_ art: LineArt?, placement: LineArt.Placement = .corner,
-                              radius: CGFloat = Bento.radius) -> some View {
+                              radius: CGFloat = Bento.radius, trigger: Int = 0) -> some View {
         if let art {
             self
                 .background(alignment: placement.alignment) {
-                    Image(art.rawValue).resizable().scaledToFit()
+                    AnimatedLineArt(art: art, trigger: trigger)
                         .frame(width: placement.size, height: placement.size)
                         .opacity(0.2)
                         .offset(placement.offset)
@@ -85,6 +87,83 @@ extension View {
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         } else {
             self
+        }
+    }
+}
+
+/// A line drawing that can play a short animation when `trigger` changes: the water's waves roll across and settle,
+/// the sun turns a little on its axis and springs back. Other drawings stay still. Nothing moves under Reduce Motion.
+private struct AnimatedLineArt: View {
+    let art: LineArt
+    let trigger: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    struct Ripple { var phase: Double = 0; var swell: Double = 1 }
+
+    var body: some View {
+        switch art {
+        case .water:
+            if reduceMotion {
+                WaveLines(phase: 0, swell: 1)
+            } else {
+                KeyframeAnimator(initialValue: Ripple(), trigger: trigger) { r in
+                    WaveLines(phase: r.phase, swell: r.swell)
+                } keyframes: { _ in
+                    // The waves roll one and a half wavelengths along, then come to rest where they started.
+                    KeyframeTrack(\.phase) {
+                        CubicKeyframe(.pi * 3, duration: 1.6)
+                        MoveKeyframe(0)
+                    }
+                    KeyframeTrack(\.swell) {
+                        CubicKeyframe(1.9, duration: 0.35)
+                        CubicKeyframe(1.3, duration: 0.6)
+                        SpringKeyframe(1, duration: 0.8, spring: Spring(response: 0.5, dampingRatio: 0.6))
+                    }
+                }
+            }
+        case .sun:
+            let image = Image(art.rawValue).resizable().scaledToFit()
+            if reduceMotion {
+                image
+            } else {
+                KeyframeAnimator(initialValue: 0.0, trigger: trigger) { angle in
+                    // Turns about the sun's centre (low in the drawing, on the horizon).
+                    image.rotationEffect(.degrees(angle), anchor: UnitPoint(x: 0.5, y: 0.75))
+                } keyframes: { _ in
+                    CubicKeyframe(32, duration: 0.55)
+                    SpringKeyframe(0, duration: 1.0, spring: Spring(response: 0.6, dampingRatio: 0.5))
+                }
+            }
+        default:
+            Image(art.rawValue).resizable().scaledToFit()
+        }
+    }
+}
+
+/// The water drawing in code, so its waves can move: three Paper lines at the same places as lines-water, each a
+/// sine wave about half the drawing wide. `phase` slides the waves along; `swell` scales their height.
+private struct WaveLines: View {
+    let phase: Double
+    let swell: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let s = min(size.width, size.height) / 160
+            let x0 = 8 * s, x1 = 152 * s
+            let amp = 7 * s * swell
+            let k = 2 * Double.pi / (80 * s)
+            for (i, y) in [56.0, 80.0, 104.0].enumerated() {
+                var path = Path()
+                var x = x0
+                while x <= x1 {
+                    // Each line a little behind the one above, so the swell rolls down through them.
+                    let yy = y * s - amp * sin(k * (x - x0) - phase - Double(i) * 0.6)
+                    if x == x0 { path.move(to: CGPoint(x: x, y: yy)) } else { path.addLine(to: CGPoint(x: x, y: yy)) }
+                    x += 2
+                }
+                ctx.stroke(path, with: .color(Color(hex: "#F2F1EC")),
+                           style: StrokeStyle(lineWidth: 1.5 * s, lineCap: .round, lineJoin: .round))
+            }
         }
     }
 }
@@ -177,6 +256,8 @@ struct BentoTile: View {
     var symbol: String? = nil
     var art: LineArt? = nil
     var artPlacement: LineArt.Placement = .corner
+    /// Bump to play the drawing's animation (e.g. after adding water or time outside).
+    var artTrigger: Int = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -201,7 +282,7 @@ struct BentoTile: View {
 
             BentoBar(value: progress)
         }
-        .bentoTile(art: art, artPlacement: artPlacement)
+        .bentoTile(art: art, artPlacement: artPlacement, artTrigger: artTrigger)
         .accessibilityElement(children: .combine)
         .accessibilityValue(status.map { $0.title } ?? "")
     }

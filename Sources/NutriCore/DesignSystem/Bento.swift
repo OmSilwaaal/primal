@@ -91,51 +91,57 @@ extension View {
     }
 }
 
-/// A line drawing that can play a short animation when `trigger` changes: the water's waves roll across and settle,
-/// the sun turns a little on its axis and springs back. Other drawings stay still. Nothing moves under Reduce Motion.
+/// A line drawing that moves gently on a loop — the water's waves roll along, the sun sways on its axis — driven
+/// frame by frame so it's perfectly smooth. Bumping `trigger` (after adding water or time outside) adds a boost on
+/// top that rises and fades smoothly over about two seconds: the waves swell and race, the sun turns further.
+/// Other drawings stay still, and nothing moves under Reduce Motion.
 private struct AnimatedLineArt: View {
     let art: LineArt
     let trigger: Int
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    struct Ripple { var phase: Double = 0; var swell: Double = 1 }
+    @State private var boostStart: Date?
+    private static let boostLength = 2.2
 
     var body: some View {
+        Group {
+            switch art {
+            case .water, .sun:
+                if reduceMotion {
+                    frame(at: .now, still: true)
+                } else {
+                    TimelineView(.animation(minimumInterval: 1.0 / 60)) { context in
+                        frame(at: context.date, still: false)
+                    }
+                }
+            default:
+                Image(art.rawValue).resizable().scaledToFit()
+            }
+        }
+        .onChange(of: trigger) { _, _ in boostStart = .now }
+    }
+
+    /// 0 → 1 → 0 over the boost, smooth at both ends (sin²), and how far through it is (eased).
+    private func boost(at date: Date) -> (bump: Double, progress: Double) {
+        guard let start = boostStart else { return (0, 0) }
+        let p = date.timeIntervalSince(start) / Self.boostLength
+        guard p > 0, p < 1 else { return (0, p >= 1 ? 1 : 0) }
+        let bump = pow(sin(.pi * p), 2)
+        let eased = p * p * (3 - 2 * p)
+        return (bump, eased)
+    }
+
+    @ViewBuilder private func frame(at date: Date, still: Bool) -> some View {
+        let t = still ? 0 : date.timeIntervalSinceReferenceDate
+        let b = still ? (bump: 0.0, progress: 0.0) : boost(at: date)
         switch art {
         case .water:
-            if reduceMotion {
-                WaveLines(phase: 0, swell: 1)
-            } else {
-                KeyframeAnimator(initialValue: Ripple(), trigger: trigger) { r in
-                    WaveLines(phase: r.phase, swell: r.swell)
-                } keyframes: { _ in
-                    // The waves roll one and a half wavelengths along, then come to rest where they started.
-                    KeyframeTrack(\.phase) {
-                        CubicKeyframe(.pi * 3, duration: 1.6)
-                        MoveKeyframe(0)
-                    }
-                    KeyframeTrack(\.swell) {
-                        CubicKeyframe(1.9, duration: 0.35)
-                        CubicKeyframe(1.3, duration: 0.6)
-                        SpringKeyframe(1, duration: 0.8, spring: Spring(response: 0.5, dampingRatio: 0.6))
-                    }
-                }
-            }
-        case .sun:
-            let image = Image(art.rawValue).resizable().scaledToFit()
-            if reduceMotion {
-                image
-            } else {
-                KeyframeAnimator(initialValue: 0.0, trigger: trigger) { angle in
-                    // Turns about the sun's centre (low in the drawing, on the horizon).
-                    image.rotationEffect(.degrees(angle), anchor: UnitPoint(x: 0.5, y: 0.75))
-                } keyframes: { _ in
-                    CubicKeyframe(32, duration: 0.55)
-                    SpringKeyframe(0, duration: 1.0, spring: Spring(response: 0.6, dampingRatio: 0.5))
-                }
-            }
+            // A slow roll (one wavelength every ~7 s), plus exactly two extra wavelengths during a boost — whole
+            // wavelengths, so the next boost can restart from zero without a visible jump.
+            WaveLines(phase: t * 0.9 + .pi * 4 * b.progress, swell: 1 + 0.9 * b.bump)
         default:
+            // A slow sway (±6° over ~6 s), plus a 30° turn there and back during a boost.
             Image(art.rawValue).resizable().scaledToFit()
+                .rotationEffect(.degrees(6 * sin(t * 2 * .pi / 6) + 30 * b.bump), anchor: UnitPoint(x: 0.5, y: 0.75))
         }
     }
 }

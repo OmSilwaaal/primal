@@ -37,10 +37,10 @@ struct SettingsView: View {
                     // ── Subscription ────────────────────────────────────────
                     SettingsSection(title: "Subscription") {
                         if subManager.isSubscribed {
-                            SettingsRow(icon: "checkmark.seal", title: "Vitalis Pro",
-                                        subtitle: "Active · change plan or cancel", showsChevron: true,
-                                        enabled: !subManager.isWorking) {
-                                showManageSubscriptions = true
+                            // Your card first; Manage subscription is on that page.
+                            SettingsRow(icon: "creditcard", title: "Vitalis Pro",
+                                        subtitle: "Active · your card and payment", showsChevron: true) {
+                                showPayment = true
                             }
                         } else {
                             // An explicit button + destination: the older NavigationLink(destination:) could fire on

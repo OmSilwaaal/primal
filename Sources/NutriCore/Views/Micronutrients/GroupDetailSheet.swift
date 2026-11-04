@@ -64,7 +64,7 @@ struct GroupDetailSheet: View {
             kind.base.ignoresSafeArea()
         } else {
             ZStack {
-                kind.base.opacity(0.85)
+                kind.base.opacity(0.7)
                 RadialGradient(colors: [kind.color.opacity(0.32), .clear], center: .top, startRadius: 0, endRadius: 420)
             }
             .background(.ultraThinMaterial)

@@ -68,7 +68,10 @@ struct CarouselCard: View {
             ZStack { kind.base; kind.color.opacity(0.22) }.clipShape(shape)
         } else {
             ZStack {
-                kind.base
+                // Tinted glass over the photo, like the app's other tiles: a light frost and the group's dark base
+                // at part strength, so the backdrop still shows through.
+                Rectangle().fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
+                kind.base.opacity(0.62)
                 // The colour pours from the top edge and is gone by about 80% of the height. Kept at half strength
                 // at the very top so white text there stays above 4.5:1, even on the lime and sand cards.
                 RadialGradient(colors: [kind.color.opacity(0.5), kind.color.opacity(0.18), .clear],

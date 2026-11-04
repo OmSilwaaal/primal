@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// The Data tab: a swipeable carousel of four group cards (Overall, Macros, Vitamins, Minerals) on a near-black dot
-/// grid with a soft Moss glow. One card sits centred with its neighbours peeking in, smaller; under it, the centred
+/// The Data tab: a swipeable carousel of four group cards (Overall, Macros, Vitamins, Minerals) on the app's shared
+/// photo backdrop. One card sits centred with its neighbours peeking in, smaller; under it, the centred
 /// group's Met / On track / Low counts and page dots; then the daily streak. Tapping a card zooms it into its
 /// detail sheet. Everything comes from today's logged meals, the profile's targets and the repo's scoring.
 struct MicronutrientsView: View {
@@ -46,12 +46,14 @@ private struct DataScreen: View {
             // 270 × 400 on a 390 pt screen, scaled to the phone.
             let cardWidth = min(270, geo.size.width * 0.69)
             let card = CGSize(width: cardWidth, height: cardWidth * 400 / 270)
+            // On the app's shared photo backdrop, like the other tabs.
             ZStack {
-                DataBackdrop()
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 18) {
-                        Text("Data").font(.display(22)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
+                        // The same title as Home's "Today" and the other tabs.
+                        Text("Data").font(.bentoTitle).foregroundColor(Mono.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, Bento.margin)
                             .accessibilityAddTraits(.isHeader)
                             .padding(.top, 8)
 
@@ -137,32 +139,6 @@ private struct DataScreen: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: centred)
-    }
-}
-
-/// Near-black with a faint 18 pt dot grid and a very soft Moss glow behind the cards.
-private struct DataBackdrop: View {
-    var body: some View {
-        ZStack {
-            Color(hex: "#08090A")
-            Canvas { ctx, size in
-                let step: CGFloat = 18
-                var y: CGFloat = step / 2
-                while y < size.height {
-                    var x: CGFloat = step / 2
-                    while x < size.width {
-                        ctx.fill(Path(ellipseIn: CGRect(x: x - 0.5, y: y - 0.5, width: 1, height: 1)),
-                                 with: .color(.white.opacity(0.1)))
-                        x += step
-                    }
-                    y += step
-                }
-            }
-            RadialGradient(colors: [Color.ncMoss.opacity(0.16), .clear], center: UnitPoint(x: 0.5, y: 0.34),
-                           startRadius: 0, endRadius: 320)
-        }
-        .ignoresSafeArea()
-        .accessibilityHidden(true)
     }
 }
 

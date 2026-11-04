@@ -243,7 +243,6 @@ struct ProfileView: View {
     private func details(_ profile: UserProfile) -> some View {
         let activity = Self.activities.first { $0.0 == profile.activityLevel }?.1 ?? profile.activityLevel
         let bmi = profile.heightCm > 0 ? profile.weightKg / pow(profile.heightCm / 100, 2) : 0
-        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         return VStack(spacing: 10) {
             pair {
                 statCapsule("Weight", NutrientRow.dec(profile.weightKg), "kg", glow: .vitalisLime) { sheet = .weight }

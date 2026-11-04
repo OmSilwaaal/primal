@@ -194,6 +194,8 @@ struct ProfileView: View {
             .padding(10)
             .vitalisGlass(RoundedRectangle(cornerRadius: 38, style: .continuous), holder: true)
         }
+        // Turns in 3D with the phone, like the Vitalis card (gentler, being bigger).
+        .tiltsWithPhone(roll: 9, pitch: 7)
     }
 
     /// A small tile's face: an icon over its name, centred, so no tile is ever blank.

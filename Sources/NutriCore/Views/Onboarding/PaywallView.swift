@@ -284,6 +284,42 @@ private final class CardTiltProxy {
     @objc func tick() { MainActor.assumeIsolated { tilt?.tick() } }
 }
 
+extension View {
+    /// Tilts this view in 3D with the phone, like the Vitalis card: eased Core Motion tilt plus a slow idle sway,
+    /// with a shadow that shifts against the turn. `roll` / `pitch` are the largest angles in degrees. Touch drives it
+    /// only where there's no motion sensor (the Simulator). Still under Reduce Motion.
+    func tiltsWithPhone(roll: Double, pitch: Double) -> some View {
+        modifier(PhoneTilt(maxRoll: roll, maxPitch: pitch))
+    }
+}
+
+private struct PhoneTilt: ViewModifier {
+    let maxRoll: Double
+    let maxPitch: Double
+    @StateObject private var tilt = CardTilt()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let r = reduceMotion ? 0 : tilt.roll, p = reduceMotion ? 0 : tilt.pitch
+        content
+            .background(GeometryReader { geo in
+                Color.clear.contentShape(Rectangle())
+                    .simultaneousGesture(DragGesture(minimumDistance: 0)
+                        .onChanged { v in
+                            guard tilt.followsTouch else { return }
+                            tilt.drag(to: CGPoint(x: v.location.x / max(1, geo.size.width),
+                                                  y: v.location.y / max(1, geo.size.height)))
+                        }
+                        .onEnded { _ in tilt.drag(to: nil) })
+            })
+            .shadow(color: .black.opacity(0.22), radius: 18, x: -r * 8, y: 10 + p * 5)
+            .rotation3DEffect(.degrees(p * -maxPitch), axis: (x: 1, y: 0, z: 0), perspective: 0.5)
+            .rotation3DEffect(.degrees(r * maxRoll), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
+            .onAppear { tilt.start() }
+            .onDisappear { tilt.stop() }
+    }
+}
+
 /// How a member pays. All of them go through the App Store (Apple's payment sheet confirms the purchase), so the
 /// choice here is shown on the card and named on the button; the charge goes to whatever the Apple Account uses.
 enum PaymentMethod: String, CaseIterable, Identifiable {

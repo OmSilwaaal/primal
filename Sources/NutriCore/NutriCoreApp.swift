@@ -6,19 +6,46 @@ import Supabase
 struct NutriCoreApp: App {
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .preferredColorScheme(.dark)
-                .onOpenURL { url in
-                    Task { try? await supabase.auth.session(from: url) }
-                }
+            #if DEBUG
+            // UI tests and screenshots: straight to the tabs on the sample store (`-uiTestTabs`, optionally
+            // `-uiTestTab data`). Compiled out of release builds.
+            if let tab = UITestLaunch.tab {
+                ContentView(initialTab: tab).modelContainer(VitalisPreviewData.container).preferredColorScheme(.dark)
+            } else {
+                root
+            }
+            #else
+            root
+            #endif
         }
         .modelContainer(for: [
             MealEntry.self, UserProfile.self, DailyHydration.self,
             SourceBatch.self, Supplier.self, BiomarkerReading.self,
-            OutcomeLog.self, SunSession.self,
+            OutcomeLog.self, SunSession.self, Goal.self,
         ])
     }
+
+    private var root: some View {
+        RootView()
+            .preferredColorScheme(.dark)
+            .onOpenURL { url in
+                Task { try? await supabase.auth.session(from: url) }
+            }
+    }
 }
+
+#if DEBUG
+enum UITestLaunch {
+    static var tab: AppTab? {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("-uiTestTabs") else { return nil }
+        if let i = args.firstIndex(of: "-uiTestTab"), i + 1 < args.count {
+            return ["home": .home, "map": .map, "scan": .scan, "data": .data, "profile": .profile][args[i + 1]] ?? .home
+        }
+        return .home
+    }
+}
+#endif
 
 // MARK: - Root routing view
 struct RootView: View {

@@ -74,24 +74,15 @@ final class MealEntry {
 
     init() {}
 
-    /// Entry from an AI estimate. Macros are for the whole estimated serving and are scaled to `servingSize`.
-    init(from ai: AIFoodResult, servingSize: Double) {
-        let base = ai.servingSize > 0 ? ai.servingSize : 100
-        let f = servingSize / base
-        self.foodName = ai.name
-        self.source = "AI estimate"
-        self.servingSize = servingSize
-        calories = ai.calories * f
-        protein = ai.protein * f
-        carbohydrates = ai.carbohydrates * f
-        totalFat = ai.totalFat * f
-    }
-
     // Convenience init from USDA search result
     init(from result: FoodSearchResult, servingSize: Double) {
         self.foodName = result.description.isEmpty ? "Food" : result.description
         self.fdcId = result.fdcId
-        self.source = result.dataType == "Open Food Facts" ? "Open Food Facts" : "USDA"
+        self.source = switch result.dataType {
+        case "Open Food Facts": "Open Food Facts"
+        case PhotoMeal.dataType: "Photo + USDA"
+        default: "USDA"
+        }
         self.servingSize = servingSize
         let f = servingSize / 100.0  // scale factor (USDA values are per 100g)
 

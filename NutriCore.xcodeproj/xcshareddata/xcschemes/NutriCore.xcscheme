@@ -50,6 +50,17 @@
                ReferencedContainer = "container:NutriCore.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "3B274F6888B8ACE1A92B7F5F"
+               BuildableName = "NutriCoreUITests.xctest"
+               BlueprintName = "NutriCoreUITests"
+               ReferencedContainer = "container:NutriCore.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

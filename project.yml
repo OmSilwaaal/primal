@@ -70,6 +70,7 @@ targets:
       storeKitConfiguration: Vitalis.storekit
       testTargets:
         - NutriCoreTests
+        - NutriCoreUITests
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal
@@ -97,6 +98,24 @@ targets:
         DEVELOPMENT_TEAM: H5KUB3S9FY
         SWIFT_VERSION: "5.9"
         CODE_SIGN_STYLE: Automatic
+
+  # UI tests on the running app (page swiping). They launch with -uiTestTabs, a DEBUG-only shortcut to the tabs.
+  NutriCoreUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/NutriCoreUITests
+    dependencies:
+      - target: NutriCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal.uitests
+        DEVELOPMENT_TEAM: H5KUB3S9FY
+        SWIFT_VERSION: "5.9"
+        CODE_SIGN_STYLE: Automatic
+        TEST_TARGET_NAME: NutriCore
 
   # Home Screen and Lock Screen widgets. They read WidgetSnapshot from the App Group, never the app's database.
   VitalisWidgets:

@@ -62,8 +62,16 @@ struct FoodSearchResult: Decodable, Identifiable {
         return 0
     }
 
-    /// kcal per 100 g: Energy (1008), else Atwater general (2047), else Atwater specific (2048).
-    var energyKcal: Double { nutrient(firstOf: [1008, 2047, 2048]) }
+    /// kcal per 100 g: Energy (1008), else Atwater general (2047), else Atwater specific (2048), else worked out
+    /// from the macros (4 / 4 / 9 kcal per g) — a few USDA records (e.g. "Butter, stick, salted") list none at all.
+    var energyKcal: Double {
+        let listed = nutrient(firstOf: [1008, 2047, 2048])
+        if listed > 0 { return listed }
+        return 4 * nutrient(1003) + 4 * nutrient(1005) + 9 * nutrient(1004)
+    }
+
+    /// How many nutrients the record carries: SR Legacy foods list ~100, newer Foundation ones often ~20.
+    var nutrientCount: Int { foodNutrients.filter { $0.value > 0 }.count }
 
     var caloriesPer100g: Double { energyKcal }
     var proteinPer100g: Double  { nutrient(1003) }
@@ -84,7 +92,10 @@ struct FoodSearchResult: Decodable, Identifiable {
 
     /// Sensible starting portion: the label serving for branded foods, otherwise 100 g.
     var defaultServingGrams: Double {
-        if let size = servingSize, size > 0, servingSizeUnit?.lowercased() == "g" { return size.rounded() }
+        // USDA Branded writes grams as "g" or "GRM"; Open Food Facts as "g".
+        if let size = servingSize, size > 0, ["g", "grm", "gram", "grams"].contains(servingSizeUnit?.lowercased() ?? "") {
+            return size.rounded()
+        }
         return 100
     }
 }

@@ -14,13 +14,16 @@ Checked live against the real services, plus a read of every service and 16 new 
 |---|---|---|
 | USDA food search | ✅ Works | Live search returns results (e.g. 1,161 hits for "beef liver") |
 | Barcode (Open Food Facts) | ✅ Works | Live lookup returns the product |
+| Barcode → USDA Branded | ✅ Fixed | The camera reads US UPC-A as a 13-digit EAN; USDA only matches its stored 12/13/14-digit form, so USDA never matched and everything fell back to Open Food Facts. Now tries every form and expands UPC-E |
+| Barcode nutrients | ✅ Fixed | Open Food Facts gave kcal, macros and 6 minerals only. Now every vitamin and mineral it lists, converted from grams (vitamin A 6e-05 g → 60 mcg); USDA "GRM" servings read as grams |
+| Photo scan accuracy | ✅ Rebuilt (needs key) | The model now lists each food with its weight and a USDA-style name; each is matched to USDA for its full profile (name, food type and kcal must agree, else the model's macros). Live check: a raw plate (ribeye, liver, yolks, oysters, butter, blueberries) gives 957 kcal vs the model's 959, with B12 49 mcg, vitamin A 3,274 mcg, zinc 25.5 mg. Still needs the Gemini key (0.1) |
+| Page swiping | ✅ Added | Swipe in from either screen edge to change page; off while a screen is pushed. UI tests: `NutriCoreUITests` |
 | Food → meal nutrients | ✅ Fixed | Foundation raw beef cuts logged **0 kcal** (no 1008 Energy; they use 2047/2048). Now falls back. Folate now prefers DFE (1190) |
 | Core maths | ✅ Tested | Targets (Mifflin–St Jeor), per-100 g scaling, scores, on-target range, streak, 7-day averages, seasons, water from food |
 | Apple Health | ✅ Fixed | Deleting a meal left its kcal/protein in Health (double counting). Samples are now tagged with the meal and removed with it |
 | Subscriptions (StoreKit 2) | ✅ Code sound | Verified transactions, `Transaction.updates`, refresh on launch. Products still need creating in App Store Connect |
 | **Supabase** (sign-in, delete account, Friends) | ❌ **Down** | `ggxpqswpambvbnliopfv.supabase.co` doesn't resolve (NXDOMAIN on 1.1.1.1 and 8.8.8.8): the project is deleted or gone. Email / Google sign-in and Delete account cannot work. Guest mode works |
 | **Sign in with Apple** | ❌ Off | Entitlement and button commented out ("TEMP", personal-device signing) while Google sign-in is offered: App Review guideline 4.8 rejects that |
-| Photo scan (Gemini) | ❌ Off | No key; shows "Add your Gemini API key". Should go through a server function (0.1) |
 | Friends meal upload | ✅ Fixed | Signed-in users' meals were uploaded to `shared_meals` for a hidden feature with no way to turn it off. Off while Friends is hidden (`SocialService.isEnabled`) |
 | Delete account | ⚠️ | Edge function is correct, but local SwiftData data stays on the phone afterwards (0.4) |
 | **Diet fit** | ⚠️ | Targets are generic: protein 15%, carbs 50%, fat 30%, fibre 25–38 g. A raw animal-based day always reads "Low" on carbs and fibre. Next: diet-aware targets (personalisation) |

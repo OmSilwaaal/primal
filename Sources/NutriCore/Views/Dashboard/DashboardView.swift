@@ -241,6 +241,7 @@ struct DashboardView: View {
                 }
             }
         }
+        .preference(key: ShowsPushedScreenKey.self, value: pushed != nil)
     }
 
     /// Today's numbers for the widgets, whatever day Home is showing.

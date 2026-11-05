@@ -115,9 +115,36 @@ final class CoreLogicTests: XCTestCase {
         let summaries = DataGroupSummary.make(from: all, season: "Fall")
         XCTAssertEqual(summaries.map(\.kind), [.macros, .vitamins, .minerals, .raw, .seasonal])
         XCTAssertEqual(summaries[3].items.map(\.id), ["raw", "org", "chol", "o3", "k2", "iod"])
-        XCTAssertTrue(summaries[4].isComingSoon)
-        XCTAssertEqual(summaries[4].pills.map(\.text), ["Fall"])
+        XCTAssertTrue(summaries[4].isSeasonal)
+        XCTAssertEqual(summaries[4].seasonName, "Fall")
         XCTAssertEqual(Set(DataGroupKind.allCases.map(\.scene)).count, 5, "every card has its own scene")
+    }
+
+    // MARK: Seasonal
+
+    func testEverySeasonHasFoodsAndHemispheresFlip() {
+        for kind in [Season.Kind.spring, .summer, .autumn, .winter] {
+            XCTAssertEqual(SeasonalGuide.foods(for: kind).count, 6)
+        }
+        let july = Calendar.current.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+        XCTAssertEqual(SeasonalGuide.foods(for: Season(date: july, latitude: -33).kind).first?.id, "shellfish")
+    }
+
+    func testSeasonalPicksMatchRecentLogsByWord() {
+        let oysters = MealEntry(); oysters.foodName = "Mollusks, oyster, Pacific, raw"; oysters.date = .now
+        let oldLiver = MealEntry(); oldLiver.foodName = "Beef, liver, raw"
+        oldLiver.date = Calendar.current.date(byAdding: .day, value: -30, to: .now)!
+        let eggplant = MealEntry(); eggplant.foodName = "Eggplant, raw"; eggplant.date = .now
+        let autumn = Season(date: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 1))!, latitude: 40)
+        let picks = SeasonalGuide.picks(for: autumn, meals: [oysters, oldLiver, eggplant])
+        XCTAssertTrue(picks.first { $0.id == "oysters" }!.eaten)
+        XCTAssertFalse(picks.first { $0.id == "organs" }!.eaten, "older than 14 days")
+        let spring = Season(date: Calendar.current.date(from: DateComponents(year: 2026, month: 4, day: 1))!, latitude: 40)
+        XCTAssertFalse(SeasonalGuide.picks(for: spring, meals: [eggplant]).first { $0.id == "eggs" }!.eaten,
+                       "eggplant is not eggs")
+        let summaries = DataGroupSummary.make(from: [], season: "Fall", seasonal: picks)
+        XCTAssertEqual(summaries.last?.seasonalEaten, 1)
+        XCTAssertEqual(summaries.last?.score, 17)   // 1 of 6
     }
 
     // MARK: Raw card

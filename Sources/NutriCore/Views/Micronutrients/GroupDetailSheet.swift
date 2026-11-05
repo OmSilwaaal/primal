@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A group in full, as a large frosted-glass sheet: "Today · N items", the name, the dot-matrix
 /// score and a close button; Met / On track / Low counters; then every item, lowest percent first so what needs
-/// attention leads, the lowest row tinted Ember. Seasonal shows a placeholder until its guides arrive.
+/// attention leads, the lowest row tinted Ember. Seasonal lists the season's foods instead.
 struct GroupDetailSheet: View {
     let summary: DataGroupSummary
     @Environment(\.dismiss) private var dismiss
@@ -14,12 +14,20 @@ struct GroupDetailSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(summary.isComingSoon ? "This season · \(summary.pills.first?.text ?? "")"
-                                              : "Today · \(summary.items.count) items")
+                    Text(summary.isSeasonal ? "In season · \(summary.seasonName)"
+                                            : "Today · \(summary.items.count) items")
                         .font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(Mono.label)
                     Text(kind.title).font(.ui(size: 28, weight: .bold)).foregroundColor(.white)
                         .accessibilityAddTraits(.isHeader)
-                    if !summary.isComingSoon {
+                    if summary.isSeasonal {
+                        HStack(alignment: .lastTextBaseline, spacing: 6) {
+                            DotMatrixText(text: "\(summary.seasonalEaten)", pitch: 3)
+                            Text("/ \(summary.seasonal.count) eaten in \(SeasonalGuide.window) days")
+                                .font(.mono(11, .semibold)).foregroundColor(.white.opacity(0.8))
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(summary.seasonalEaten) of \(summary.seasonal.count) eaten in the last \(SeasonalGuide.window) days")
+                    } else {
                         HStack(alignment: .lastTextBaseline, spacing: 6) {
                             DotMatrixText(text: "\(summary.score)", pitch: 3)
                             Text("/ 100").font(.mono(11, .semibold)).foregroundColor(.white.opacity(0.8))
@@ -39,8 +47,8 @@ struct GroupDetailSheet: View {
                 .accessibilityLabel("Close")
             }
 
-            if summary.isComingSoon {
-                comingSoon
+            if summary.isSeasonal {
+                seasonalFoods
             } else {
                 HStack(spacing: 0) {
                     counter(.ncMoss, summary.met, "Met")
@@ -69,23 +77,38 @@ struct GroupDetailSheet: View {
         .presentationCornerRadius(Bento.radius)
     }
 
-    /// Placeholder for the Seasonal group until its guides ship.
-    private var comingSoon: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Eating with the seasons").font(.ui(size: 17, weight: .semibold)).foregroundColor(.white)
-            Text("What's ripe, in season and at its most nourishing where you live — coming soon.")
-                .font(.bentoBody).foregroundColor(Mono.label)
-                .fixedSize(horizontal: false, vertical: true)
+    /// The season's foods in full: why now, what each is richest in, and whether you've had it lately — the ones
+    /// still to try first.
+    private var seasonalFoods: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(summary.seasonal.sorted { !$0.eaten && $1.eaten }) { pick in
+                    let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            Text(pick.food.name).font(.ui(size: 16, weight: .semibold)).foregroundColor(.white)
+                            Spacer(minLength: 6)
+                            Text(pick.eaten ? "Had it" : "Not yet")
+                                .font(.mono(11, .semibold)).tracking(0.66).textCase(.uppercase)
+                                .foregroundColor(pick.eaten ? .vitalisLime : Mono.label)
+                        }
+                        Text(pick.food.why).font(.ui(size: 14)).foregroundColor(.white.opacity(0.8))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(pick.food.nutrients.joined(separator: " · "))
+                            .font(.mono(11, .semibold)).tracking(0.5).textCase(.uppercase).foregroundColor(Mono.label)
+                    }
+                    .padding(14)
+                    .background { shape.fill(Color.white.opacity(pick.eaten ? 0.08 : 0.04)) }
+                    .overlay { shape.strokeBorder(pick.eaten ? Color.vitalisLime.opacity(0.45) : Color.white.opacity(0.08), lineWidth: 1) }
+                    .accessibilityElement(children: .combine)
+                }
+                Text("General guidance for a temperate climate, following your hemisphere when location is on. \"Had it\" means a food with that name was logged in the last \(SeasonalGuide.window) days.")
+                    .font(.ui(size: 12)).foregroundColor(Mono.label)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+            }
+            .padding(.bottom, 30)
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.white.opacity(0.05))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private func counter(_ color: Color, _ n: Int, _ word: String) -> some View {

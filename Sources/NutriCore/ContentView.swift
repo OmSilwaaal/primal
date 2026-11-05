@@ -48,6 +48,8 @@ struct ContentView: View {
     @State private var childHidesTabBar = false
     /// The kept-alive tabs opened so far.
     @State private var visited: Set<AppTab> = []
+    /// A screen is pushed on Home's or Profile's stack (Settings, Goals): page swiping steps aside for its back-swipe.
+    @State private var showsPushedScreen = false
 
     init(initialTab: AppTab = .home) { _tab = State(initialValue: initialTab) }
 
@@ -74,6 +76,13 @@ struct ContentView: View {
                 if tab == .scan { CameraView(onClose: { select(.home) }).transition(.opacity) }
             }
             .ignoresSafeArea(edges: .bottom)
+            // Swipe in from either edge to move to the next or previous page, like turning pages. Only the edges, so
+            // it never fights the Data wheel, Home's date wheel or the map, which all swipe sideways themselves.
+            .overlay {
+                if !childHidesTabBar && !showsPushedScreen {
+                    PageSwipeEdges { step($0) }
+                }
+            }
 
             if !childHidesTabBar {
                 VitalisTabBar(selected: tab) { select($0) }
@@ -86,6 +95,7 @@ struct ContentView: View {
         .onPreferenceChange(HidesTabBarKey.self) { hidden in
             withAnimation(.easeOut(duration: 0.2)) { childHidesTabBar = hidden }
         }
+        .onPreferenceChange(ShowsPushedScreenKey.self) { showsPushedScreen = $0 }
         // A standard sheet: swipe down to dismiss, like any iOS search or compose screen.
         .sheet(isPresented: $showSearch) {
             SearchView(onClose: { showSearch = false })
@@ -108,6 +118,13 @@ struct ContentView: View {
         }
     }
 
+    /// The page `by` steps along the tab bar's order (Home, Map, Scan, Data, Profile), stopping at the ends.
+    private func step(_ by: Int) {
+        let order: [AppTab] = [.home, .map, .scan, .data, .profile]
+        guard let i = order.firstIndex(of: tab), order.indices.contains(i + by) else { return }
+        select(order[i + by])
+    }
+
     private func select(_ new: AppTab) {
         guard new != tab else { return }
         Haptics.selection()
@@ -119,6 +136,49 @@ struct ContentView: View {
         withAnimation(.easeInOut(duration: 0.2)) { tab = new }
         // Data's scenes fade in and out a little slower than the content, so the photo change reads as one move.
         withAnimation(.smooth(duration: 0.6)) { SceneMixer.shared.active = new == .data }
+    }
+}
+
+// MARK: - Page swiping
+
+/// Set by Home and Profile while a screen is pushed on their stack.
+struct ShowsPushedScreenKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+
+/// Two thin strips along the screen's sides that catch a sideways swipe starting there: in from the right edge is
+/// the next page, in from the left the previous one. A flick counts, or a drag of about a fifth of the screen.
+private struct PageSwipeEdges: View {
+    let onStep: (Int) -> Void
+    private let width: CGFloat = 22
+
+    var body: some View {
+        HStack(spacing: 0) {
+            strip(direction: -1)
+            Spacer(minLength: 0).allowsHitTesting(false)
+            strip(direction: 1)
+        }
+        .ignoresSafeArea(edges: .horizontal)
+        .accessibilityHidden(true)   // VoiceOver uses the tab bar
+    }
+
+    private func strip(direction: Int) -> some View {
+        Color.clear
+            .frame(width: width)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 14, coordinateSpace: .global)
+                    .onEnded { value in
+                        let dx = value.translation.width, dy = value.translation.height
+                        let thrown = value.predictedEndTranslation.width
+                        // Inwards from this edge: leftwards from the right edge, rightwards from the left.
+                        let inward = direction > 0 ? -dx : dx
+                        let inwardThrow = direction > 0 ? -thrown : thrown
+                        guard abs(dx) > abs(dy) * 1.5, inward > 40 || inwardThrow > 140 else { return }
+                        onStep(direction)
+                    }
+            )
     }
 }
 

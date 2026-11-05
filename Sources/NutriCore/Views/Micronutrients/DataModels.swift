@@ -111,19 +111,24 @@ struct DataGroupSummary: Identifiable, Hashable {
     let kind: DataGroupKind
     /// 0–100, the repo's scoring: the average share of each item's target met, each capped at 100%.
     let score: Int
-    /// The nutrients behind it (none yet for Seasonal).
+    /// The nutrients behind it (none for Seasonal, which has foods instead).
     let items: [NutrientInfo]
     let pills: [PillModel]
+    /// Seasonal only: the season's name and its foods, each marked when you've had it lately.
+    var seasonName = ""
+    var seasonal: [SeasonalPick] = []
     var id: DataGroupKind { kind }
 
-    /// Seasonal eating has no data yet.
-    var isComingSoon: Bool { kind == .seasonal }
+    var isSeasonal: Bool { kind == .seasonal }
+    var seasonalEaten: Int { seasonal.filter(\.eaten).count }
 
     var met: Int { items.filter(\.isMet).count }
     var low: Int { items.filter(\.isDeficient).count }
     var onTrack: Int { items.count - met - low }
 
-    static func == (a: Self, b: Self) -> Bool { a.kind == b.kind && a.score == b.score && a.items.count == b.items.count }
+    static func == (a: Self, b: Self) -> Bool {
+        a.kind == b.kind && a.score == b.score && a.items.count == b.items.count && a.seasonal == b.seasonal
+    }
     func hash(into h: inout Hasher) { h.combine(kind) }
 
     static func score(_ list: [NutrientInfo]) -> Int {
@@ -131,16 +136,20 @@ struct DataGroupSummary: Identifiable, Hashable {
         return Int((list.map(\.progress).reduce(0, +) / Double(list.count) * 100).rounded())
     }
 
-    /// Macros, Vitamins, Minerals, then Seasonal eating (coming soon; this season's name as its only pill).
-    static func make(from nutrients: [NutrientInfo], season: String = Season(date: .now, latitude: nil).name) -> [DataGroupSummary] {
+    /// Macros, Vitamins, Minerals, Raw, then Seasonal: this season's foods, scored by how many you've had lately.
+    static func make(from nutrients: [NutrientInfo], season: String = SeasonalGuide.currentSeason.name,
+                     seasonal: [SeasonalPick] = []) -> [DataGroupSummary] {
         let groups: [DataGroupSummary] = [DataGroupKind.macros, .vitamins, .minerals, .raw].map { kind in
             let items = nutrients.filter { $0.group == kind.group }
             return DataGroupSummary(kind: kind, score: score(items), items: items,
                                     pills: items.map { PillModel(id: $0.id, text: $0.short, isLow: $0.isDeficient) })
         }
-        let seasonal = DataGroupSummary(kind: .seasonal, score: 0, items: [],
-                                        pills: [PillModel(id: "season", text: season, isLow: false)])
-        return groups + [seasonal]
+        let eaten = seasonal.filter(\.eaten).count
+        let seasonalCard = DataGroupSummary(
+            kind: .seasonal, score: seasonal.isEmpty ? 0 : Int((Double(eaten) / Double(seasonal.count) * 100).rounded()),
+            items: [], pills: [PillModel(id: "season", text: season, isLow: false)],
+            seasonName: season, seasonal: seasonal)
+        return groups + [seasonalCard]
     }
 }
 
@@ -239,7 +248,7 @@ extension View {
 enum VitalisPreviewData {
     static let container: ModelContainer = {
         let container = try! ModelContainer(
-            for: MealEntry.self, UserProfile.self, BiomarkerReading.self,
+            for: MealEntry.self, UserProfile.self, BiomarkerReading.self, Goal.self, DailyHydration.self, SunSession.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = container.mainContext
         let profile = UserProfile()
@@ -263,6 +272,12 @@ enum VitalisPreviewData {
             weight.value = 74 + Double(back) * 0.3
             ctx.insert(weight)
         }
+        // Two goals, one done today, so the Goals calendar shows both kinds of mark.
+        let organ = Goal(title: "Organ meat", icon: "heart", start: cal.date(byAdding: .day, value: -10, to: .now) ?? .now,
+                         weekdays: [2, 5])
+        let sun = Goal(title: "Morning sun", icon: "sun.max", start: cal.date(byAdding: .day, value: -6, to: .now) ?? .now)
+        sun.toggle(on: .now)
+        ctx.insert(organ); ctx.insert(sun)
         return container
     }()
 }
@@ -297,7 +312,11 @@ enum DataPreview {
         item("mn", "Manganese", "mg", .minerals, 68, goal: 2.3),
     ]
 
-    static var summaries: [DataGroupSummary] { DataGroupSummary.make(from: macros + vitamins + minerals, season: "Fall") }
+    static var summaries: [DataGroupSummary] {
+        let foods = SeasonalGuide.foods(for: .autumn)
+        return DataGroupSummary.make(from: macros + vitamins + minerals, season: "Fall",
+                                     seasonal: foods.enumerated().map { SeasonalPick(food: $1, eaten: $0 < 2) })
+    }
 
     static let streak = StreakSummary(days: 5, week: [false, false, true, true, true, true, true])
 }

@@ -1,31 +1,15 @@
 import Foundation
 import UIKit
 
-struct AIFoodResult: Codable {
-    let name: String
-    let calories: Double
-    let protein: Double
-    let carbohydrates: Double
-    let totalFat: Double
-    let servingSize: Double // estimated grams for the whole plate/item in the photo
-}
-
 @MainActor
 final class AIService: ObservableObject {
     static let shared = AIService()
     private init() {}
 
     @Published var isAnalyzing = false
-    @Published var result: AIFoodResult?
+    /// The photo's foods, matched to USDA (see `PhotoMeal`).
+    @Published var result: PhotoMeal.Result?
     @Published var errorMessage: String?
-
-    private static let prompt = """
-    Analyze this photo of food. Identify what it is and estimate its nutrition for the portion shown.
-    Respond with ONLY a JSON object with exactly these keys:
-    {"name": string, "calories": number, "protein": number, "carbohydrates": number, "totalFat": number, "servingSize": number}
-    "servingSize" is the estimated weight in grams of the portion in the photo. Macros are grams for that whole portion; calories are kcal.
-    If the image does not contain food, return {"name": "", "calories": 0, "protein": 0, "carbohydrates": 0, "totalFat": 0, "servingSize": 0}.
-    """
 
     func analyzeImage(_ imageData: Data) async {
         guard AppConstants.geminiAPIKey != "YOUR_GEMINI_API_KEY_HERE" else {
@@ -40,12 +24,12 @@ final class AIService: ObservableObject {
 
         do {
             let jpeg = try await Task.detached(priority: .userInitiated) { try Self.prepare(imageData) }.value
-            let food = try await Self.request(jpeg)
-            guard !food.name.isEmpty, food.servingSize > 0 else {
+            let items = try PhotoMeal.parse(try await Self.request(jpeg))
+            guard !items.isEmpty else {
                 errorMessage = "No food detected. Try again with the food centered."
                 return
             }
-            result = food
+            result = await PhotoMeal.resolve(items)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -73,13 +57,14 @@ final class AIService: ObservableObject {
         return jpeg
     }
 
-    private nonisolated static func request(_ jpeg: Data) async throws -> AIFoodResult {
+    /// The model's reply text (JSON, see `PhotoMeal.prompt`).
+    private nonisolated static func request(_ jpeg: Data) async throws -> String {
         guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(AppConstants.geminiModel):generateContent") else {
             throw AIError.badResponse
         }
         let body: [String: Any] = [
             "contents": [["parts": [
-                ["text": prompt],
+                ["text": PhotoMeal.prompt],
                 ["inlineData": ["mimeType": "image/jpeg", "data": jpeg.base64EncodedString()]],
             ]]],
             "generationConfig": ["responseMimeType": "application/json", "temperature": 0.2],
@@ -103,13 +88,7 @@ final class AIService: ObservableObject {
         guard let text = ((((json?["candidates"] as? [[String: Any]])?.first?["content"] as? [String: Any])?["parts"] as? [[String: Any]])?.first?["text"] as? String)
         else { throw AIError.badResponse }
 
-        // Models occasionally wrap JSON in a code fence despite the mime type.
-        let cleaned = text
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let raw = cleaned.data(using: .utf8) else { throw AIError.badResponse }
-        return try JSONDecoder().decode(AIFoodResult.self, from: raw)
+        return text
     }
 
     enum AIError: LocalizedError {

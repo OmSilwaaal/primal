@@ -90,6 +90,8 @@ struct ProfileView: View {
             }
             .fullScreenCover(isPresented: $showScan) { CameraView(onClose: { showScan = false }) }
         }
+        // While Settings or Goals is pushed, its own back-swipe owns the left edge, not page swiping.
+        .preference(key: ShowsPushedScreenKey.self, value: route != nil || pushed != nil)
     }
 
     private func displayName(_ profile: UserProfile?) -> String {
@@ -1612,19 +1614,24 @@ enum MonthMath {
 
 // MARK: - Month grid
 
-/// One month as a grid: weekday letters, then each day's number with a dot under it — Moss when the calorie goal was
-/// hit, Ember when food was logged but off target, none when nothing was logged. Today sits in a white circle; days
-/// still to come are faint. Reads only that month's meals.
+/// One month as a grid: weekday letters, then each day's number with dots under it — first the calorie target (Moss
+/// when hit, Ember when food was logged but off target), then one per goal due that day (lime when done, an outline
+/// while it isn't). Today sits in a white circle; days still to come are faint. With `selected`, tapping a day picks
+/// it and it gets a ring. Reads only that month's meals.
 struct MonthCalendar: View {
     let month: Date
     let goal: Double
     var large = false
+    var goals: [Goal] = []
+    var selected: Binding<Date>? = nil
     @Query private var meals: [MealEntry]
 
-    init(month: Date, goal: Double, large: Bool = false) {
+    init(month: Date, goal: Double, large: Bool = false, goals: [Goal] = [], selected: Binding<Date>? = nil) {
         self.month = month
         self.goal = goal
         self.large = large
+        self.goals = goals
+        self.selected = selected
         let start = month, end = MonthMath.adding(1, to: month)
         _meals = Query(filter: #Predicate<MealEntry> { $0.date >= start && $0.date < end })
     }
@@ -1655,22 +1662,48 @@ struct MonthCalendar: View {
         }
     }
 
-    private func cell(_ day: Date, status: DayGoal, today: Bool, future: Bool) -> some View {
+    @ViewBuilder private func cell(_ day: Date, status: DayGoal, today: Bool, future: Bool) -> some View {
         let n = MonthMath.cal.component(.day, from: day)
         let size: CGFloat = large ? 34 : 20
-        return VStack(spacing: large ? 3 : 1) {
+        let due = goals.filter { $0.isDue(on: day) }
+        let done = due.filter { $0.isDone(on: day) }.count
+        let isSelected = selected.map { MonthMath.cal.isDate($0.wrappedValue, inSameDayAs: day) } ?? false
+        let dot: CGFloat = large ? 5 : 4
+        let face = VStack(spacing: large ? 4 : 1) {
             Text("\(n)")
                 .font(large ? .ui(size: 15, weight: today ? .bold : .medium) : .mono(10, today ? .semibold : .medium))
                 .monospacedDigit()
                 .foregroundColor(today ? Mono.onWhite : Mono.text.opacity(future ? 0.3 : 0.9))
                 .frame(width: size, height: size)
                 .background { if today { Circle().fill(Mono.text) } }
-            Circle().fill(status.dot).frame(width: large ? 6 : 4, height: large ? 6 : 4)
+                .overlay { if isSelected && !today { Circle().strokeBorder(Mono.text, lineWidth: 1.5) } }
+            HStack(spacing: 2) {
+                if status != .none { Circle().fill(status.dot).frame(width: dot, height: dot) }
+                ForEach(Array(due.prefix(3).enumerated()), id: \.offset) { _, g in
+                    if g.isDone(on: day) {
+                        Circle().fill(Color.vitalisLime).frame(width: dot, height: dot)
+                    } else {
+                        Circle().strokeBorder(Color.vitalisLime.opacity(future ? 0.45 : 0.8), lineWidth: 1).frame(width: dot, height: dot)
+                    }
+                }
+            }
+            .frame(height: dot)
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-        .accessibilityValue(today ? "today, \(status.spoken)" : status.spoken)
+        .accessibilityValue((today ? "today, " : "") + status.spoken + (due.isEmpty ? "" : ", \(done) of \(due.count) goals done"))
+        if let selected {
+            Button {
+                Haptics.selection()
+                withAnimation(.smooth(duration: 0.25)) { selected.wrappedValue = MonthMath.cal.startOfDay(for: day) }
+            } label: { face }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+        } else {
+            face
+        }
     }
 }
 
@@ -1741,41 +1774,23 @@ struct GoalsDestination: View {
     }
 }
 
-/// Everything about your goals: a large month calendar (switch months with the arrows or a swipe), how the month
-/// went (days on target, current streak, average intake), and each daily goal.
+/// Your goals on a calendar: a large month (switch months with the arrows or a swipe) where each day shows the
+/// calorie target and a dot per goal due, then the chosen day's goals to tick off, and Add goal to set a new one.
 struct GoalsView: View {
     let profile: UserProfile
     @State var month: Date
     @State private var forward = true
-    @AppStorage(RawSettings.sunGoalKey) private var sunGoal = 30
-    @Query private var recent: [MealEntry]
+    @State private var selected = Calendar.current.startOfDay(for: .now)
+    @State private var adding = false
+    @Query(sort: \Goal.created) private var goals: [Goal]
+    @Environment(\.modelContext) private var context
 
     init(profile: UserProfile, month: Date) {
         self.profile = profile
         _month = State(initialValue: month)
-        let start = Calendar.current.date(byAdding: .day, value: -180, to: Calendar.current.startOfDay(for: .now)) ?? .now
-        _recent = Query(filter: #Predicate<MealEntry> { $0.date >= start })
     }
 
-    private var goals: NutrientGoals { NutrientGoals.from(profile) }
-
-    /// Consecutive days on target, ending yesterday (or today, once today is on target).
-    private var streak: Int {
-        let cal = Calendar.current
-        var byDay: [Date: Double] = [:]
-        for m in recent { byDay[cal.startOfDay(for: m.date), default: 0] += m.calories }
-        var day = cal.startOfDay(for: .now)
-        if DayGoal(kcal: byDay[day] ?? 0, goal: goals.calories) != .onTarget {
-            day = cal.date(byAdding: .day, value: -1, to: day) ?? day
-        }
-        var n = 0
-        while DayGoal(kcal: byDay[day] ?? 0, goal: goals.calories) == .onTarget {
-            n += 1
-            guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
-            day = prev
-        }
-        return n
-    }
+    private var calorieGoal: Double { NutrientGoals.from(profile).calories }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1786,22 +1801,21 @@ struct GoalsView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     MonthSwitcher(month: $month, large: true)
-                    MonthCalendar(month: month, goal: goals.calories, large: true)
+                    MonthCalendar(month: month, goal: calorieGoal, large: true, goals: goals, selected: $selected)
                         .id(month)
                         .transition(.push(from: forward ? .trailing : .leading))
                         .monthSwipe($month)
-                    HStack(spacing: 16) {
-                        legend(.ncMoss, "Calorie goal hit")
-                        legend(.ncEmber, "Off target")
+                    HStack(spacing: 14) {
+                        legend(Circle().fill(Color.ncMoss), "Calories hit")
+                        legend(Circle().fill(Color.vitalisLime), "Goal done")
+                        legend(Circle().strokeBorder(Color.vitalisLime, lineWidth: 1), "Goal due")
                     }
                     .padding(.top, 4)
                 }
                 .clipped()
                 .bentoTile(padding: 18)
 
-                MonthSummary(month: month, goal: goals.calories, streak: streak)
-
-                dailyGoals
+                dayGoals
             }
             .padding(.horizontal, Bento.margin)
             .padding(.bottom, 120)
@@ -1809,101 +1823,287 @@ struct GoalsView: View {
         .glassLightFollowsScroll()
         .background { AppBackdrop().ignoresSafeArea() }
         .onChange(of: month) { old, new in forward = new > old }
-    }
-
-    private func legend(_ color: Color, _ text: String) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 7, height: 7)
-            Text(text).font(.mono(11)).tracking(0.6).textCase(.uppercase).foregroundColor(Mono.label)
+        .sheet(isPresented: $adding) {
+            GoalEditor(day: selected) { goal in
+                context.insert(goal)
+                try? context.save()
+                Haptics.success()
+                ToastCenter.shared.show("Goal added", branded: true)
+            }
         }
     }
 
-    /// Each daily goal with where it comes from.
-    private var dailyGoals: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Daily goals").font(.bentoLabel).foregroundColor(Mono.label).padding(.bottom, 4)
-            goalRow("flame", "Energy", "\(Int(goals.calories).formatted()) kcal", first: true)
-            goalRow("bolt", "Protein", "\(Int(goals.protein)) g")
-            goalRow("leaf", "Carbs", "\(Int(goals.carbohydrates)) g")
-            goalRow("drop.halffull", "Fat", "\(Int(goals.fat)) g")
-            goalRow("circle.grid.cross", "Fiber", "\(Int(goals.fiber)) g")
-            goalRow("drop", "Water", String(format: "%.1f L", WaterSheet.goalMl / 1000))
-            goalRow("sun.max", "Time outside", "\(sunGoal) min")
-            goalRow("scalemass", "Goal weight",
-                    "\(Int(profile.goalWeightKg)) kg · now \(Int(profile.weightKg)) kg")
-            Text("Energy and macros come from your weight, height, age and activity; edit them on Profile.")
-                .font(.ui(size: 12)).foregroundColor(Mono.label)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10)
+    private func legend(_ mark: some View, _ text: String) -> some View {
+        HStack(spacing: 6) {
+            mark.frame(width: 7, height: 7)
+            Text(text).font(.mono(10)).tracking(0.5).textCase(.uppercase).foregroundColor(Mono.label)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        }
+    }
+
+    // MARK: The chosen day
+
+    private var dayGoals: some View {
+        let cal = Calendar.current
+        let due = goals.filter { $0.isDue(on: selected) }
+        let done = due.filter { $0.isDone(on: selected) }.count
+        let canTick = selected <= cal.startOfDay(for: .now)
+        let title = cal.isDateInToday(selected) ? "Today"
+            : selected.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.ui(size: 20, weight: .bold)).foregroundColor(Mono.text)
+                        .contentTransition(.opacity)
+                    Text(due.isEmpty ? "No goals on this day" : "\(done) of \(due.count) done")
+                        .font(.bentoLabel).foregroundColor(Mono.label)
+                        .contentTransition(.numericText())
+                }
+                Spacer()
+                Button { adding = true } label: { Image(systemName: "plus") }
+                    .buttonStyle(.bentoRound)
+                    .accessibilityLabel("Add goal")
+            }
+            .padding(.bottom, due.isEmpty ? 0 : 6)
+
+            ForEach(Array(due.enumerated()), id: \.element.id) { i, goal in
+                goalRow(goal, canTick: canTick, first: i == 0)
+            }
+
+            if due.isEmpty {
+                Button { adding = true } label: {
+                    Label("Add a goal", systemImage: "plus")
+                        .font(.ui(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bentoPrimary)
+                .padding(.top, 14)
+                Text("Set it once, every day or on chosen days; it shows on the calendar on each day it's due.")
+                    .font(.ui(size: 12)).foregroundColor(Mono.label)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10)
+            }
         }
         .bentoTile(padding: 18, art: .sprig)
+        .animation(.smooth(duration: 0.25), value: selected)
     }
 
-    private func goalRow(_ icon: String, _ title: String, _ value: String, first: Bool = false) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).font(.ui(size: 14, weight: .medium)).foregroundColor(Mono.text)
-                .frame(width: 32, height: 32)
+    private func goalRow(_ goal: Goal, canTick: Bool, first: Bool) -> some View {
+        let isDone = goal.isDone(on: selected)
+        return HStack(spacing: 12) {
+            Image(systemName: goal.icon).font(.ui(size: 14, weight: .medium)).foregroundColor(Mono.text)
+                .frame(width: 34, height: 34)
                 .background(Circle().fill(Color.white.opacity(0.06)))
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
-            Text(title).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(goal.title).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                    .strikethrough(isDone, color: Mono.text.opacity(0.5))
+                    .lineLimit(2)
+                Text(goal.scheduleText).font(.ui(size: 12)).foregroundColor(Mono.label).lineLimit(1)
+            }
             Spacer(minLength: 8)
-            Text(value).font(.mono(12)).foregroundColor(Mono.text).lineLimit(1).minimumScaleFactor(0.8)
+            Button {
+                Haptics.selection()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { goal.toggle(on: selected) }
+                try? context.save()
+                if !isDone { Haptics.success() }
+            } label: {
+                Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
+                    .font(.ui(size: 24, weight: .regular))
+                    .foregroundColor(isDone ? .vitalisLime : Mono.text.opacity(canTick ? 0.7 : 0.25))
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canTick)
+            .accessibilityLabel(isDone ? "Done" : "Not done")
+            .accessibilityHint(canTick ? "Marks \(goal.title) for this day" : "Days still to come can't be ticked yet")
         }
-        .frame(minHeight: 52)
+        .frame(minHeight: 58)
         .overlay(alignment: .top) {
             if !first { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) }
         }
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button(role: .destructive) {
+                withAnimation(.smooth) { context.delete(goal) }
+                try? context.save()
+            } label: { Label("Delete goal", systemImage: "trash") }
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Delete goal") { context.delete(goal); try? context.save() }
     }
 }
 
-/// How the shown month went: days on target out of days logged, the current streak, and the average intake on
-/// logged days against the goal.
-private struct MonthSummary: View {
-    let month: Date
-    let goal: Double
-    let streak: Int
-    @Query private var meals: [MealEntry]
+// MARK: - New goal
 
-    init(month: Date, goal: Double, streak: Int) {
-        self.month = month
-        self.goal = goal
-        self.streak = streak
-        let start = month, end = MonthMath.adding(1, to: month)
-        _meals = Query(filter: #Predicate<MealEntry> { $0.date >= start && $0.date < end })
+/// Set a goal: what it is (or a suggestion), an icon, and when — once on a date, every day, or on chosen weekdays,
+/// from a start date with an optional end.
+private struct GoalEditor: View {
+    let day: Date
+    let onSave: (Goal) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    enum Schedule: Hashable { case once, daily, weekdays }
+
+    @State private var title = ""
+    @State private var icon = "target"
+    @State private var schedule: Schedule = .daily
+    @State private var date: Date
+    @State private var weekdays: Set<Int> = []
+    @State private var hasEnd = false
+    @State private var end: Date
+    @FocusState private var typing: Bool
+
+    init(day: Date, onSave: @escaping (Goal) -> Void) {
+        self.day = day
+        self.onSave = onSave
+        let start = max(day, Calendar.current.startOfDay(for: .now))
+        _date = State(initialValue: start)
+        _end = State(initialValue: Calendar.current.date(byAdding: .day, value: 30, to: start) ?? start)
+    }
+
+    /// Ideas in the app's spirit: nose-to-tail, raw, outdoors.
+    private static let suggestions: [(String, String)] = [
+        ("Organ meat", "heart"), ("Raw egg yolks", "circle.circle"), ("Morning sun", "sun.max"),
+        ("Bone broth", "flame"), ("No seed oils", "drop.triangle"), ("Walk 30 min", "figure.walk"),
+        ("Sleep by 10", "moon"), ("Hit protein", "bolt"),
+    ]
+    private static let icons = ["target", "heart", "circle.circle", "sun.max", "flame", "drop", "drop.triangle",
+                                "leaf", "fish", "figure.walk", "moon", "bolt", "scalemass", "fork.knife"]
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespaces).isEmpty && (schedule != .weekdays || !weekdays.isEmpty)
+            && (!hasEnd || schedule == .once || end >= date)
     }
 
     var body: some View {
-        let cal = Calendar.current
-        var byDay: [Date: Double] = [:]
-        for m in meals { byDay[cal.startOfDay(for: m.date), default: 0] += m.calories }
-        let logged = byDay.count
-        let onTarget = byDay.values.filter { DayGoal(kcal: $0, goal: goal) == .onTarget }.count
-        let average = logged > 0 ? byDay.values.reduce(0, +) / Double(logged) : 0
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("New goal").font(.ui(size: 22, weight: .bold)).foregroundColor(Mono.text)
+                    .padding(.top, 20)
+                    .accessibilityAddTraits(.isHeader)
 
-        return VStack(spacing: Bento.gap) {
-            BentoPair {
-                stat("On target", "\(onTarget)", "of \(logged) days logged")
-            } right: {
-                stat("Streak", "\(streak)", streak == 1 ? "day in a row" : "days in a row")
+                section("Goal") {
+                    TextField("", text: $title, prompt: Text("What do you want to do?").foregroundColor(Mono.label))
+                        .font(.ui(size: 17, weight: .medium)).foregroundColor(Mono.text)
+                        .focused($typing)
+                        .submitLabel(.done)
+                        .padding(.horizontal, 16).frame(minHeight: 52)
+                        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    FlowLayout(spacing: 8) {
+                        ForEach(Self.suggestions, id: \.0) { name, symbol in
+                            chip(name, symbol: symbol, on: title == name) { title = name; icon = symbol; typing = false }
+                        }
+                    }
+                }
+
+                section("Icon") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Self.icons, id: \.self) { symbol in
+                                Button { Haptics.selection(); icon = symbol } label: {
+                                    Image(systemName: symbol).font(.ui(size: 16, weight: .medium))
+                                        .foregroundColor(icon == symbol ? Mono.onWhite : Mono.text)
+                                        .frame(width: 44, height: 44)
+                                        .background { Circle().fill(icon == symbol ? Mono.text : Color.white.opacity(0.06)) }
+                                        .overlay { Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1) }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(symbol)
+                                .accessibilityAddTraits(icon == symbol ? .isSelected : [])
+                            }
+                        }
+                    }
+                }
+
+                section("When") {
+                    BentoSegmented(options: [(Schedule.once, "Once"), (.daily, "Every day"), (.weekdays, "Some days")],
+                                   selection: $schedule)
+                    if schedule == .weekdays {
+                        HStack(spacing: 6) {
+                            ForEach(weekdayOrder, id: \.self) { wd in
+                                let on = weekdays.contains(wd)
+                                Button {
+                                    Haptics.selection()
+                                    if on { weekdays.remove(wd) } else { weekdays.insert(wd) }
+                                } label: {
+                                    Text(Calendar.current.veryShortWeekdaySymbols[wd - 1])
+                                        .font(.ui(size: 14, weight: .semibold))
+                                        .foregroundColor(on ? Mono.onWhite : Mono.text)
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .background { Capsule().fill(on ? Mono.text : Color.white.opacity(0.06)) }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(Calendar.current.weekdaySymbols[wd - 1])
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                            }
+                        }
+                    }
+                    dateRow(schedule == .once ? "On" : "Starts", $date)
+                    if schedule != .once {
+                        Toggle(isOn: $hasEnd.animation(.smooth)) {
+                            Text("Ends").font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                        }
+                        .tint(.ncMoss)
+                        if hasEnd { dateRow("Until", $end) }
+                    }
+                }
+
+                Button("Add goal") { save() }
+                    .buttonStyle(.bentoPrimary)
+                    .disabled(!canSave)
+                    .opacity(canSave ? 1 : 0.5)
+                    .padding(.top, 4)
             }
-            stat("Average intake", logged > 0 ? Int(average).formatted() : "—",
-                 logged > 0 ? "kcal on logged days · goal \(Int(goal).formatted())" : "Nothing logged this month",
-                 progress: goal > 0 ? average / goal : 0)
+            .padding(.horizontal, 20).padding(.bottom, 30)
+            .animation(.smooth(duration: 0.25), value: schedule)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private var weekdayOrder: [Int] { (0..<7).map { (Calendar.current.firstWeekday - 1 + $0) % 7 + 1 } }
+
+    private func section(_ label: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(label).font(.bentoLabel).foregroundColor(Mono.label)
+            content()
         }
     }
 
-    private func stat(_ label: String, _ value: String, _ detail: String, progress: Double? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(.bentoLabel).foregroundColor(Mono.label)
-            Text(value).font(.display(34)).foregroundColor(Mono.text)
-                .lineLimit(1).minimumScaleFactor(0.6)
-                .contentTransition(.numericText())
-            Text(detail).font(.ui(size: 12)).foregroundColor(Mono.label)
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            if let progress { BentoBar(value: progress) }
+    private func chip(_ text: String, symbol: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button { Haptics.selection(); action() } label: {
+            Label(text, systemImage: symbol)
+                .font(.ui(size: 13, weight: .semibold))
+                .foregroundColor(on ? Mono.onWhite : Mono.text)
+                .padding(.horizontal, 12).frame(minHeight: 36)
+                .background { Capsule().fill(on ? Mono.text : Color.white.opacity(0.06)) }
+                .overlay { Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1) }
         }
-        .bentoTile(padding: 16)
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+    }
+
+    private func dateRow(_ label: String, _ value: Binding<Date>) -> some View {
+        DatePicker(selection: value, displayedComponents: .date) {
+            Text(label).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+        }
+        .tint(.vitalisLime)
+    }
+
+    private func save() {
+        let goal: Goal = switch schedule {
+        case .once: Goal(title: title.trimmingCharacters(in: .whitespaces), icon: icon, start: date, end: date)
+        case .daily: Goal(title: title.trimmingCharacters(in: .whitespaces), icon: icon, start: date, end: hasEnd ? end : nil)
+        case .weekdays: Goal(title: title.trimmingCharacters(in: .whitespaces), icon: icon, start: date,
+                             end: hasEnd ? end : nil, weekdays: Array(weekdays))
+        }
+        onSave(goal)
+        dismiss()
     }
 }

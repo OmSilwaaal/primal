@@ -22,8 +22,11 @@ struct MicronutrientsView: View {
 
     var body: some View {
         let today = meals.filter { Calendar.current.isDateInToday($0.date) }
+        let season = SeasonalGuide.currentSeason
         let summaries = DataGroupSummary.make(from: buildNutrientList(from: today, goals: goals)
-                                                  + buildRawList(from: today, isMale: profiles.first?.isMale ?? true))
+                                                  + buildRawList(from: today, isMale: profiles.first?.isMale ?? true),
+                                              season: season.name,
+                                              seasonal: SeasonalGuide.picks(for: season, meals: meals))
         let streak = StreakSummary.make(meals: meals, goal: goals.calories)
         DataScreen(summaries: summaries, streak: streak, centred: $centred, open: $open, zoom: zoom)
             .hidesTabBar(open != nil)
@@ -77,8 +80,9 @@ private struct DataScreen: View {
 
                     if let current {
                         Group {
-                            if current.isComingSoon {
-                                Text("Seasonal eating guides are on the way")
+                            if current.isSeasonal {
+                                Text("\(current.seasonalEaten) of \(current.seasonal.count) in season · last \(SeasonalGuide.window) days")
+                                    .contentTransition(.numericText())
                             } else {
                                 Text("\(current.met) met · \(current.onTrack) on track · \(current.low) low")
                                     .contentTransition(.numericText())
@@ -86,7 +90,8 @@ private struct DataScreen: View {
                         }
                         .font(.mono(12, .semibold)).tracking(0.9).textCase(.uppercase)
                         .foregroundColor(Mono.label)
-                        .accessibilityLabel(current.isComingSoon ? "Seasonal: coming soon"
+                        .accessibilityLabel(current.isSeasonal
+                            ? "Seasonal: \(current.seasonalEaten) of \(current.seasonal.count) in-season foods eaten in the last \(SeasonalGuide.window) days"
                             : "\(current.kind.title): \(current.met) met, \(current.onTrack) on track, \(current.low) low")
                     }
 

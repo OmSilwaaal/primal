@@ -21,11 +21,18 @@ struct CarouselCard: View {
                         Text(kind.title)
                             .font(.display(44)).foregroundColor(.white)
                             .lineLimit(1).minimumScaleFactor(0.55)
-                        if summary.isComingSoon {
-                            Text("Eating with the seasons")
-                                .font(.mono(12, .semibold)).tracking(0.9).textCase(.uppercase)
-                                .foregroundColor(.white.opacity(0.85))
-                                .fixedSize(horizontal: false, vertical: true)
+                        if summary.isSeasonal {
+                            // How many of the season's foods you've had lately, then which season it is.
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                                    DotMatrixText(text: "\(summary.seasonalEaten)", pitch: 4)
+                                    Text("/ \(summary.seasonal.count) eaten").font(.mono(12, .semibold))
+                                        .foregroundColor(.white.opacity(0.85))
+                                }
+                                Text("\(summary.seasonName) · in season now")
+                                    .font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                                    .foregroundColor(.white.opacity(0.75))
+                            }
                         } else {
                             HStack(alignment: .lastTextBaseline, spacing: 6) {
                                 DotMatrixText(text: "\(summary.score)", pitch: 4)
@@ -40,11 +47,10 @@ struct CarouselCard: View {
                         .liquidGlassPanel(in: Circle())
                         .accessibilityHidden(true)
                 }
-                if summary.isComingSoon {
-                    Spacer(minLength: 16)
-                    FlowLayout(spacing: 6) {
-                        ForEach(summary.pills) { NutrientPill(model: $0) }
-                    }
+                if summary.isSeasonal {
+                    Spacer(minLength: 18)
+                    SeasonalList(picks: summary.seasonal)
+                    Spacer(minLength: 18)
                 } else {
                     // Centred in the space under the title, with equal room above and below.
                     Spacer(minLength: 18)
@@ -72,9 +78,36 @@ struct CarouselCard: View {
     }
 
     private var accessibilityText: String {
-        if summary.isComingSoon { return "Seasonal eating, coming soon" }
+        if summary.isSeasonal {
+            return "Seasonal, \(summary.seasonName): \(summary.seasonalEaten) of \(summary.seasonal.count) in-season foods eaten lately"
+        }
         let lows = summary.low
         return "\(kind.title), score \(summary.score), \(lows) low nutrient\(lows == 1 ? "" : "s")"
+    }
+}
+
+/// The season's foods on the card, one per row: a lime tick when you've had it in the last two weeks, an outline
+/// when not yet, and what it's richest in.
+private struct SeasonalList: View {
+    let picks: [SeasonalPick]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(picks) { pick in
+                HStack(spacing: 10) {
+                    Image(systemName: pick.eaten ? "checkmark.circle.fill" : "circle")
+                        .font(.ui(size: 16, weight: .medium))
+                        .foregroundColor(pick.eaten ? .vitalisLime : .white.opacity(0.45))
+                    Text(pick.food.name).font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer(minLength: 6)
+                    Text(pick.food.nutrients.first ?? "").font(.mono(10, .semibold)).tracking(0.5).textCase(.uppercase)
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

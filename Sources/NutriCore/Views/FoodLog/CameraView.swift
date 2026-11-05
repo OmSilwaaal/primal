@@ -88,7 +88,7 @@ struct CameraView: View {
         .onChange(of: barcodeService.state.foodServing) { _, grams in
             if let grams { servingSize = grams }
         }
-        .onChange(of: aiService.result?.servingSize) { _, grams in
+        .onChange(of: aiService.result?.grams) { _, grams in
             if let grams { servingSize = grams.rounded() }
         }
         .onChange(of: selectedMode) { _, mode in
@@ -179,9 +179,13 @@ struct CameraView: View {
                           per100g: .init(food), servingSize: $servingSize,
                           onLog: { log(MealEntry(from: food, servingSize: servingSize)); resetBarcode() },
                           onCancel: { resetBarcode() })
-        } else if let food = aiService.result {
-            QuickLogSheet(title: "Detected", foodName: food.name, per100g: .init(food), servingSize: $servingSize,
-                          onLog: { log(MealEntry(from: food, servingSize: servingSize)); resetAI() },
+        } else if let meal = aiService.result {
+            // Say how much of it is real USDA data, so an estimate never passes for a measurement.
+            let detail = meal.matched == meal.items.count ? "matched to USDA" : "\(meal.matched) of \(meal.items.count) matched to USDA"
+            QuickLogSheet(title: "Detected · \(detail)",
+                          foodName: meal.items.map { "\($0.name) \(Int($0.grams.rounded())) g" }.joined(separator: " · "),
+                          per100g: .init(meal.food), servingSize: $servingSize,
+                          onLog: { log(MealEntry(from: meal.food, servingSize: servingSize)); resetAI() },
                           onCancel: { resetAI() })
         }
     }
@@ -292,10 +296,6 @@ struct Per100g {
 
     init(_ food: FoodSearchResult) {
         kcal = food.caloriesPer100g; protein = food.proteinPer100g; carbs = food.carbsPer100g; fat = food.fatPer100g
-    }
-    init(_ ai: AIFoodResult) {
-        let k = ai.servingSize > 0 ? 100 / ai.servingSize : 1
-        kcal = ai.calories * k; protein = ai.protein * k; carbs = ai.carbohydrates * k; fat = ai.totalFat * k
     }
 }
 

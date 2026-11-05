@@ -95,7 +95,7 @@ final class MealEntry {
         self.servingSize = servingSize
         let f = servingSize / 100.0  // scale factor (USDA values are per 100g)
 
-        calories = result.nutrient(1008) * f
+        calories = result.energyKcal * f
         protein = result.nutrient(1003) * f
         carbohydrates = result.nutrient(1005) * f
         totalFat = result.nutrient(1004) * f
@@ -115,7 +115,7 @@ final class MealEntry {
         riboflavin = result.nutrient(1166) * f
         niacin = result.nutrient(1167) * f
         vitaminB6 = result.nutrient(1175) * f
-        folate = result.nutrient(1177) * f
+        folate = result.nutrient(firstOf: [1190, 1177]) * f   // DFE when listed, else total folate
         vitaminB12 = result.nutrient(1178) * f
 
         calcium = result.nutrient(1087) * f

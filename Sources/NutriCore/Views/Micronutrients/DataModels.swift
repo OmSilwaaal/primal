@@ -28,10 +28,32 @@ enum NutrientStatus {
     }
 }
 
-/// The wheel's four cards, each with its own colour inside the Liquid Glass look. Seasonal eating is a placeholder
-/// for now.
+/// The wheel's cards, each with its own drawing and its own scene behind the whole screen. Seasonal eating is a
+/// placeholder for now.
 enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
-    case macros, vitamins, minerals, seasonal
+    /// Its line drawing, faint in the card's bottom-right corner like the Home tiles'.
+    var art: LineArt {
+        switch self {
+        case .macros: .wheat
+        case .vitamins: .citrus
+        case .minerals: .mountain
+        case .raw: .rawCut
+        case .seasonal: .seasonalSprig
+        }
+    }
+
+    /// The photo behind the whole screen while this card is centred (blurred, like every backdrop).
+    var scene: Backdrop {
+        switch self {
+        case .macros: .desert
+        case .vitamins: .forest
+        case .minerals: .fog
+        case .raw: .night
+        case .seasonal: .ocean
+        }
+    }
+
+    case macros, vitamins, minerals, raw, seasonal
     var id: Self { self }
 
     var title: String {
@@ -39,6 +61,7 @@ enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
         case .macros: "Macros"
         case .vitamins: "Vitamins"
         case .minerals: "Minerals"
+        case .raw: "Raw"
         case .seasonal: "Seasonal"
         }
     }
@@ -49,6 +72,7 @@ enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
         case .macros: .ncMoss                  // #A2CD8B
         case .vitamins: Color(hex: "#BEDD7A")
         case .minerals: .ncEmber               // #F37E61
+        case .raw: Color(hex: "#C8584A")
         case .seasonal: .ncOrange              // sand #D2B98A
         }
     }
@@ -59,6 +83,7 @@ enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
         case .macros: Color(hex: "#0D1710")
         case .vitamins: Color(hex: "#111808")
         case .minerals: Color(hex: "#1D0E0A")
+        case .raw: Color(hex: "#1A0B0A")
         case .seasonal: Color(hex: "#17120C")
         }
     }
@@ -69,6 +94,7 @@ enum DataGroupKind: String, CaseIterable, Identifiable, Hashable {
         case .macros: .macros
         case .vitamins: .vitamins
         case .minerals: .minerals
+        case .raw: .raw
         }
     }
 }
@@ -105,16 +131,15 @@ struct DataGroupSummary: Identifiable, Hashable {
         return Int((list.map(\.progress).reduce(0, +) / Double(list.count) * 100).rounded())
     }
 
-    /// Macros, Vitamins, Minerals, then Seasonal eating (coming soon: this season's name as its only pill).
+    /// Macros, Vitamins, Minerals, then Seasonal eating (coming soon; this season's name as its only pill).
     static func make(from nutrients: [NutrientInfo], season: String = Season(date: .now, latitude: nil).name) -> [DataGroupSummary] {
-        let groups: [DataGroupSummary] = [DataGroupKind.macros, .vitamins, .minerals].map { kind in
+        let groups: [DataGroupSummary] = [DataGroupKind.macros, .vitamins, .minerals, .raw].map { kind in
             let items = nutrients.filter { $0.group == kind.group }
             return DataGroupSummary(kind: kind, score: score(items), items: items,
                                     pills: items.map { PillModel(id: $0.id, text: $0.short, isLow: $0.isDeficient) })
         }
         let seasonal = DataGroupSummary(kind: .seasonal, score: 0, items: [],
-                                        pills: [PillModel(id: "season", text: season, isLow: false),
-                                                PillModel(id: "soon", text: "Coming soon", isLow: false)])
+                                        pills: [PillModel(id: "season", text: season, isLow: false)])
         return groups + [seasonal]
     }
 }
@@ -151,6 +176,12 @@ extension NutrientInfo {
         case "se": "Se"
         case "cu": "Cu"
         case "mn": "Mn"
+        case "raw": "Raw"
+        case "org": "Organ"
+        case "chol": "Chol"
+        case "o3": "Ω-3"
+        case "k2": "K2"
+        case "iod": "I"
         default: String(name.prefix(4))
         }
     }
@@ -199,25 +230,6 @@ extension View {
         } else {
             self
         }
-    }
-}
-
-/// A Catmull-Rom curve through the points, so the line bends smoothly through every day.
-struct SmoothLine: Shape {
-    let points: [CGPoint]
-
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        guard let first = points.first else { return p }
-        p.move(to: first)
-        guard points.count > 1 else { return p }
-        for i in 0..<(points.count - 1) {
-            let p0 = points[max(0, i - 1)], p1 = points[i], p2 = points[i + 1], p3 = points[min(points.count - 1, i + 2)]
-            let c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
-            let c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
-            p.addCurve(to: p2, control1: c1, control2: c2)
-        }
-        return p
     }
 }
 

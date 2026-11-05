@@ -102,6 +102,43 @@ enum NutrientGroup: String, CaseIterable {
     case macros    = "MACROS"
     case vitamins  = "VITAMINS"
     case minerals  = "MINERALS"
+    /// The raw, animal-based diet's own measures (Data's Raw card): raw share, organ meat, choline, omega-3, K2, iodine.
+    case raw       = "RAW"
+}
+
+/// What the Raw card tracks for the day. Targets: all of it raw; ~50 g organ meat a day (about 350 g a week, a
+/// common nose-to-tail guide); choline and omega-3 adequate intakes (NIH); iodine RDA; K2 has no RDA, so 100 mcg.
+func buildRawList(from meals: [MealEntry], isMale: Bool) -> [NutrientInfo] {
+    let total = meals.reduce(0) { $0 + $1.servingSize }
+    let raw = meals.filter(\.isRawFood).reduce(0) { $0 + $1.servingSize }
+    let organ = meals.filter(\.isOrganMeat).reduce(0) { $0 + $1.servingSize }
+    return [
+        NutrientInfo(id: "raw", name: "Eaten raw", unit: "g", icon: "leaf", group: .raw, current: raw, goal: total),
+        NutrientInfo(id: "org", name: "Organ meat", unit: "g", icon: "heart", group: .raw, current: organ, goal: 50),
+        NutrientInfo(id: "chol", name: "Choline", unit: "mg", icon: "brain", group: .raw,
+                     current: meals.reduce(0) { $0 + $1.choline }, goal: isMale ? 550 : 425),
+        NutrientInfo(id: "o3", name: "Omega-3", unit: "g", icon: "drop", group: .raw,
+                     current: meals.reduce(0) { $0 + $1.omega3 }, goal: isMale ? 1.6 : 1.1),
+        NutrientInfo(id: "k2", name: "Vitamin K2", unit: "mcg", icon: "sparkles", group: .raw,
+                     current: meals.reduce(0) { $0 + $1.vitaminK2 }, goal: 100),
+        NutrientInfo(id: "iod", name: "Iodine", unit: "mcg", icon: "drop.triangle", group: .raw,
+                     current: meals.reduce(0) { $0 + $1.iodine }, goal: 150),
+    ]
+}
+
+extension MealEntry {
+    /// Logged as raw (the raw log's prep) or a food whose name says so (USDA: "Beef, liver, raw").
+    var isRawFood: Bool {
+        prep == "raw" || foodName.lowercased().split(whereSeparator: { !$0.isLetter }).contains("raw")
+    }
+
+    /// Tagged as an organ in the raw log, or named like one ("variety meats" in USDA).
+    var isOrganMeat: Bool {
+        if !organType.isEmpty { return true }
+        let name = foodName.lowercased()
+        return ["liver", "heart", "kidney", "spleen", "brain", "tongue", "sweetbread", "tripe", "marrow",
+                "pancreas", "thymus", "testicle", "variety meats"].contains { name.contains($0) }
+    }
 }
 
 // MARK: - Build display list from daily totals + goals

@@ -55,7 +55,8 @@ struct ContentView: View {
         ZStack(alignment: .bottom) {
             // One backdrop for every tab, outside the transition, so only the content glides when the tab changes
             // and the photo never slides or zooms. Pushed screens and sheets still draw their own.
-            AppBackdrop()
+            // On Data it becomes the centred card's scene, crossfading as the wheel turns.
+            AppBackdrop(followsScenes: true)
 
             // Home, Data and Profile stay alive once opened: switching back is an instant cross-fade with nothing
             // rebuilt, reloaded or re-laid-out mid-animation (that rebuild was what made tabs stutter and shift).
@@ -92,11 +93,15 @@ struct ContentView: View {
         }
         .tint(Mono.text)
         .background(Color.ncBg.ignoresSafeArea())
+        .onAppear {
+            Backdrop.prewarm()
+            SceneMixer.shared.active = tab == .data
+        }
     }
 
     @ViewBuilder private func page(_ t: AppTab) -> some View {
         switch t {
-        case .home: DashboardView(onSearch: { showSearch = true }, onOpenProfile: { select(.profile) })
+        case .home: DashboardView(onSearch: { showSearch = true })
         case .data: MicronutrientsView()
         case .profile: ProfileView()
         default: EmptyView()
@@ -112,6 +117,8 @@ struct ContentView: View {
         visited.insert(tab)
         visited.insert(new)
         withAnimation(.easeInOut(duration: 0.2)) { tab = new }
+        // Data's scenes fade in and out a little slower than the content, so the photo change reads as one move.
+        withAnimation(.smooth(duration: 0.6)) { SceneMixer.shared.active = new == .data }
     }
 }
 

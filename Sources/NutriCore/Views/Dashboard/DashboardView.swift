@@ -17,7 +17,6 @@ struct DashboardView: View {
     @StateObject private var healthManager = HealthKitManager.shared
 
     var onSearch: () -> Void = {}
-    var onOpenProfile: () -> Void = {}
     @State private var pushed: SecondaryScreen?
     @State private var showWater = false
     @State private var showSun = false
@@ -32,9 +31,8 @@ struct DashboardView: View {
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     @AppStorage(HealthPrimingView.pendingKey) private var healthPrimingPending = false
 
-    init(onSearch: @escaping () -> Void = {}, onOpenProfile: @escaping () -> Void = {}) {
+    init(onSearch: @escaping () -> Void = {}) {
         self.onSearch = onSearch
-        self.onOpenProfile = onOpenProfile
         // Rows back to the start of the month (eating cycle) or the date wheel's history, whichever is earlier.
         // Days are filtered in memory so the view survives midnight.
         let cal = Calendar.current, today = cal.startOfDay(for: .now)
@@ -87,8 +85,7 @@ struct DashboardView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: Bento.gap) {
                     BentoHomeHeader(day: selectedDay, onToday: isToday ? nil : { select(Calendar.current.startOfDay(for: .now)) },
-                                    weatherSymbol: weather.current?.symbol, onWeather: openWeather,
-                                    onProfile: onOpenProfile) {
+                                    weatherSymbol: weather.current?.symbol, onWeather: openWeather) {
                         DaySummaryCard(day: selectedDay, calories: dayMeals.totalCalories, goal: goals.calories,
                                        protein: dayMeals.totalProtein, carbs: dayMeals.totalCarbs, fat: dayMeals.totalFat,
                                        waterLitres: (drinksMl + foodWaterMl) / 1000, sunMinutes: daySunMinutes)
@@ -342,8 +339,8 @@ extension EatingCycle.Mark {
 
 // MARK: - Header
 
-/// "Sunday, Nov 1" over the big title (Today, Yesterday or the weekday), with round glass Weather, Share and Profile
-/// buttons.
+/// "Sunday, Nov 1" over the big title (Today, Yesterday or the weekday), with round glass Weather and Share buttons.
+/// (Profile is the tab bar's.)
 /// A "Today" capsule appears on past days. One fixed row, so nothing below jumps when it appears.
 private struct BentoHomeHeader<Card: View>: View {
     let day: Date
@@ -352,7 +349,6 @@ private struct BentoHomeHeader<Card: View>: View {
     /// The current conditions' symbol, once known.
     let weatherSymbol: String?
     let onWeather: () -> Void
-    let onProfile: () -> Void
     @ViewBuilder let shareCard: () -> Card
 
     private var label: String { day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()) }
@@ -385,9 +381,6 @@ private struct BentoHomeHeader<Card: View>: View {
                 .buttonStyle(.bentoRound)
                 .accessibilityLabel("Weather")
                 ShareCardButton(title: "Share day", round: true, card: shareCard)
-                Button(action: onProfile) { Image(systemName: "person") }
-                    .buttonStyle(.bentoRound)
-                    .accessibilityLabel("Profile")
             }
             }
             // Interactive glass reacts ~24 pt beyond its edge and would catch drags meant for the date wheel below.

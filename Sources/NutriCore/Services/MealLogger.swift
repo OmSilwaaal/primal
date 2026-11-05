@@ -12,8 +12,8 @@ enum MealLogger {
             print("Failed to save meal: \(error)")
         }
         SocialService.shared.publish(entry)
-        HealthKitManager.shared.saveDietaryEnergy(calories: entry.calories, date: entry.date)
-        HealthKitManager.shared.saveDietaryProtein(grams: entry.protein, date: entry.date)
+        HealthKitManager.shared.saveDietaryEnergy(calories: entry.calories, date: entry.date, mealID: entry.id)
+        HealthKitManager.shared.saveDietaryProtein(grams: entry.protein, date: entry.date, mealID: entry.id)
     }
 
     static func delete(_ entry: MealEntry, in context: ModelContext) {
@@ -21,5 +21,6 @@ enum MealLogger {
         context.delete(entry)
         try? context.save()
         SocialService.shared.unpublish(mealId: id)
+        HealthKitManager.shared.deleteDietarySamples(forMeal: id)
     }
 }

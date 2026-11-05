@@ -177,6 +177,9 @@ private struct WaveLines: View {
 /// The app's line drawings (Paper strokes), used faintly inside tiles: a little of the outdoors in each one.
 enum LineArt: String {
     case leaf = "lines-leaf", sprig = "lines-sprig", sun = "lines-sun", water = "lines-water", meat = "lines-meat"
+    // The Data cards' drawings.
+    case wheat = "lines-wheat", citrus = "lines-citrus", mountain = "lines-mountain", seasonalSprig = "lines-sprig-seasonal",
+         rawCut = "lines-raw-cut"
 
     struct Placement {
         var alignment: Alignment

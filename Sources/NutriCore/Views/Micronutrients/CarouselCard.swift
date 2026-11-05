@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// One carousel card: the group name large in the display font, the score as a small dot-matrix number over
-/// "/ 100", a decorative expand button, and the group's nutrients (Seasonal: the season and "Coming soon") as pills
-/// along the bottom as progress bars (Seasonal: the season and "Coming soon"), all on clear Liquid Glass with the
+/// "/ 100", a decorative expand button, and the group's nutrients along the bottom as progress bars (Seasonal: the
+/// season as a pill; "coming soon" is said once, under the wheel), all on clear Liquid Glass with the
 /// moving glass light. The whole card is the button.
 struct CarouselCard: View {
     let summary: DataGroupSummary
@@ -22,7 +22,7 @@ struct CarouselCard: View {
                             .font(.display(44)).foregroundColor(.white)
                             .lineLimit(1).minimumScaleFactor(0.55)
                         if summary.isComingSoon {
-                            Text("Eating with the seasons — coming soon")
+                            Text("Eating with the seasons")
                                 .font(.mono(12, .semibold)).tracking(0.9).textCase(.uppercase)
                                 .foregroundColor(.white.opacity(0.85))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -40,18 +40,25 @@ struct CarouselCard: View {
                         .liquidGlassPanel(in: Circle())
                         .accessibilityHidden(true)
                 }
-                Spacer(minLength: 16)
                 if summary.isComingSoon {
+                    Spacer(minLength: 16)
                     FlowLayout(spacing: 6) {
                         ForEach(summary.pills) { NutrientPill(model: $0) }
                     }
                 } else {
-                    NutrientBars(items: summary.items, cardHeight: size.height)
+                    // Centred in the space under the title, with equal room above and below.
+                    Spacer(minLength: 18)
+                    NutrientBars(items: summary.items)
+                    Spacer(minLength: 18)
                 }
             }
             .padding(.horizontal, 24).padding(.top, 26).padding(.bottom, 24)
             .frame(width: size.width, alignment: .topLeading)
             .frame(minHeight: size.height, alignment: .topLeading)
+            // The group's drawing rising out of the bottom-right corner, as on Home's tiles (scaled to the card).
+            .lineArt(kind.art, placement: LineArt.Placement(alignment: .bottomTrailing, size: size.width * 0.6,
+                                                            offset: CGSize(width: size.width * 0.12, height: size.width * 0.2)),
+                     radius: radius)
             // Clear glass: the wheel cuts each card out of the ones behind it, so nothing shows through but the photo.
             .glass(.clear, in: shape)
             .glassSheen(in: shape, strength: 0.6)
@@ -71,52 +78,47 @@ struct CarouselCard: View {
     }
 }
 
-/// The group's nutrients as the original bar chart: one fully rounded bar per nutrient, bottom-aligned, as tall as
-/// its share of the target (never shorter than a flattened circle, so an empty one still reads), its short name
-/// underneath. Moss when met, warm gray on track, Ember when low. Up to six to a row.
+/// The group's nutrients as bars running left to right: the short name, then a rounded track filled to the
+/// nutrient's share of its target (never less than a dot, so an empty one still reads), then the percent. Moss when
+/// met, warm gray on track, Ember when low. Rows tighten as the list grows so every group fits the card.
 private struct NutrientBars: View {
     let items: [NutrientInfo]
-    let cardHeight: CGFloat
 
     var body: some View {
-        let rows = stride(from: 0, to: items.count, by: 6).map { Array(items[$0..<min($0 + 6, items.count)]) }
-        let height = cardHeight * (rows.count > 1 ? 0.21 : 0.4)   // the bars grow with the card
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(rows.indices, id: \.self) { r in
-                HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(rows[r]) { n in
-                        VStack(spacing: 7) {
-                            NutrientBar(n: n, maxWidth: rows.count > 1 ? 26 : 34)
-                                .frame(height: height)
-                            Text(n.short).font(.mono(9, .semibold)).tracking(0.5).textCase(.uppercase)
-                                .foregroundColor(.white.opacity(0.78))
-                                .lineLimit(1).minimumScaleFactor(0.6)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    // Short rows keep the same bar width as full ones.
-                    ForEach(0..<(6 - rows[r].count) % 6, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 1) }
+        let dense = items.count > 7
+        VStack(spacing: dense ? 9 : 16) {
+            ForEach(items) { n in
+                HStack(spacing: 10) {
+                    Text(n.short).font(.mono(dense ? 10 : 11, .semibold)).tracking(0.5).textCase(.uppercase)
+                        .foregroundColor(.white.opacity(0.85))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        .frame(width: 38, alignment: .leading)
+                    NutrientBar(n: n)
+                        .frame(height: dense ? 8 : 12)
+                    Text("\(Int((min(max(n.share, 0), 9.99) * 100).rounded()))%")
+                        .font(.mono(dense ? 10 : 11, .semibold)).monospacedDigit()
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(1)
+                        .frame(width: 38, alignment: .trailing)
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
 private struct NutrientBar: View {
     let n: NutrientInfo
-    var maxWidth: CGFloat = 34
 
     var body: some View {
         let share = min(max(n.share, 0), 1)
         GeometryReader { geo in
-            let w = min(geo.size.width, maxWidth)
-            let floor = w * 0.74
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
+            let h = geo.size.height
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.12))
                 Capsule().fill(fill(NutrientStatus(percent: n.share * 100)))
-                    .frame(width: w, height: floor + (geo.size.height - floor) * share)
+                    .frame(width: max(h, geo.size.width * share))
             }
-            .frame(maxWidth: .infinity)
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.86), value: share)
         .accessibilityHidden(true)
@@ -124,11 +126,11 @@ private struct NutrientBar: View {
 
     private func fill(_ s: NutrientStatus) -> LinearGradient {
         let colors: [Color] = switch s {
-        case .met: [Color(hex: "#A9D293"), Color(hex: "#8FBA79")]
-        case .low: [Color(hex: "#EC8D70"), Color(hex: "#E07C5F")]
-        case .onTrack: [Color(hex: "#A4A39E"), Color(hex: "#8D8C87")]
+        case .met: [Color(hex: "#8FBA79"), Color(hex: "#A9D293")]
+        case .low: [Color(hex: "#E07C5F"), Color(hex: "#EC8D70")]
+        case .onTrack: [Color(hex: "#8D8C87"), Color(hex: "#A4A39E")]
         }
-        return LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
+        return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
     }
 }
 

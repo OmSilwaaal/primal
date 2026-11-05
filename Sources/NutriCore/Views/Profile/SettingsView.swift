@@ -3,6 +3,8 @@ import StoreKit
 import SwiftData
 
 struct SettingsView: View {
+    /// Friends is hidden for now, so its privacy settings are too.
+    private static let showsSocial = false
     @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
     @AppStorage(BrandSound.enabledKey) private var isSoundEnabled = false
     @State private var eveningReminder = Reminders.isOn(.eveningLog)
@@ -89,15 +91,11 @@ struct SettingsView: View {
                             Text(emailMessage).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                                 .padding(.bottom, 12)
                         }
-                        SettingsDivider()
-                        NavigationLink(destination: BodyGoalsView()) {
-                            SettingsRowLabel(icon: "figure.stand", title: "Body & goals", subtitle: "Weight, height, activity", showsChevron: true)
-                        }
-                        .buttonStyle(SmoothButtonStyle())
                     }
 
                     // ── Privacy ─────────────────────────────────────────────
-                    if let profile = social.myProfile {
+                    // Friends' meal and profile visibility; hidden while Friends is (the code stays for its return).
+                    if Self.showsSocial, let profile = social.myProfile {
                         SettingsSection(title: "Privacy", footer: privacyFooter(profile)) {
                             SettingsToggleRow(icon: "lock", title: "Private profile",
                                               subtitle: "Only friends can see your bio and activity",

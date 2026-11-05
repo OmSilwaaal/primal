@@ -53,7 +53,19 @@ struct FoodSearchResult: Decodable, Identifiable {
         foodNutrients.first(where: { $0.nutrientId == nutrientId })?.value ?? 0
     }
 
-    var caloriesPer100g: Double { nutrient(1008) }
+    /// The first of `ids` the food actually lists (0 when none). USDA's datasets disagree on IDs: Foundation foods —
+    /// including the raw beef cuts — have no 1008 Energy and give it as 2047/2048 (Atwater) instead.
+    func nutrient(firstOf ids: [Int]) -> Double {
+        for id in ids {
+            if let v = foodNutrients.first(where: { $0.nutrientId == id })?.value { return v }
+        }
+        return 0
+    }
+
+    /// kcal per 100 g: Energy (1008), else Atwater general (2047), else Atwater specific (2048).
+    var energyKcal: Double { nutrient(firstOf: [1008, 2047, 2048]) }
+
+    var caloriesPer100g: Double { energyKcal }
     var proteinPer100g: Double  { nutrient(1003) }
     var carbsPer100g: Double    { nutrient(1005) }
     var fatPer100g: Double      { nutrient(1004) }

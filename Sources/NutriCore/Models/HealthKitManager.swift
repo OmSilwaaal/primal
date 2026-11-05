@@ -98,21 +98,41 @@ class HealthKitManager: ObservableObject {
     }
     
     // MARK: - Write Data
-    func saveDietaryEnergy(calories: Double, date: Date = Date()) {
+    /// Tags each dietary sample with the meal it came from, so deleting the meal can remove it from Health too.
+    static let mealIDKey = "VitalisMealID"
+
+    private static func metadata(_ mealID: UUID?) -> [String: Any]? {
+        mealID.map { [mealIDKey: $0.uuidString] }
+    }
+
+    /// Removes the energy and protein samples saved for a meal (when it's deleted or edited).
+    func deleteDietarySamples(forMeal mealID: UUID) {
+        guard isAuthorized else { return }
+        let predicate = HKQuery.predicateForObjects(withMetadataKey: Self.mealIDKey, allowedValues: [mealID.uuidString])
+        for id in [HKQuantityTypeIdentifier.dietaryEnergyConsumed, .dietaryProtein] {
+            guard let type = HKObjectType.quantityType(forIdentifier: id),
+                  healthStore.authorizationStatus(for: type) == .sharingAuthorized else { continue }
+            healthStore.deleteObjects(of: type, predicate: predicate) { _, _, error in
+                if let error { print("Error removing \(id.rawValue) from HealthKit: \(error)") }
+            }
+        }
+    }
+
+    func saveDietaryEnergy(calories: Double, date: Date = Date(), mealID: UUID? = nil) {
         guard isAuthorized, calories > 0, let energyType = HKObjectType.quantityType(forIdentifier: .dietaryEnergyConsumed),
               healthStore.authorizationStatus(for: energyType) == .sharingAuthorized else { return }
         let quantity = HKQuantity(unit: HKUnit.kilocalorie(), doubleValue: calories)
-        let sample = HKQuantitySample(type: energyType, quantity: quantity, start: date, end: date)
+        let sample = HKQuantitySample(type: energyType, quantity: quantity, start: date, end: date, metadata: Self.metadata(mealID))
         healthStore.save(sample) { _, error in
             if let error = error { print("Error saving calories to HealthKit: \(error)") }
         }
     }
     
-    func saveDietaryProtein(grams: Double, date: Date = Date()) {
+    func saveDietaryProtein(grams: Double, date: Date = Date(), mealID: UUID? = nil) {
         guard isAuthorized, grams > 0, let proteinType = HKObjectType.quantityType(forIdentifier: .dietaryProtein),
               healthStore.authorizationStatus(for: proteinType) == .sharingAuthorized else { return }
         let quantity = HKQuantity(unit: HKUnit.gram(), doubleValue: grams)
-        let sample = HKQuantitySample(type: proteinType, quantity: quantity, start: date, end: date)
+        let sample = HKQuantitySample(type: proteinType, quantity: quantity, start: date, end: date, metadata: Self.metadata(mealID))
         healthStore.save(sample) { _, error in
             if let error = error { print("Error saving protein to HealthKit: \(error)") }
         }

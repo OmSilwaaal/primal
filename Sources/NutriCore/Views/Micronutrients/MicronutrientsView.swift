@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// The Data tab: a looping wheel of group cards (Macros, Vitamins, Minerals, Seasonal) on the app's shared photo
+/// The Data tab: a looping wheel of group cards (Macros, Vitamins, Minerals, Raw, Seasonal) on the app's shared photo
 /// backdrop. One card faces you with its neighbours turned away on either side; swiping past the last card carries
 /// straight on to the first. Under it, the centred group's counts, then the daily streak. Tapping the centred card
 /// zooms it into its detail sheet. Everything comes from today's meals, the profile's targets and the repo's scoring.
@@ -22,7 +22,8 @@ struct MicronutrientsView: View {
 
     var body: some View {
         let today = meals.filter { Calendar.current.isDateInToday($0.date) }
-        let summaries = DataGroupSummary.make(from: buildNutrientList(from: today, goals: goals))
+        let summaries = DataGroupSummary.make(from: buildNutrientList(from: today, goals: goals)
+                                                  + buildRawList(from: today, isMale: profiles.first?.isMale ?? true))
         let streak = StreakSummary.make(meals: meals, goal: goals.calories)
         DataScreen(summaries: summaries, streak: streak, centred: $centred, open: $open, zoom: zoom)
             .hidesTabBar(open != nil)
@@ -62,9 +63,9 @@ private struct DataScreen: View {
 
     var body: some View {
         GeometryReader { geo in
-            // 304 × 440 on a 390 pt screen, scaled to the phone.
-            let cardWidth = min(330, geo.size.width * 0.78)
-            let card = CGSize(width: cardWidth, height: cardWidth * 1.45)
+            // Nearly the full width: 335 × 452 on a 390 pt screen, with just the neighbours' edges either side.
+            let cardWidth = min(380, geo.size.width * 0.86)
+            let card = CGSize(width: cardWidth, height: cardWidth * 1.35)
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 18) {
                     header
@@ -133,6 +134,8 @@ private struct DataWheel: View {
         .simultaneousGesture(drag)
         .onAppear {
             if let k = centred, let i = summaries.firstIndex(where: { $0.kind == k }) { position = Double(i) }
+            SceneMixer.shared.scenes = summaries.map(\.kind.scene)
+            SceneMixer.shared.position = position
         }
         .onChange(of: index) { _, new in
             Haptics.selection()
@@ -150,6 +153,7 @@ private struct DataWheel: View {
                 let start = dragStart ?? position
                 if dragStart == nil { dragStart = start }
                 position = start - Double(value.translation.width / step)
+                SceneMixer.shared.position = position   // the scene follows the finger
             }
             .onEnded { value in
                 let start = dragStart ?? position
@@ -158,7 +162,10 @@ private struct DataWheel: View {
                 // Throw: carry on by the predicted distance, at most one and a half cards, then settle on one.
                 let thrown = Double((value.predictedEndTranslation.width - value.translation.width) / step)
                 let target = (start - Double(value.translation.width / step) - max(-1.5, min(1.5, thrown))).rounded()
-                withAnimation(settle) { position = target }
+                withAnimation(settle) {
+                    position = target
+                    SceneMixer.shared.position = target   // same transaction, so the scene rides the same spring
+                }
             }
     }
 
@@ -175,7 +182,10 @@ private struct DataWheel: View {
     }
 
     private func turn(by cards: Double) {
-        withAnimation(settle) { position = position.rounded() + cards }
+        withAnimation(settle) {
+            position = position.rounded() + cards
+            SceneMixer.shared.position = position
+        }
     }
 }
 
@@ -194,7 +204,7 @@ private struct WheelStage<Card: View>: View, Animatable {
     /// Neighbours' size against the centred card, as in the reference: about three quarters.
     private let sideScale = 0.77
     /// How much of a neighbour shows past the centred card's edge.
-    private let peek: Double = 24
+    private let peek: Double = 14
 
     var animatableData: Double {
         get { position }

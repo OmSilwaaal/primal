@@ -80,11 +80,11 @@
 		B36FC690C4938D7B0EBEB256 /* OFL-ArchivoBlack.txt in Resources */ = {isa = PBXBuildFile; fileRef = 3D29E9A7EF6D5F44C6A9702A /* OFL-ArchivoBlack.txt */; };
 		B3ECB307AEE36631A5E2397D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 2C5F05EA7ECBF9CDB81E583C /* Supabase */; };
 		B7815FBC9B84DC33C9C0AA18 /* ArchivoBlack-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2A884FFF0CF76B461BE6F271 /* ArchivoBlack-Regular.ttf */; };
-		BC8F61B2366BD2A2F53FC29D /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */; };
 		C0109886D000BEBEEE96E826 /* FoodWater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9139A9FEEF058D4EB56BD291 /* FoodWater.swift */; };
 		C1A5095B0B908CC77953FA7C /* GroupDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2715BAE48C52CED1740DD38C /* GroupDetailSheet.swift */; };
 		C3DBAB9B35225D2538E31F07 /* NutriCoreApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E1EF83A53A31EA88A5B4107 /* NutriCoreApp.swift */; };
 		CAD248835D9D8F49F262B14C /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BBE5253355C28064890C87 /* Glass.swift */; };
+		CDD6EB6F0C4D9676BE8CD571 /* CoreLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6366638DAD4C79E3981DCEB1 /* CoreLogicTests.swift */; };
 		CEA9172FA5A3B0E5CFD89727 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C6BF77B8657F9B7ABC7D04 /* CameraPreviewView.swift */; };
 		CEBAA1D47C4B7DC8DB08EBA1 /* privacy-policy.md in Resources */ = {isa = PBXBuildFile; fileRef = BE8C556C1C77BCD72C692483 /* privacy-policy.md */; };
 		CF23A47B102473377F1995EA /* HealthPrimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4EEA6ACCF1E0F35E5A031E /* HealthPrimingView.swift */; };
@@ -93,7 +93,6 @@
 		D46A8CB84921CED86F046606 /* GlassLight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980C1948FB1B261D3DAAF19B /* GlassLight.swift */; };
 		D4998CED088EB72135EC4FC6 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11083E0FCF5E27A542FD494F /* CameraView.swift */; };
 		D529D793E619BA74BB6F9C2C /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57128BB7B0D6CC15BE00E19 /* DataModels.swift */; };
-		DFFCBD3F81E24E0B81FFBDAB /* BodyGoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8669E7ED4CB0F8CC71E4C196 /* BodyGoalsView.swift */; };
 		E33B40BC38492E3B5B15D705 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B5AADEDA754664969AA15E67 /* Assets.xcassets */; };
 		E3E89EC70672CB4AF7E3F51D /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41EAA53C5C70EC0C6F57015 /* SearchView.swift */; };
 		E5249A9D3B0E44424597C173 /* DietRater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4261E2CB654B13E6C7E9555D /* DietRater.swift */; };
@@ -105,6 +104,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		54B535D15D797938F84DE85A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 933996AF8FAE9029AC2B30A5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C1A0ACA8519741A9A487E668;
+			remoteInfo = NutriCore;
+		};
 		BE3518EB65BC49205934897F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 933996AF8FAE9029AC2B30A5 /* Project object */;
@@ -165,6 +171,7 @@
 		5C9CB56696939BD9DC16FF9F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		5D4BDF99B8BB14F12DCF83FE /* StreakCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakCard.swift; sourceTree = "<group>"; };
 		6348634BA3B5E00E011F0E6C /* FriendProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendProfileView.swift; sourceTree = "<group>"; };
+		6366638DAD4C79E3981DCEB1 /* CoreLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLogicTests.swift; sourceTree = "<group>"; };
 		64D1957631168BB5774BD04D /* NutrientsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutrientsView.swift; sourceTree = "<group>"; };
 		66B754F67B6B6E0CB1AB4417 /* RawComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawComponents.swift; sourceTree = "<group>"; };
 		6B7DF9F11867B82EFACF1261 /* BarcodeLookupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeLookupService.swift; sourceTree = "<group>"; };
@@ -174,7 +181,6 @@
 		7FB8BFBCA681393FBD6E6C98 /* ReferenceNutrition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceNutrition.swift; sourceTree = "<group>"; };
 		81D5661F2993C909DBED3AE5 /* CarouselCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarouselCard.swift; sourceTree = "<group>"; };
 		8553A6D92E1D4E7879A71878 /* MicronutrientsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicronutrientsView.swift; sourceTree = "<group>"; };
-		8669E7ED4CB0F8CC71E4C196 /* BodyGoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyGoalsView.swift; sourceTree = "<group>"; };
 		9080278985972B7F1AC47371 /* IBMPlexMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Medium.ttf"; sourceTree = "<group>"; };
 		9139A9FEEF058D4EB56BD291 /* FoodWater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodWater.swift; sourceTree = "<group>"; };
 		9402E1253CE8AD9F8EC2D945 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
@@ -211,11 +217,11 @@
 		D9A77EBAD8D87738E365240C /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DB52BDB580959B47AE585E14 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		DD082626A804F4A3A2E08C21 /* PlacesMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacesMapView.swift; sourceTree = "<group>"; };
-		E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRing.swift; sourceTree = "<group>"; };
 		E57128BB7B0D6CC15BE00E19 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		E59D3A430F4D47982FD44474 /* RawModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawModels.swift; sourceTree = "<group>"; };
 		F13B7EE67FC1C8EDA5269C00 /* AppIconPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconPicker.swift; sourceTree = "<group>"; };
 		F1F43AEEE97508ADEB765043 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		F1FABA44CBED5392AD7FFB9D /* NutriCoreTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NutriCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2E907E2F0A8AA847C698087 /* MealLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealLogger.swift; sourceTree = "<group>"; };
 		F496E7479856A5090E10B5C1 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		F78859EB1EF10E4D7B7F4E92 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -280,7 +286,6 @@
 			isa = PBXGroup;
 			children = (
 				F13B7EE67FC1C8EDA5269C00 /* AppIconPicker.swift */,
-				8669E7ED4CB0F8CC71E4C196 /* BodyGoalsView.swift */,
 				11684C00CECA16B864847336 /* EditProfileView.swift */,
 				B29170599826277F533BBD18 /* LegalView.swift */,
 				F78859EB1EF10E4D7B7F4E92 /* ProfileView.swift */,
@@ -293,6 +298,7 @@
 			isa = PBXGroup;
 			children = (
 				1571293BD926D8C15F4A1D30 /* NutriCore.app */,
+				F1FABA44CBED5392AD7FFB9D /* NutriCoreTests.xctest */,
 				FF8A251BD74245E399900274 /* VitalisWidgets.appex */,
 			);
 			name = Products;
@@ -317,6 +323,22 @@
 				C41EAA53C5C70EC0C6F57015 /* SearchView.swift */,
 			);
 			path = FoodLog;
+			sourceTree = "<group>";
+		};
+		5DA9A61F586C543E39E3F9CB /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				620E58994501A0278FABE0B1 /* NutriCoreTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		620E58994501A0278FABE0B1 /* NutriCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				6366638DAD4C79E3981DCEB1 /* CoreLogicTests.swift */,
+			);
+			path = NutriCoreTests;
 			sourceTree = "<group>";
 		};
 		690AFBB77643A07ECB4C790C /* Raw */ = {
@@ -482,6 +504,7 @@
 			children = (
 				D7748C57E8739A9E6A341F2C /* Resources */,
 				9BFE78E8B928736E705F7F39 /* Sources */,
+				5DA9A61F586C543E39E3F9CB /* Tests */,
 				38DE1B34F84E97BF491EAB46 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -497,7 +520,6 @@
 				C1BBE5253355C28064890C87 /* Glass.swift */,
 				980C1948FB1B261D3DAAF19B /* GlassLight.swift */,
 				FB2900E28FAD8503B46089A9 /* NatureBrutal.swift */,
-				E42AE507FBCFC0B9818C3E6B /* ProgressRing.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -555,6 +577,24 @@
 			productReference = FF8A251BD74245E399900274 /* VitalisWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		C16F1F7AB9974EB5EA9A293C /* NutriCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0EE4D679AAD75B230BCD45F4 /* Build configuration list for PBXNativeTarget "NutriCoreTests" */;
+			buildPhases = (
+				0F8EE70AB4F542B17F75874D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				25E9836B6F2CC871951D8EE4 /* PBXTargetDependency */,
+			);
+			name = NutriCoreTests;
+			packageProductDependencies = (
+			);
+			productName = NutriCoreTests;
+			productReference = F1FABA44CBED5392AD7FFB9D /* NutriCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		C1A0ACA8519741A9A487E668 /* NutriCore */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 568D67B0E1FA69EDCDDD7C2A /* Build configuration list for PBXNativeTarget "NutriCore" */;
@@ -590,6 +630,10 @@
 						DevelopmentTeam = H5KUB3S9FY;
 						ProvisioningStyle = Automatic;
 					};
+					C16F1F7AB9974EB5EA9A293C = {
+						DevelopmentTeam = H5KUB3S9FY;
+						ProvisioningStyle = Automatic;
+					};
 					C1A0ACA8519741A9A487E668 = {
 						DevelopmentTeam = H5KUB3S9FY;
 						ProvisioningStyle = Automatic;
@@ -614,6 +658,7 @@
 			projectRoot = "";
 			targets = (
 				C1A0ACA8519741A9A487E668 /* NutriCore */,
+				C16F1F7AB9974EB5EA9A293C /* NutriCoreTests */,
 				3BC9ED59BB35327FC15C6200 /* VitalisWidgets */,
 			);
 		};
@@ -651,6 +696,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0F8EE70AB4F542B17F75874D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CDD6EB6F0C4D9676BE8CD571 /* CoreLogicTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		38EF2894B462A4E78372ABB6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -667,7 +720,6 @@
 				44D3F1BBB0EA51B15A502E61 /* BatchViews.swift in Sources */,
 				6794DD1C4AC24278758616BE /* Bento.swift in Sources */,
 				77BAD8C59581698F78094765 /* BiomarkersView.swift in Sources */,
-				DFFCBD3F81E24E0B81FFBDAB /* BodyGoalsView.swift in Sources */,
 				872B186F016DFE4CA383591E /* Brand.swift in Sources */,
 				0D4EC413238E0A2C04505EF6 /* CameraManager.swift in Sources */,
 				CEA9172FA5A3B0E5CFD89727 /* CameraPreviewView.swift in Sources */,
@@ -710,7 +762,6 @@
 				78BAAA27D7BFDC2A1C8A2756 /* PlacesMapView.swift in Sources */,
 				8B1B4409C53154BE5D8DC091 /* ProfileSetupView.swift in Sources */,
 				346DB15E16EDD928196A767F /* ProfileView.swift in Sources */,
-				BC8F61B2366BD2A2F53FC29D /* ProgressRing.swift in Sources */,
 				18CDEDF7189B422D091A5C62 /* RawComponents.swift in Sources */,
 				5D9FFF4EBA16F21314EBD802 /* RawHubView.swift in Sources */,
 				FC7643431E5AB014080CA04B /* RawLogView.swift in Sources */,
@@ -740,6 +791,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		25E9836B6F2CC871951D8EE4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C1A0ACA8519741A9A487E668 /* NutriCore */;
+			targetProxy = 54B535D15D797938F84DE85A /* PBXContainerItemProxy */;
+		};
 		40B769E29F2E5A38B74788A7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 3BC9ED59BB35327FC15C6200 /* VitalisWidgets */;
@@ -853,6 +909,48 @@
 			};
 			name = Release;
 		};
+		3AF297FBD9988B97D89D89B6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = H5KUB3S9FY;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.omsilwal.NutriCorePrimal.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NutriCore.app/NutriCore";
+			};
+			name = Debug;
+		};
+		4684072FEEDD5FD740785350 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = H5KUB3S9FY;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.omsilwal.NutriCorePrimal.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NutriCore.app/NutriCore";
+			};
+			name = Release;
+		};
 		6E1765D287394ACD14EF4EBA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -954,6 +1052,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0EE4D679AAD75B230BCD45F4 /* Build configuration list for PBXNativeTarget "NutriCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3AF297FBD9988B97D89D89B6 /* Debug */,
+				4684072FEEDD5FD740785350 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		1FD62F1B56A498A5B22CF14D /* Build configuration list for PBXNativeTarget "VitalisWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

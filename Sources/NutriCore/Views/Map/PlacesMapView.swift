@@ -111,7 +111,7 @@ struct PlacesMapView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Real food sources").font(.mono(11)).tracking(1.6).textCase(.uppercase).foregroundColor(.ncSecondary)
                 Text(isSearching ? "SEARCHING \(selectedQuery.uppercased())…"
-                                 : "\(searchResults.count) × \(selectedQuery.uppercased()) WITHIN 20 KM")
+                                 : "\(searchResults.count) \(searchResults.count == 1 ? "PLACE" : "PLACES") WITHIN 20 KM")   // the category is the selected chip
                     .font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
                     .lineLimit(3).minimumScaleFactor(0.8)
             }

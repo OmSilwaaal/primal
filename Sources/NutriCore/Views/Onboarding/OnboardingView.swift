@@ -279,26 +279,3 @@ struct GoogleGMark: View {
     }
 }
 
-struct OnboardingFeatureRow: View {
-    let icon: String      // index label, e.g. "01"
-    let tint: Color
-    let tintBg: Color
-    let label: String
-    let sub: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                Text(icon).font(.ui(size: 12, weight: .medium).monospacedDigit()).foregroundColor(.ncSecondary)
-                    .frame(width: 22, alignment: .leading)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(label).font(.serif(19)).foregroundColor(.ncPrimary)
-                    Text(sub).font(.ui(size: 13)).foregroundColor(.ncSecondary)
-                }
-                Spacer()
-            }
-            .padding(.vertical, 14)
-            Hairline(opacity: 0.12)
-        }
-    }
-}

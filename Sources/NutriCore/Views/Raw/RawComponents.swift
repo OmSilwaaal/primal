@@ -91,20 +91,6 @@ struct Chip: View {
     }
 }
 
-struct ChipFlow<T: Identifiable & Hashable>: View {
-    let items: [T]
-    let label: (T) -> String
-    var icon: ((T) -> String?)? = nil
-    @Binding var selection: T
-    var body: some View {
-        FlowLayout(spacing: 8) {
-            ForEach(items) { item in
-                Chip(label: label(item), icon: icon?(item), selected: item == selection) { selection = item }
-            }
-        }
-    }
-}
-
 /// Simple wrapping layout for chips.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8

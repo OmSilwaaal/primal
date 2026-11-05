@@ -68,6 +68,8 @@ targets:
     scheme:
       # Local App Store for testing purchases in the simulator and from Xcode.
       storeKitConfiguration: Vitalis.storekit
+      testTargets:
+        - NutriCoreTests
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal
@@ -77,6 +79,23 @@ targets:
         # Alternate icons chosen in Settings → App icon.
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Ink AppIcon-Paper AppIcon-Ember AppIcon-Moss AppIcon-Desert AppIcon-Ocean AppIcon-Fog AppIcon-Night"
         TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+
+  # Unit tests for the core maths (targets, food → meal, scores, streaks). Run with ⌘U or `xcodebuild test`.
+  NutriCoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/NutriCoreTests
+    dependencies:
+      - target: NutriCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.omsilwal.NutriCorePrimal.tests
+        DEVELOPMENT_TEAM: H5KUB3S9FY
+        SWIFT_VERSION: "5.9"
         CODE_SIGN_STYLE: Automatic
 
   # Home Screen and Lock Screen widgets. They read WidgetSnapshot from the App Group, never the app's database.

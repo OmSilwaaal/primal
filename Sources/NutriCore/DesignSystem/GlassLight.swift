@@ -49,18 +49,30 @@ final class GlassLight {
     private var lastTime: CFTimeInterval = 0
     private let surfaces = NSHashTable<SheenSurfaceView>.weakObjects()
     /// Left, centre and right strips of the background photo, lifted to light-like colours. White until sampled.
+    /// Eases towards `target` every frame, so a scene change on Data shifts the light's colour smoothly.
     private var palette: [SIMD3<Double>] = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+    private var target: [SIMD3<Double>] = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+    /// Every scene's palette, sampled once at launch; the session's is `sessionPalette`.
+    private var scenePalettes: [Backdrop: [SIMD3<Double>]] = [:]
+    private var sessionPalette: [SIMD3<Double>] = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+    /// The scene blend asked for last (nil = the session's photo), kept so it applies once palettes arrive.
+    private var scene: (Backdrop, Backdrop, Double)?
 
     var reduceMotion: Bool { UIAccessibility.isReduceMotionEnabled }
 
     private init() {
-        let asset = Backdrop.current.assetName
         Task.detached(priority: .utility) {
-            guard let sampled = Self.samplePalette(assetName: asset) else { return }
+            let all = Dictionary(uniqueKeysWithValues: Backdrop.allCases.compactMap { scene in
+                Self.samplePalette(assetName: scene.assetName).map { (scene, $0) }
+            })
             await MainActor.run {
-                GlassLight.shared.palette = sampled
-                GlassLight.shared.updateColors()
-                GlassLight.shared.redrawAll()
+                let light = GlassLight.shared
+                light.scenePalettes = all
+                if let own = all[Backdrop.current] { light.sessionPalette = own; light.palette = own }
+                light.retarget()
+                light.palette = light.target
+                light.updateColors()
+                light.redrawAll()
             }
         }
         updateColors()
@@ -116,6 +128,23 @@ final class GlassLight {
         scrollShift = -0.1 * min(1.5, max(-0.3, screens))
     }
 
+    // MARK: Scene
+
+    /// Blend the light's colour between two scenes' palettes (`mix` 0 = `a`); nil, nil goes back to the session's.
+    func setScene(_ a: Backdrop?, _ b: Backdrop?, mix: Double) {
+        if let a, let b { scene = (a, b, min(1, max(0, mix))) } else { scene = nil }
+        retarget()
+        if reduceMotion || link == nil { palette = target; updateColors(); redrawAll() }
+    }
+
+    private func retarget() {
+        guard let (a, b, t) = scene, let pa = scenePalettes[a], let pb = scenePalettes[b] else {
+            target = sessionPalette
+            return
+        }
+        target = zip(pa, pb).map { $0 + ($1 - $0) * t }
+    }
+
     // MARK: Frame
 
     fileprivate func tick(_ link: CADisplayLink) {
@@ -138,6 +167,9 @@ final class GlassLight {
             point.x += velocity.x * dt; point.y += velocity.y * dt
             breath = 1 + Self.breathDepth * sin(now * 2 * .pi / Self.breathPeriod)
         }
+        // The colour glides to its target (about 0.4 s to settle): exponential, so it never overshoots or steps.
+        let k = reduceMotion ? 1 : 1 - exp(-dt * 7)
+        palette = zip(palette, target).map { $0 + ($1 - $0) * k }
         updateColors()
         redrawAll()
     }
@@ -268,6 +300,7 @@ final class SheenSurfaceView: UIView {
         CATransaction.commit()
         redraw(light: GlassLight.shared)
     }
+    
 
     func redraw(light: GlassLight) {
         guard let window, bounds.width > 1, bounds.height > 1 else { return }

@@ -29,9 +29,9 @@ struct ProfileView: View {
     @State private var route: ProfileRoute?
     @State private var pushed: SecondaryScreen?
     @State private var sheet: Sheet?
-    /// Log, Daily energy and Info open as edge-to-edge bottom panels.
+    /// Log, Week, History and Trends open as edge-to-edge bottom panels.
     @State private var panel: Panel?
-    enum Panel { case log, energy, info }
+    enum Panel { case log, energy, history, info }
     @State private var showScan = false
     @State private var expanded = false
     /// The extra stats' natural height, measured, so the panel can open to exactly that.
@@ -85,7 +85,7 @@ struct ProfileView: View {
             }
             .sheet(item: $sheet) { sheet in sheetContent(sheet) }
             .bottomPanel(isPresented: Binding(get: { panel != nil }, set: { if !$0 { panel = nil } }),
-                         fraction: panel == .info ? 0.62 : 0.52) {
+                         fraction: panel == .log ? 0.52 : 0.62) {
                 if let profile { panelContent(profile) }
             }
             .fullScreenCover(isPresented: $showScan) { CameraView(onClose: { showScan = false }) }
@@ -130,18 +130,17 @@ struct ProfileView: View {
     // MARK: - Bento cluster
 
     private func bento(_ profile: UserProfile) -> some View {
-        let cal = Calendar.current
-        let today = recentMeals.filter { cal.isDateInToday($0.date) }
-        let photos = recentMeals.filter { $0.photoData != nil }
+        let week = weekMeals
+        let average = Self.dailyAverage(week)
+        let latestPhoto = week.first(where: { $0.photoData != nil })?.photoData
 
         return GlassGroup(spacing: 4) {
             FlexRow(ratios: [1.1, 1], spacing: 10) {
-                // Daily energy.
+                // This week's energy. (Today's is Home's ring; this is the 7-day average against the target.)
                 Button { panel = .energy } label: {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Daily").font(.ui(size: 17, weight: .medium)).foregroundColor(.white.opacity(0.85))
-                        // Home's calorie ring, small: today's kcal against the daily target.
-                        TileRing(eaten: today.totalCalories, goal: profile.dailyCalorieGoal)
+                        Text("Week").font(.ui(size: 17, weight: .medium)).foregroundColor(.white.opacity(0.85))
+                        TileRing(eaten: average, goal: profile.dailyCalorieGoal, caption: "a day · of")
                             .frame(maxWidth: .infinity)
                     }
                     .padding(16)
@@ -159,16 +158,16 @@ struct ProfileView: View {
                     .contentShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Daily energy, \(Int(today.totalCalories)) of \(Int(profile.dailyCalorieGoal)) kilocalories")
-                .accessibilityHint("Opens daily energy details")
+                .accessibilityLabel("This week, \(Int(average)) kilocalories a day on average, of \(Int(profile.dailyCalorieGoal))")
+                .accessibilityHint("Opens this week's energy")
 
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
                         smallTile(tint: nil, label: "Log", action: { panel = .log }) {
                             tileFace(icon: "square.and.pencil", title: "Log")
                         }
-                        smallTile(tint: Color(hex: "#E0A458"), label: "Info", action: { panel = .info }) {
-                            tileFace(icon: "info.circle", title: "Info")
+                        smallTile(tint: Color(hex: "#E0A458"), label: "Trends, last 7 days", action: { panel = .info }) {
+                            tileFace(icon: "chart.line.uptrend.xyaxis", title: "Trends")
                         }
                     }
                     HStack(spacing: 10) {
@@ -176,11 +175,11 @@ struct ProfileView: View {
                             MiniGoalsMonth(meals: recentMeals, goal: profile.dailyCalorieGoal)
                                 .padding(10)
                         }
-                        smallTile(tint: Color(hex: "#6E9A5B"), photo: today.first?.photoData ?? photos.dropFirst().first?.photoData,
-                                  label: "Today's meals, \(today.count)", action: { panel = .energy }) {
+                        smallTile(tint: Color(hex: "#6E9A5B"), photo: latestPhoto,
+                                  label: "History, \(week.count) meals in the last 7 days", action: { panel = .history }) {
                             ZStack {
-                                tileFace(icon: "fork.knife", title: "Today")
-                                Text("\(today.count)").font(.ui(size: 12, weight: .bold)).foregroundColor(.white)
+                                tileFace(icon: "clock.arrow.circlepath", title: "History")
+                                Text("\(week.count)").font(.ui(size: 12, weight: .bold)).foregroundColor(.white)
                                     .frame(minWidth: 22, minHeight: 22)
                                     .padding(.horizontal, 3)
                                     .vitalisGlass(Capsule(), tint: .ncEmber)
@@ -421,10 +420,12 @@ struct ProfileView: View {
                 }
             }
         case .energy:
-            DailyEnergySheet(profile: profile, today: todaysMeals)
+            WeekEnergySheet(profile: profile, meals: weekMeals, days: Self.lastSevenDays)
+        case .history:
+            MealHistorySheet(meals: weekMeals, days: Self.lastSevenDays)
         case .info:
-            InfoSheet(profile: profile, today: todaysMeals, waterMl: todayWaterMl(), sunMinutes: todaySunMinutes(),
-                      sunGoal: sunGoal)
+            TrendsSheet(profile: profile, meals: weekMeals, waterMl: weekWaterMl() / 7, sunMinutes: weekSunMinutes() / 7,
+                        sunGoal: sunGoal)
         case nil:
             EmptyView()
         }
@@ -479,6 +480,36 @@ struct ProfileView: View {
     @AppStorage(RawSettings.sunGoalKey) private var sunGoal = 30
 
     private var todaysMeals: [MealEntry] { recentMeals.filter { Calendar.current.isDateInToday($0.date) } }
+
+    /// The last seven days, oldest first, ending today.
+    static var lastSevenDays: [Date] {
+        let cal = Calendar.current, today = cal.startOfDay(for: .now)
+        return (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+    }
+
+    /// Meals from the last seven days, newest first.
+    private var weekMeals: [MealEntry] {
+        let start = Self.lastSevenDays.first ?? .now
+        return recentMeals.filter { $0.date >= start }
+    }
+
+    /// Average kcal a day over the days that have something logged (empty days would read as fasting).
+    static func dailyAverage(_ meals: [MealEntry]) -> Double {
+        let days = Set(meals.map { Calendar.current.startOfDay(for: $0.date) }).count
+        return days > 0 ? meals.totalCalories / Double(days) : 0
+    }
+
+    private func weekWaterMl() -> Double {
+        let start = Self.lastSevenDays.first ?? .now
+        let days = (try? modelContext.fetch(FetchDescriptor<DailyHydration>(predicate: #Predicate { $0.date >= start }))) ?? []
+        return days.reduce(0) { $0 + $1.waterOunces } * WaterSheet.mlPerOunce
+    }
+
+    private func weekSunMinutes() -> Double {
+        let start = Self.lastSevenDays.first ?? .now
+        let sessions = (try? modelContext.fetch(FetchDescriptor<SunSession>(predicate: #Predicate { $0.start >= start }))) ?? []
+        return sessions.reduce(0) { $0 + $1.minutes }
+    }
 
     private func todayHydration() -> DailyHydration {
         let start = Calendar.current.startOfDay(for: .now)
@@ -633,10 +664,11 @@ private extension View {
     }
 }
 
-/// Home's calorie ring at tile size: gray track, white arc, today's kcal with bloom and the target under it.
+/// Home's calorie ring at tile size: gray track, white arc, the kcal with the target under it.
 private struct TileRing: View {
     let eaten: Double
     let goal: Double
+    var caption = "of"
     private let size: CGFloat = 112
     private let width: CGFloat = 10
 
@@ -655,7 +687,7 @@ private struct TileRing: View {
                 Text(Int(eaten).formatted()).font(.bentoNumber(26)).tracking(Font.bentoTracking(26))
                     .foregroundColor(.white)
                     .lineLimit(1).minimumScaleFactor(0.5)
-                Text("of \(Int(goal).formatted())").font(.ui(size: 11, weight: .medium)).foregroundColor(.white.opacity(0.8))
+                Text("\(caption) \(Int(goal).formatted())").font(.ui(size: 11, weight: .medium)).foregroundColor(.white.opacity(0.8))
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
             .padding(.horizontal, width + 8)
@@ -796,39 +828,48 @@ private struct AddMenuSheet: View {
     }
 }
 
-/// Info: today at a glance — energy against the goal, water, time outside, the three lowest nutrients and this
-/// month's days on target.
-private struct InfoSheet: View {
+/// Trends: the last seven days as daily averages — energy, water, time outside, meals — and the three nutrients
+/// that ran lowest across the week. (Today's numbers live on Home and Data; this is the longer view.)
+private struct TrendsSheet: View {
     let profile: UserProfile
-    let today: [MealEntry]
+    let meals: [MealEntry]
     let waterMl: Double
     let sunMinutes: Double
     let sunGoal: Int
 
     var body: some View {
         let goals = NutrientGoals.from(profile)
-        let low = buildNutrientList(from: today, goals: goals)
+        let logged = max(1, Set(meals.map { Calendar.current.startOfDay(for: $0.date) }).count)
+        // Each nutrient's average over the days logged, against the daily target.
+        let low = buildNutrientList(from: meals, goals: goals)
             .filter { $0.group != .macros }
+            .map { NutrientInfo(id: $0.id, name: $0.name, unit: $0.unit, icon: $0.icon, group: $0.group,
+                                current: $0.current / Double(logged), goal: $0.goal) }
             .sorted { $0.progress < $1.progress }
             .prefix(3)
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Info").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+                Text("Trends").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
                     .padding(.top, 6)
                     .accessibilityAddTraits(.isHeader)
-                Text("Today").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.white.opacity(0.72))
+                Text("Last 7 days · a day on average").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                    .foregroundColor(.white.opacity(0.72))
                 VStack(spacing: 0) {
-                    row("flame", "Energy", "\(Int(today.totalCalories).formatted()) of \(Int(goals.calories).formatted()) kcal", first: true)
+                    row("flame", "Energy", "\(Int(ProfileView.dailyAverage(meals)).formatted()) of \(Int(goals.calories).formatted()) kcal", first: true)
                     row("drop", "Water", String(format: "%.1f of %.1f L", waterMl / 1000, WaterSheet.goalMl / 1000))
-                    row("sun.max", "Time outside", "\(Int(sunMinutes)) of \(sunGoal) min")
-                    row("fork.knife", "Meals", "\(today.count) logged")
+                    row("sun.max", "Time outside", "\(Int(sunMinutes.rounded())) of \(sunGoal) min")
+                    row("fork.knife", "Meals", String(format: "%.1f", Double(meals.count) / 7))
                 }
                 .padding(.horizontal, 16)
                 .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-                Text("Lowest today").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.white.opacity(0.72))
+                Text("Lowest this week").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase).foregroundColor(.white.opacity(0.72))
                     .padding(.top, 4)
                 VStack(spacing: 0) {
+                    if meals.isEmpty {
+                        Text("Log a few meals to see what runs low.").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
+                            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                    }
                     ForEach(Array(low.enumerated()), id: \.element.id) { i, n in
                         row("exclamationmark.circle", n.name, "\(n.percentage)% of target", first: i == 0)
                     }
@@ -836,15 +877,12 @@ private struct InfoSheet: View {
                 .padding(.horizontal, 16)
                 .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-                Text("Targets follow NIH dietary reference intakes for your age and sex.")
+                Text("Food averages count the days you logged; water and time outside count all seven. Targets follow NIH dietary reference intakes for your age and sex.")
                     .font(.ui(size: 12)).foregroundColor(.white.opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 20).padding(.bottom, 24)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .glassSheetBackground()
-        .presentationCornerRadius(Bento.radius)
     }
 
     private func row(_ icon: String, _ title: String, _ value: String, first: Bool = false) -> some View {
@@ -860,61 +898,131 @@ private struct InfoSheet: View {
     }
 }
 
-// MARK: - Daily energy and Ask sheets
+// MARK: - Week and History sheets
 
-/// Today's intake against the daily energy goal, where the goal comes from, and the macro targets.
-private struct DailyEnergySheet: View {
+/// This week's energy: the daily average against the target, a bar per day (Moss on target, Ember off, faint when
+/// nothing was logged) under a dashed target line, how many days landed on target, and where the target comes from.
+private struct WeekEnergySheet: View {
     let profile: UserProfile
-    let today: [MealEntry]
+    let meals: [MealEntry]
+    let days: [Date]
 
     var body: some View {
-        let goals = NutrientGoals.from(profile)
-        let eaten = today.totalCalories
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Daily energy").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+        let goal = NutrientGoals.from(profile).calories
+        let cal = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for m in meals { byDay[cal.startOfDay(for: m.date), default: 0] += m.calories }
+        let onTarget = days.filter { DayGoal(kcal: byDay[$0] ?? 0, goal: goal) == .onTarget }.count
+        let ceiling = max(goal * 1.3, byDay.values.max() ?? 0)
+        let chartHeight: CGFloat = 120
+
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("This week").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+                .accessibilityAddTraits(.isHeader)
             HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text(Int(eaten).formatted()).font(.display(44)).foregroundColor(.white)
-                Text("of \(Int(goals.calories).formatted()) kcal today").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
+                Text(Int(ProfileView.dailyAverage(meals)).formatted()).font(.display(44)).foregroundColor(.white)
+                Text("kcal a day · target \(Int(goal).formatted())").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
             }
             .accessibilityElement(children: .combine)
-            BentoBar(value: goals.calories > 0 ? eaten / goals.calories : 0)
-            Text("Worked out from your weight, height, age, sex and activity (Mifflin–St Jeor), plus what Apple Health says you've burned today on Home.")
-                .font(.ui(size: 13)).foregroundColor(.white.opacity(0.72)).fixedSize(horizontal: false, vertical: true)
-            // What they ate today, newest first.
-            Text("Eaten today").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
-                .foregroundColor(.white.opacity(0.72)).padding(.top, 2)
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    if today.isEmpty {
-                        Text("Nothing logged yet today.").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
-                            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(days, id: \.self) { day in
+                    let kcal = byDay[day] ?? 0
+                    let status = DayGoal(kcal: kcal, goal: goal)
+                    VStack(spacing: 6) {
+                        Capsule()
+                            .fill(status == .onTarget ? Color.ncMoss : status == .offTarget ? Color.ncEmber : Color.white.opacity(0.18))
+                            .frame(height: max(10, chartHeight * kcal / max(ceiling, 1)))
+                            .frame(height: chartHeight, alignment: .bottom)
+                        Text(day.formatted(.dateTime.weekday(.narrow))).font(.mono(10, .semibold))
+                            .foregroundColor(cal.isDateInToday(day) ? .white : .white.opacity(0.6))
                     }
-                    ForEach(Array(today.sorted { $0.date > $1.date }.enumerated()), id: \.element.id) { i, meal in
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(meal.foodName.components(separatedBy: ",").first?.capitalized ?? meal.foodName)
-                                    .font(.ui(size: 15, weight: .medium)).foregroundColor(.white).lineLimit(1)
-                                Text("\(MealSlot.name(for: meal.date)) · \(meal.date.formatted(date: .omitted, time: .shortened)) · \(Int(meal.servingSize)) g")
-                                    .font(.ui(size: 12)).foregroundColor(.white.opacity(0.65))
-                            }
-                            Spacer(minLength: 8)
-                            Text("\(Int(meal.calories).formatted()) kcal").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
-                        }
-                        .frame(minHeight: 56)
-                        .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) } }
-                        .accessibilityElement(children: .combine)
-                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide))), \(Int(kcal)) kilocalories, \(status.spoken)")
                 }
-                .padding(.horizontal, 16)
-                .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
+            // The target as a dashed line across the bars.
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .foregroundColor(.white.opacity(0.5))
+                    .frame(height: 1)
+                    .padding(.bottom, 16 + chartHeight * goal / max(ceiling, 1))
+                    .accessibilityHidden(true)
+            }
+
+            Text("\(onTarget) of 7 days on target").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                .foregroundColor(.white.opacity(0.72))
+            Text("The target is worked out from your weight, height, age, sex and activity (Mifflin–St Jeor), plus what Apple Health says you've burned on Home. The average counts the days you logged.")
+                .font(.ui(size: 13)).foregroundColor(.white.opacity(0.72)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 22).padding(.top, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .glassSheetBackground()
-        .presentationCornerRadius(Bento.radius)
+    }
+}
+
+/// History: every meal from the last seven days, grouped by day (newest first) with each day's total. Home shows one
+/// day at a time; this is the week in one list.
+private struct MealHistorySheet: View {
+    let meals: [MealEntry]
+    let days: [Date]
+
+    var body: some View {
+        let cal = Calendar.current
+        let filled = days.reversed().compactMap { day -> (Date, [MealEntry])? in
+            let list = meals.filter { cal.isDate($0.date, inSameDayAs: day) }.sorted { $0.date > $1.date }
+            return list.isEmpty ? nil : (day, list)
+        }
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("History").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+                .padding(.top, 6)
+                .accessibilityAddTraits(.isHeader)
+            Text("Last 7 days · \(meals.count) meals").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                .foregroundColor(.white.opacity(0.72))
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if filled.isEmpty {
+                        Text("Nothing logged in the last 7 days.").font(.ui(size: 15)).foregroundColor(.white.opacity(0.72))
+                    }
+                    ForEach(filled, id: \.0) { day, list in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(cal.isDateInToday(day) ? "Today" : day.formatted(.dateTime.weekday(.wide).day().month(.abbreviated)))
+                                    .font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                                Spacer()
+                                Text("\(Int(list.totalCalories).formatted()) kcal").font(.ui(size: 13, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.72))
+                            }
+                            .accessibilityElement(children: .combine)
+                            VStack(spacing: 0) {
+                                ForEach(Array(list.enumerated()), id: \.element.id) { i, meal in
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(meal.foodName.components(separatedBy: ",").first?.capitalized ?? meal.foodName)
+                                                .font(.ui(size: 15, weight: .medium)).foregroundColor(.white).lineLimit(1)
+                                            Text("\(MealSlot.name(for: meal.date)) · \(meal.date.formatted(date: .omitted, time: .shortened)) · \(Int(meal.servingSize)) g")
+                                                .font(.ui(size: 12)).foregroundColor(.white.opacity(0.65))
+                                        }
+                                        Spacer(minLength: 8)
+                                        Text("\(Int(meal.calories).formatted()) kcal").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                                    }
+                                    .frame(minHeight: 56)
+                                    .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) } }
+                                    .accessibilityElement(children: .combine)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        }
+                    }
+                }
+                .padding(.bottom, 24)
+            }
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

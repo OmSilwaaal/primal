@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 import CoreImage
 
 // MARK: - Vitalis design system: type, space, backdrop
@@ -116,35 +117,120 @@ extension Backdrop {
     /// The session's photo, heavily blurred so it reads as soft colour and light behind the glass rather than a
     /// picture, while keeping the photo's shapes readable. Blurred once at 40% size (the blur hides the lost
     /// detail) and cached; nil if Core Image fails.
-    static let blurredImage: UIImage? = {
-        guard let source = UIImage(named: current.assetName), let cg = source.cgImage else { return nil }
+    static var blurredImage: UIImage? { blurred(current) }
+
+    /// Any scene's photo, blurred the same way and cached (thread-safe), for the Data tab's per-card scenes.
+    nonisolated static func blurred(_ scene: Backdrop) -> UIImage? {
+        if let hit = blurCache.object(forKey: scene.rawValue as NSString) { return hit }
+        guard let source = UIImage(named: scene.assetName), let cg = source.cgImage else { return nil }
         let input = CIImage(cgImage: cg).transformed(by: CGAffineTransform(scaleX: 0.4, y: 0.4))
         let blurred = input.clampedToExtent()
             .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 9])
             .cropped(to: input.extent)
         guard let out = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(blurred, from: input.extent)
         else { return nil }
-        return UIImage(cgImage: out)
-    }()
+        let image = UIImage(cgImage: out)
+        blurCache.setObject(image, forKey: scene.rawValue as NSString)
+        return image
+    }
+
+    nonisolated(unsafe) private static let blurCache = NSCache<NSString, UIImage>()
+
+    /// Blurs every scene in the background, so the first swipe on Data never waits on Core Image.
+    static func prewarm() {
+        Task.detached(priority: .utility) { for scene in Backdrop.allCases { _ = Backdrop.blurred(scene) } }
+    }
+}
+
+/// The Data tab's scenes: one photo per card, and the wheel's continuous position along them. ContentView's backdrop
+/// crossfades between them (animating with the wheel's own spring, since both change in the same transaction), and
+/// the glass light's colour follows. `active` is on while the Data tab is showing.
+@MainActor @Observable
+final class SceneMixer {
+    static let shared = SceneMixer()
+
+    var scenes: [Backdrop] = [] { didSet { pushLight() } }
+    var position: Double = 0 { didSet { pushLight() } }
+    var active = false { didSet { pushLight() } }
+
+    /// The two scenes either side of `position` and how far between them (0 = the first), wrapping round the wheel.
+    nonisolated static func pair(_ scenes: [Backdrop], at position: Double) -> (Backdrop, Backdrop, Double)? {
+        guard !scenes.isEmpty else { return nil }
+        let n = scenes.count
+        let f = position.rounded(.down)
+        let i = ((Int(f) % n) + n) % n
+        return (scenes[i], scenes[(i + 1) % n], position - f)
+    }
+
+    private func pushLight() {
+        if active, let (a, b, t) = Self.pair(scenes, at: position) {
+            GlassLight.shared.setScene(a, b, mix: t)
+        } else {
+            GlassLight.shared.setScene(nil, nil, mix: 0)
+        }
+    }
+}
+
+/// The blurred photo for the backdrop: the session's own, or — while Data is showing — the centred card's scene,
+/// crossfading frame by frame with the wheel. Animatable on the position and on how far Data's scenes are faded in,
+/// so a snap, a tap on a neighbour and switching tabs all glide.
+private struct SceneLayers: View, Animatable {
+    var position: Double
+    var amount: Double
+    let scenes: [Backdrop]
+    let size: CGSize
+
+    var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(position, amount) }
+        set { position = newValue.first; amount = newValue.second }
+    }
+
+    var body: some View {
+        ZStack {
+            photo(Backdrop.current)
+            if amount > 0.001, let (a, b, t) = SceneMixer.pair(scenes, at: position) {
+                photo(a).opacity(amount)
+                if t > 0.001 { photo(b).opacity(amount * t) }
+            }
+        }
+    }
+
+    private func photo(_ scene: Backdrop) -> some View {
+        (Backdrop.blurred(scene).map { Image(uiImage: $0) } ?? Image(scene.assetName))
+            .resizable()
+            .scaledToFill()
+            .frame(width: size.width, height: size.height)
+            // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
+            .offset(x: -max(0, size.height * 2 / 3 - size.width) * 0.12)
+            .clipped()
+    }
 }
 
 /// The session's darkened photograph (see `Backdrop`), blurred, behind every screen, with the design's top/bottom scrim.
 struct AppBackdrop: View {
     var intensity: Double = 1
+    /// ContentView's backdrop only: follows the Data tab's scenes (`SceneMixer`).
+    var followsScenes = false
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 Color.ncBg
-                (Backdrop.blurredImage.map { Image(uiImage: $0) } ?? Image(Backdrop.current.assetName))
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
-                    .offset(x: -max(0, geo.size.height * 2 / 3 - geo.size.width) * 0.12)
-                    .opacity(intensity)
-                    .clipped()
+                if followsScenes {
+                    let mixer = SceneMixer.shared
+                    SceneLayers(position: mixer.position, amount: mixer.active ? 1 : 0, scenes: mixer.scenes, size: geo.size)
+                        .opacity(intensity)
+                } else {
+                    (Backdrop.blurredImage.map { Image(uiImage: $0) } ?? Image(Backdrop.current.assetName))
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
+                        .offset(x: -max(0, geo.size.height * 2 / 3 - geo.size.width) * 0.12)
+                        .opacity(intensity)
+                        .clipped()
+                }
                 LinearGradient(stops: [
                     .init(color: .black.opacity(0.55), location: 0),
                     .init(color: .black.opacity(0.25), location: 0.4),
@@ -211,12 +297,6 @@ struct Rule: View {
 struct Hairline: View {
     var opacity: Double = 0.16
     var body: some View { Rectangle().fill(Color.ncPrimary.opacity(opacity)).frame(height: 1) }
-}
-
-/// Kept for older call sites.
-struct RuleLabel: View {
-    let text: String
-    var body: some View { SectionLabel(title: text) }
 }
 
 /// Page title: serif caption (with an optional control on the right), then the big cropped title.

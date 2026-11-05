@@ -207,17 +207,6 @@ private struct PlanRow: View {
     }
 }
 
-struct PaywallFeatureRow: View {
-    let icon: String
-    let tint: Color
-    let tintBg: Color
-    let label: String
-    let sub: String
-    var body: some View {
-        OnboardingFeatureRow(icon: icon, tint: tint, tintBg: tintBg, label: label, sub: sub)
-    }
-}
-
 // MARK: - Vitalis card
 
 /// The card's tilt, −1…1 on each axis (0 = facing you). Follows the phone's tilt from Core Motion, or a finger /

@@ -23,8 +23,12 @@ final class SocialService: ObservableObject {
     // MARK: - Bootstrap
 
     /// Loads (or creates) the signed-in user's profile and their friend graph.
+    /// Friends is hidden for now (see `SettingsView.showsSocial`). While it is, nothing is read from or sent to the
+    /// social backend — in particular no meals are uploaded, since there's no way to see or change who'd see them.
+    static let isEnabled = false
+
     func bootstrap() async {
-        guard myId != nil else { reset(); return }
+        guard Self.isEnabled, myId != nil else { reset(); return }
         await loadMyProfile()
         await refreshFriends()
     }
@@ -285,7 +289,7 @@ final class SocialService: ObservableObject {
 
     // MARK: - Publishing my meals
 
-    private var sharingEnabled: Bool { myProfile.map { $0.mealVisibility != .nobody } ?? false }
+    private var sharingEnabled: Bool { Self.isEnabled && (myProfile.map { $0.mealVisibility != .nobody } ?? false) }
 
     func publish(_ meal: MealEntry) {
         guard sharingEnabled, let me = myId else { return }
@@ -294,7 +298,7 @@ final class SocialService: ObservableObject {
     }
 
     func unpublish(mealId: UUID) {
-        guard myId != nil else { return }
+        guard Self.isEnabled, myId != nil else { return }
         Task { _ = try? await supabase.from("shared_meals").delete().eq("id", value: mealId.uuidString).execute() }
     }
 

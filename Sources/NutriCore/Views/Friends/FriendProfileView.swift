@@ -70,7 +70,7 @@ struct FriendProfileView: View {
         switch social.relation(to: profile.userId) {
         case .none:
             Button("Add friend") { Task { await social.sendRequest(to: profile.userId) } }
-                .buttonStyle(PrimaryButtonStyle(height: 50, radius: 2))
+                .buttonStyle(PrimaryButtonStyle(height: 50))
         case .requestSent:
             Button("Cancel request") { Task { await social.removeFriendship(with: profile.userId) } }
                 .buttonStyle(SecondaryButtonStyle(height: 46))
@@ -79,7 +79,7 @@ struct FriendProfileView: View {
                 Button("Decline") { Task { await social.removeFriendship(friendship) } }
                     .buttonStyle(SecondaryButtonStyle(height: 46))
                 Button("Accept") { Task { await social.accept(friendship) } }
-                    .buttonStyle(PrimaryButtonStyle(height: 50, radius: 2))
+                    .buttonStyle(PrimaryButtonStyle(height: 50))
             }
         case .friend:
             Button { confirmRemove = true } label: {

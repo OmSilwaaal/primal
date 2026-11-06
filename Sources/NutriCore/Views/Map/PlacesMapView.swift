@@ -14,7 +14,7 @@ struct PlacesMapView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var hasAutoSearched = false
 
-    let queries = ["Butcher", "Raw Meat", "Farm", "Organic Food"]
+    let queries = ["Butcher", "Farm", "Organic Food"]
 
     var body: some View {
         ZStack {

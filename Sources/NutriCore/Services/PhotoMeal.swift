@@ -2,7 +2,7 @@ import Foundation
 
 /// Turns a photo's AI reading into a meal with real nutrition data.
 ///
-/// The model is good at *what* and *how much* (it names each food on the plate and estimates its weight) and poor at
+/// The model (Claude Haiku 5.5, on the server) is good at *what* and *how much* (it names each food on the plate and estimates its weight) and poor at
 /// micronutrients, so it only does that part. Each food is then looked up in USDA (Foundation / SR Legacy, then
 /// FNDDS for mixed dishes) for its full per-100 g profile — vitamins, minerals, omega-3 and all. A match is only used
 /// when its name agrees with the food, it has energy, and its kcal is within reason of the model's own estimate;
@@ -35,18 +35,8 @@ enum PhotoMeal {
         let matched: Int
     }
 
-    static let prompt = """
-    You are a nutrition assistant for a raw, whole-food, animal-based diet app. Look at the photo and list every \
-    distinct food in it (a steak, egg yolks, butter, berries, honey...). For each one estimate the weight in grams of \
-    the portion shown, say whether it is raw (uncooked), and give a short search phrase in USDA FoodData Central's \
-    naming style, most specific first, including "raw" when it is raw. Examples: "Beef, ribeye, steak, raw", \
-    "Beef, variety meats and by-products, liver, raw", "Egg, yolk, raw, fresh", "Fish, salmon, Atlantic, wild, raw", \
-    "Mollusks, oyster, Pacific, raw", "Butter, salted", "Blueberries, raw", "Honey". Also give your own estimate of \
-    kcal and grams of protein, carbohydrate and fat for that portion.
-    Respond with ONLY JSON: {"items": [{"name": string, "usdaQuery": string, "grams": number, "raw": boolean, \
-    "kcal": number, "protein": number, "carbs": number, "fat": number}]}
-    If there is no food in the photo, respond {"items": []}.
-    """
+    // The prompt and the model call live on the server (supabase/functions/ai, SCAN_SYSTEM): the app never
+    // talks to a model directly.
 
     // MARK: Parsing
 

@@ -63,7 +63,8 @@ final class GlassLight {
     private init() {
         Task.detached(priority: .utility) {
             let all = Dictionary(uniqueKeysWithValues: Backdrop.allCases.compactMap { scene in
-                Self.samplePalette(assetName: scene.assetName).map { (scene, $0) }
+                // The small pre-blurred photo has the same colours and decodes in a fraction of the time.
+                Self.samplePalette(assetName: scene.blurredAssetName, vibrance: scene.lightVibrance).map { (scene, $0) }
             })
             await MainActor.run {
                 let light = GlassLight.shared
@@ -197,7 +198,8 @@ final class GlassLight {
 
     /// Averages the photo's left, centre and right thirds by drawing it into a 3×1 bitmap, then lifts each to full
     /// brightness with moderate saturation so it reads as coloured light rather than a dark photo tone.
-    nonisolated private static func samplePalette(assetName: String) -> [SIMD3<Double>]? {
+    nonisolated private static func samplePalette(assetName: String,
+                                                  vibrance: (saturationBoost: Double, minimumSaturation: Double) = (1.5, 0.2)) -> [SIMD3<Double>]? {
         guard let image = UIImage(named: assetName)?.cgImage else { return nil }
         var pixels = [UInt8](repeating: 0, count: 3 * 4)
         let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
@@ -214,7 +216,8 @@ final class GlassLight {
                             blue: CGFloat(pixels[i * 4 + 2]) / 255, alpha: 1)
             var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
             c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-            let lifted = UIColor(hue: h, saturation: min(0.7, max(0.2, s * 1.5)), brightness: 1, alpha: 1)
+            let lifted = UIColor(hue: h, saturation: min(0.85, max(vibrance.minimumSaturation, s * vibrance.saturationBoost)),
+                                 brightness: 1, alpha: 1)
             var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0
             lifted.getRed(&r, green: &g, blue: &bl, alpha: &a)
             return SIMD3(Double(r), Double(g), Double(bl))

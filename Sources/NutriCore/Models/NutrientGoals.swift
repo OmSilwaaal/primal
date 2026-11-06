@@ -35,6 +35,12 @@ struct NutrientGoals {
     let copper: Double     // mg
     let manganese: Double  // mg
 
+    // Nutrients a raw, animal-based diet leans on (adequate intakes, NIH; K2 has no RDA, so 100 mcg)
+    var choline: Double = 550    // mg
+    var omega3: Double = 1.6     // g
+    var vitaminK2: Double = 100  // mcg
+    var iodine: Double = 150     // mcg
+
     // MARK: - Build goals from user profile
     static func from(_ profile: UserProfile) -> NutrientGoals {
         let male = profile.isMale
@@ -67,7 +73,11 @@ struct NutrientGoals {
             zinc:          male ? 11 : 8,
             selenium:      55,
             copper:        0.9,
-            manganese:     male ? 2.3 : 1.8
+            manganese:     male ? 2.3 : 1.8,
+            choline:       male ? 550 : 425,
+            omega3:        male ? 1.6 : 1.1,
+            vitaminK2:     100,
+            iodine:        150
         )
     }
 
@@ -106,23 +116,15 @@ enum NutrientGroup: String, CaseIterable {
     case raw       = "RAW"
 }
 
-/// What the Raw card tracks for the day. Targets: all of it raw; ~50 g organ meat a day (about 350 g a week, a
-/// common nose-to-tail guide); choline and omega-3 adequate intakes (NIH); iodine RDA; K2 has no RDA, so 100 mcg.
-func buildRawList(from meals: [MealEntry], isMale: Bool) -> [NutrientInfo] {
+/// What the Raw card counts for the day: how much of it was eaten raw, and organ meat (~50 g a day, about 350 g a
+/// week, a common nose-to-tail guide). Its vitamins and minerals live on the Vitamins, Minerals and Macros cards.
+func buildRawList(from meals: [MealEntry], isMale: Bool = true) -> [NutrientInfo] {
     let total = meals.reduce(0) { $0 + $1.servingSize }
     let raw = meals.filter(\.isRawFood).reduce(0) { $0 + $1.servingSize }
     let organ = meals.filter(\.isOrganMeat).reduce(0) { $0 + $1.servingSize }
     return [
         NutrientInfo(id: "raw", name: "Eaten raw", unit: "g", icon: "leaf", group: .raw, current: raw, goal: total),
         NutrientInfo(id: "org", name: "Organ meat", unit: "g", icon: "heart", group: .raw, current: organ, goal: 50),
-        NutrientInfo(id: "chol", name: "Choline", unit: "mg", icon: "brain", group: .raw,
-                     current: meals.reduce(0) { $0 + $1.choline }, goal: isMale ? 550 : 425),
-        NutrientInfo(id: "o3", name: "Omega-3", unit: "g", icon: "drop", group: .raw,
-                     current: meals.reduce(0) { $0 + $1.omega3 }, goal: isMale ? 1.6 : 1.1),
-        NutrientInfo(id: "k2", name: "Vitamin K2", unit: "mcg", icon: "sparkles", group: .raw,
-                     current: meals.reduce(0) { $0 + $1.vitaminK2 }, goal: 100),
-        NutrientInfo(id: "iod", name: "Iodine", unit: "mcg", icon: "drop.triangle", group: .raw,
-                     current: meals.reduce(0) { $0 + $1.iodine }, goal: 150),
     ]
 }
 
@@ -150,6 +152,7 @@ func buildNutrientList(from meals: [MealEntry], goals: NutrientGoals) -> [Nutrie
         NutrientInfo(id: "carb", name: "Carbs",     unit: "g",    icon: "leaf.fill",             group: .macros,   current: meals.totalCarbs,      goal: goals.carbohydrates),
         NutrientInfo(id: "fat",  name: "Fat",       unit: "g",    icon: "drop.fill",             group: .macros,   current: meals.totalFat,        goal: goals.fat),
         NutrientInfo(id: "fib",  name: "Fiber",     unit: "g",    icon: "circle.grid.cross.fill",group: .macros,   current: meals.totalFiber,      goal: goals.fiber),
+        NutrientInfo(id: "o3",   name: "Omega-3",   unit: "g",    icon: "drop",                  group: .macros,   current: meals.reduce(0) { $0 + $1.omega3 }, goal: goals.omega3),
         // Vitamins
         NutrientInfo(id: "va",   name: "Vitamin A", unit: "mcg",  icon: "eye.fill",              group: .vitamins, current: meals.totalVitaminA,   goal: goals.vitaminA),
         NutrientInfo(id: "vc",   name: "Vitamin C", unit: "mg",   icon: "shield.fill",           group: .vitamins, current: meals.totalVitaminC,   goal: goals.vitaminC),
@@ -162,6 +165,8 @@ func buildNutrientList(from meals: [MealEntry], goals: NutrientGoals) -> [Nutrie
         NutrientInfo(id: "b6",   name: "Vitamin B6",unit: "mg",   icon: "brain.fill",            group: .vitamins, current: meals.totalVitaminB6,  goal: goals.vitaminB6),
         NutrientInfo(id: "fol",  name: "Folate",    unit: "mcg",  icon: "dna",                   group: .vitamins, current: meals.totalFolate,     goal: goals.folate),
         NutrientInfo(id: "b12",  name: "Vitamin B12",unit:"mcg",  icon: "brain.fill",            group: .vitamins, current: meals.totalVitaminB12, goal: goals.vitaminB12),
+        NutrientInfo(id: "chol", name: "Choline",   unit: "mg",   icon: "brain",                 group: .vitamins, current: meals.reduce(0) { $0 + $1.choline }, goal: goals.choline),
+        NutrientInfo(id: "k2",   name: "Vitamin K2",unit: "mcg",  icon: "sparkles",              group: .vitamins, current: meals.reduce(0) { $0 + $1.vitaminK2 }, goal: goals.vitaminK2),
         // Minerals
         NutrientInfo(id: "ca",   name: "Calcium",   unit: "mg",   icon: "bolt.heart.fill",       group: .minerals, current: meals.totalCalcium,    goal: goals.calcium),
         NutrientInfo(id: "fe",   name: "Iron",      unit: "mg",   icon: "drop.fill",             group: .minerals, current: meals.totalIron,       goal: goals.iron),
@@ -172,6 +177,7 @@ func buildNutrientList(from meals: [MealEntry], goals: NutrientGoals) -> [Nutrie
         NutrientInfo(id: "se",   name: "Selenium",  unit: "mcg",  icon: "sparkles",              group: .minerals, current: meals.totalSelenium,   goal: goals.selenium),
         NutrientInfo(id: "cu",   name: "Copper",    unit: "mg",   icon: "circle.fill",           group: .minerals, current: meals.totalCopper,     goal: goals.copper),
         NutrientInfo(id: "mn",   name: "Manganese", unit: "mg",   icon: "circle.fill",           group: .minerals, current: meals.totalManganese,  goal: goals.manganese),
+        NutrientInfo(id: "iod",  name: "Iodine",    unit: "mcg",  icon: "drop.triangle",         group: .minerals, current: meals.reduce(0) { $0 + $1.iodine }, goal: goals.iodine),
     ]
 }
 

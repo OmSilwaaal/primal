@@ -17,6 +17,10 @@ Checked live against the real services, plus a read of every service and 16 new 
 | Barcode → USDA Branded | ✅ Fixed | The camera reads US UPC-A as a 13-digit EAN; USDA only matches its stored 12/13/14-digit form, so USDA never matched and everything fell back to Open Food Facts. Now tries every form and expands UPC-E |
 | Barcode nutrients | ✅ Fixed | Open Food Facts gave kcal, macros and 6 minerals only. Now every vitamin and mineral it lists, converted from grams (vitamin A 6e-05 g → 60 mcg); USDA "GRM" servings read as grams |
 | Photo scan accuracy | ✅ Rebuilt (needs key) | The model now lists each food with its weight and a USDA-style name; each is matched to USDA for its full profile (name, food type and kcal must agree, else the model's macros). Live check: a raw plate (ribeye, liver, yolks, oysters, butter, blueberries) gives 957 kcal vs the model's 959, with B12 49 mcg, vitamin A 3,274 mcg, zinc 25.5 mg. Still needs the Gemini key (0.1) |
+| Liquids from food | ✅ Works | Each meal's water (USDA 1051, else estimated) adds to Home's Water tile; Profile's Trends now counts it too |
+| Payments | ✅ Works (local) | UI test buys Pro through the Payment page and Apple's sheet against Vitalis.storekit; the page switches to "Your membership". Products still to create in App Store Connect |
+| Redo setup | ✅ Fixed | Did nothing for guests and created a second profile; now opens setup from Settings and updates the one profile |
+| First launch | ✅ Fixed | A fresh install logged Core Data errors (store folder missing); the folder is created first |
 | Page swiping | ✅ Added | Swipe in from either screen edge to change page; off while a screen is pushed. UI tests: `NutriCoreUITests` |
 | Food → meal nutrients | ✅ Fixed | Foundation raw beef cuts logged **0 kcal** (no 1008 Energy; they use 2047/2048). Now falls back. Folate now prefers DFE (1190) |
 | Core maths | ✅ Tested | Targets (Mifflin–St Jeor), per-100 g scaling, scores, on-target range, streak, 7-day averages, seasons, water from food |
@@ -25,7 +29,7 @@ Checked live against the real services, plus a read of every service and 16 new 
 | **Supabase** (sign-in, delete account, Friends) | ❌ **Down** | `ggxpqswpambvbnliopfv.supabase.co` doesn't resolve (NXDOMAIN on 1.1.1.1 and 8.8.8.8): the project is deleted or gone. Email / Google sign-in and Delete account cannot work. Guest mode works |
 | **Sign in with Apple** | ❌ Off | Entitlement and button commented out ("TEMP", personal-device signing) while Google sign-in is offered: App Review guideline 4.8 rejects that |
 | Friends meal upload | ✅ Fixed | Signed-in users' meals were uploaded to `shared_meals` for a hidden feature with no way to turn it off. Off while Friends is hidden (`SocialService.isEnabled`) |
-| Delete account | ⚠️ | Edge function is correct, but local SwiftData data stays on the phone afterwards (0.4) |
+| Delete account | ✅ Fixed | Edge function is correct; the app now also erases every local SwiftData model and the widget snapshot |
 | **Diet fit** | ⚠️ | Targets are generic: protein 15%, carbs 50%, fat 30%, fibre 25–38 g. A raw animal-based day always reads "Low" on carbs and fibre. Next: diet-aware targets (personalisation) |
 
 ### To launch by Friday (in order)
@@ -65,6 +69,39 @@ Checked live against the real services, plus a read of every service and 16 new 
 - **Do:** add `PrivacyInfo.xcprivacy` (UserDefaults and file timestamp required-reason APIs, data collected: health,
   location, photos, email). Check the Health and location purpose strings against what ships. When account deletion
   succeeds, also wipe the local SwiftData store and the widget snapshot.
+
+---
+
+## AI: Claude Haiku 5.5, behind the server (6 Nov 2026)
+
+The app never holds a model key or talks to a model. Every AI call goes to the `ai` Edge Function
+(`supabase/functions/ai`), which checks, in order: body size → signed-in session (guests get an anonymous one) →
+request schema (no extra fields) → content rules → Pro, verified from Apple's signed transaction (one subscription
+= one account) → every limit in one database transaction → Claude Haiku 5.5 with a fixed output shape and a capped
+answer → cleaned reply. A failed model call gives the quota back.
+
+| Limit | Free | Pro | Setting |
+|---|---|---|---|
+| Photo scans a day | 4 | 30 | `AI_SCAN_FREE_PER_DAY`, `AI_SCAN_PRO_PER_DAY` |
+| Ask questions a day | not available (bar hidden) | 40 | `AI_ASK_PRO_PER_DAY` |
+| Any AI call a minute, per account | 5 | 5 | `AI_PER_MINUTE` |
+| Any AI call a day, per network address | 80 | 80 | `AI_PER_IP_PER_DAY` |
+| Every AI call a day, everyone together | 5,000 | | `AI_GLOBAL_PER_DAY` — the hard ceiling on spend |
+
+Ask screening: 3–200 characters, invisible characters stripped; prompt-injection phrasing, code, links and harmful
+requests refused before any call; crisis messages get a crisis-line reply; the food log is cleaned and fenced as
+data; the model must answer `{on_topic, answer}` and off-topic answers are dropped. Tests: `deno test` on
+`supabase/functions/_shared/*_test.ts` and `supabase/tests/ai_limits_sql_test.ts` (22), app `VitalisAITests` (4).
+
+### To switch it on (once the Supabase project exists)
+1. `supabase db push` (runs `migrations/…_ai_limits.sql`), then `supabase functions deploy ai` and `delete-account`.
+2. Secrets: `supabase secrets set ANTHROPIC_API_KEY=… AI_IP_SALT=<random 32+ chars> APPLE_APP_ID=<numeric App Store id>`.
+3. Auth › Providers: enable **Anonymous sign-ins** (guests), and turn on **CAPTCHA** (Turnstile or hCaptcha) for them,
+   so throwaway accounts can't be scripted.
+4. Anthropic Console: a key for this app only, in its own workspace, with a **monthly spend limit** on that workspace —
+   a second ceiling independent of the app.
+5. Later: App Store Server Notifications v2 (refunds end Pro on the server immediately) and App Attest (only the
+   genuine app can call the function).
 
 ---
 

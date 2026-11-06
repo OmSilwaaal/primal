@@ -196,6 +196,71 @@ extension NutrientInfo {
     }
 }
 
+extension NutrientInfo {
+    /// How much of this nutrient one meal gave, in the same unit as `current` — the same sums
+    /// `buildNutrientList` and `buildRawList` add up, so the breakdown by food always matches the total.
+    static func amount(_ id: String, in m: MealEntry) -> Double {
+        switch id {
+        case "cal": m.calories
+        case "pro": m.protein
+        case "carb": m.carbohydrates
+        case "fat": m.totalFat
+        case "fib": m.fiber
+        case "va": m.vitaminA
+        case "vc": m.vitaminC
+        case "vd": m.vitaminD
+        case "ve": m.vitaminE
+        case "vk": m.vitaminK
+        case "b1": m.thiamin
+        case "b2": m.riboflavin
+        case "b3": m.niacin
+        case "b6": m.vitaminB6
+        case "fol": m.folate
+        case "b12": m.vitaminB12
+        case "ca": m.calcium
+        case "fe": m.iron
+        case "mg": m.magnesium
+        case "ph": m.phosphorus
+        case "k": m.potassium
+        case "zn": m.zinc
+        case "se": m.selenium
+        case "cu": m.copper
+        case "mn": m.manganese
+        case "raw": m.isRawFood ? m.servingSize : 0
+        case "org": m.isOrganMeat ? m.servingSize : 0
+        case "chol": m.choline
+        case "o3": m.omega3
+        case "k2": m.vitaminK2
+        case "iod": m.iodine
+        default: 0
+        }
+    }
+
+    /// One food's part of a nutrient today: what it gave and its share of the day's total.
+    struct Source: Identifiable {
+        let name: String
+        let amount: Double
+        let share: Double
+        var id: String { name }
+    }
+
+    /// Where today's amount came from, biggest first; the same food logged twice counts once, summed.
+    func sources(in meals: [MealEntry]) -> [Source] {
+        var byFood: [String: Double] = [:]
+        for meal in meals {
+            let value = Self.amount(id, in: meal)
+            guard value > 0 else { continue }
+            let name = meal.foodName.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces).capitalized
+                ?? meal.foodName
+            byFood[name.isEmpty ? "Food" : name, default: 0] += value
+        }
+        let total = byFood.values.reduce(0, +)
+        guard total > 0 else { return [] }
+        return byFood.map { Source(name: $0.key, amount: $0.value, share: $0.value / total) }
+            .sorted { $0.amount > $1.amount }
+    }
+}
+
 extension NutrientInfo: Hashable {
     public static func == (a: Self, b: Self) -> Bool { a.id == b.id && a.current == b.current && a.goal == b.goal }
     public func hash(into h: inout Hasher) { h.combine(id) }

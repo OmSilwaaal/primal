@@ -161,6 +161,11 @@ struct CameraView: View {
                 ErrorCard(text: err, actionTitle: "Try again") { resetAI() }
             } else if cameraManager.isAuthorized {
                 Text("Place the whole plate in frame").font(.ui(size: 13, weight: .medium)).foregroundColor(Mono.label)
+                if !SubscriptionManager.shared.isSubscribed {
+                    // Free accounts: 4 photo scans a day, counted on the server. Barcode scans are unlimited.
+                    Text(aiService.scansLeftToday.map { "\($0) of 4 free photo scans left today" } ?? "4 free photo scans a day")
+                        .font(.ui(size: 12)).foregroundColor(Mono.label)
+                }
                 Button { cameraManager.capturePhoto() } label: {
                     Circle().fill(Mono.text).padding(5)
                         .overlay(Circle().strokeBorder(Mono.text, lineWidth: 3))

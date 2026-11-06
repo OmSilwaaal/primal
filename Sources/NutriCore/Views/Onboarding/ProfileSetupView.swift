@@ -5,6 +5,7 @@ struct ProfileSetupView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @Query private var profiles: [UserProfile]
     
     @State private var currentStep = 1
     let totalSteps = 6
@@ -75,7 +76,9 @@ struct ProfileSetupView: View {
     }
     
     private func finishSetup() {
-        let profile = UserProfile()
+        // Redoing setup updates the one profile; only a first setup makes a new one.
+        let existing = profiles.first
+        let profile = existing ?? UserProfile()
         profile.ageGroup = ageGroup
         switch ageGroup {
         case "Under 18": profile.age = 16
@@ -105,7 +108,7 @@ struct ProfileSetupView: View {
         profile.location = location
         profile.dietType = selectedDiet
         
-        modelContext.insert(profile)
+        if existing == nil { modelContext.insert(profile) }
         try? modelContext.save()
         
         // Immediately dismiss the onboarding so the user isn't stuck
@@ -282,6 +285,7 @@ struct StepContainer<Content: View>: View {
     }
 }
 
+/// The choices in one glass tile: each a row with a tick circle, like the rest of the app's lists.
 struct OptionList: View {
     let options: [String]
     @Binding var selected: String
@@ -289,31 +293,28 @@ struct OptionList: View {
     var body: some View {
         VStack(spacing: 0) {
             ForEach(Array(options.enumerated()), id: \.element) { i, option in
+                let on = selected == option
                 Button {
                     Haptics.selection()
                     withAnimation(.snappy(duration: 0.2)) { selected = option }
                 } label: {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 16) {
-                            Text(String(format: "%02d", i + 1)).font(.ui(size: 12, weight: .medium).monospacedDigit())
-                                .foregroundColor(.ncSecondary).frame(width: 22, alignment: .leading)
-                            Text(option).font(.serif(22)).foregroundColor(.ncPrimary)
-                            Spacer()
-                            Rectangle()
-                                .fill(selected == option ? Color.ncPrimary : Color.clear)
-                                .frame(width: 16, height: 16)
-                                .overlay(Rectangle().stroke(Color.ncPrimary.opacity(selected == option ? 1 : 0.4), lineWidth: 1))
-                        }
-                        .padding(.vertical, 18)
-                        Hairline(opacity: 0.12)
+                    HStack(spacing: 14) {
+                        Text(option).font(.ui(size: 17, weight: .semibold)).foregroundColor(.ncPrimary)
+                        Spacer()
+                        Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(on ? .vitalisLime : .ncPrimary.opacity(0.45))
+                            .contentTransition(.symbolEffect(.replace))
                     }
+                    .frame(minHeight: 56)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(selected == option ? .isSelected : [])
+                .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) } }
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
-        .overlay(alignment: .top) { Hairline(opacity: 0.12) }
+        .bentoTile(padding: 16)
     }
 }
 

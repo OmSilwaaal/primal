@@ -33,6 +33,11 @@ struct WidgetSnapshot: Codable, Equatable {
     }
 
     /// Saves the snapshot; returns true if it changed (so the caller knows to reload widget timelines).
+    /// Forgets today's snapshot (account deletion), so the widgets fall back to their placeholder.
+    static func clear() {
+        UserDefaults(suiteName: appGroup)?.removeObject(forKey: key)
+    }
+
     @discardableResult
     func save() -> Bool {
         guard let defaults = UserDefaults(suiteName: Self.appGroup) else { return false }

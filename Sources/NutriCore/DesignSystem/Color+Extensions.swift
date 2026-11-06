@@ -127,17 +127,19 @@ extension View {
     func smoothButton() -> some View { self.buttonStyle(SmoothButtonStyle()) }
 }
 
-/// Filled call-to-action: square Paper block, bold spaced caps in Ink. 56 pt by default.
+/// Filled call-to-action, in the current look: a solid Paper capsule with Ink text (the same as `.bentoPrimary`),
+/// so every older screen that uses it matches the rest of the app.
 struct PrimaryButtonStyle: ButtonStyle {
-    var height: CGFloat = 56
-    var radius: CGFloat = 0
+    var height: CGFloat = 52
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.ui(size: 14, weight: .bold)).tracking(2.2).textCase(.uppercase)
+            .font(.ui(size: 16, weight: .semibold))
             .foregroundColor(.ncOnPrimary)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(minHeight: height)
-            .background(Color.ncPrimary, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(Color.ncPrimary, in: Capsule())
+            .contentShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.75), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, pressed in
@@ -146,17 +148,18 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Quiet secondary action: square clear glass with mono caps.
+/// Quiet secondary action: a clear glass capsule (the same as `.bentoSecondary`).
 struct SecondaryButtonStyle: ButtonStyle {
-    var height: CGFloat = 48
-    var radius: CGFloat = 0
+    var height: CGFloat = 52
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.mono(12, .semibold)).tracking(1.4).textCase(.uppercase)
+            .font(.ui(size: 16, weight: .semibold))
             .foregroundColor(.ncPrimary)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .frame(minHeight: height)
-            .glass(.clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous), interactive: true)
+            .glass(.clear, in: Capsule(), interactive: true)
+            .contentShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.72), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, pressed in

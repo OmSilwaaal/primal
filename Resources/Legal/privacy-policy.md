@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: October 20, 2026
+Effective date: November 6, 2026
 
 This policy explains what information Vitalis (the "App") collects, how it is used, who it is shared with, and the choices you have. The App is operated by Vitalis LLC, a [STATE] limited liability company ("we", "us"). Contact us at [CONTACT EMAIL].
 
@@ -27,7 +27,10 @@ Meal logs, water and salt intake, raw-food batches and suppliers, biomarker read
 
 ### Information from your device
 
-- **Camera and photos:** when you scan food, the photo is sent to Google's Gemini service to estimate what the food is and its nutrition. We do not store the photo. Barcodes are looked up with Open Food Facts.
+- **Camera and photos:** when you scan a meal, the photo is sent through our server to Anthropic's Claude service to identify the foods and estimate their portions; nutrient values then come from USDA FoodData Central. We do not store the photo, and neither our server nor Anthropic keeps it to train models. Barcodes are looked up with USDA FoodData Central and Open Food Facts.
+- **Calendar:** if you add goals to Apple Calendar, Vitalis creates a "Vitalis" calendar and writes your goals to it as events, and removes them when you delete a goal. It does not read or change your other events, and nothing from your calendar leaves your device.
+- **Ask:** when you ask Vitalis a question (Vitalis Pro), your question and a summary of the foods you logged in the last 30 days (names, amounts and nutrients, without dates or anything else about you) are sent through our server to Anthropic's Claude service to write the answer. We do not store questions or answers.
+- **Usage limits:** to keep the AI features fair and prevent abuse, our server counts how many AI requests each account and network address makes each day, and records each request's size and outcome. These counts contain no photos, questions or answers, are kept for no more than 90 days, and are deleted with your account.
 - **Location:** with your permission, your precise location is used on your device to show nearby butchers and farms (map searches are handled by Apple Maps) and to show local weather and calculate sun position (your coordinates are sent to Open-Meteo). We do not store your precise location on our servers.
 - **Apple Health:** with your permission, the App reads steps, active energy, time in daylight, body mass, body fat, waist circumference, blood pressure, resting heart rate, heart rate variability and blood glucose, and writes dietary energy, protein and water. Health data is used only to provide features in the App. It is not uploaded to our servers, not used for advertising or marketing, not sold, and not shared with third parties.
 
@@ -53,7 +56,8 @@ We do not use your information to make decisions that produce legal or similarly
 We share information only with providers that help us run the App, and only as needed for the purpose described:
 
 - **Supabase** – account authentication, database and file storage.
-- **Google (Gemini API)** – food photo analysis. Google Sign-In, if you choose it.
+- **Anthropic (Claude API)** – meal photo recognition and answers to Ask questions, through our server. Anthropic does not use this data to train its models.
+- **Google** – Google Sign-In, if you choose it.
 - **Apple** – App Store subscriptions and payments, Sign in with Apple, Apple Maps and Apple Health.
 - **Open Food Facts, USDA FoodData Central, Open-Meteo, USDA FSIS and FDA** – public food, weather and recall data. We send search text, barcodes or coordinates, not your account information.
 

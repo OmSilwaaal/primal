@@ -82,11 +82,12 @@ final class CoreLogicTests: XCTestCase {
 
     func testNutrientListCoversEveryGroup() {
         let list = buildNutrientList(from: [], goals: .default)
-        XCTAssertEqual(list.count, 25)
-        XCTAssertEqual(list.filter { $0.group == .macros }.count, 5)
-        XCTAssertEqual(list.filter { $0.group == .vitamins }.count, 11)
-        XCTAssertEqual(list.filter { $0.group == .minerals }.count, 9)
-        XCTAssertEqual(Set(list.map(\.id)).count, 25, "ids must be unique")
+        // Choline and K2 with the vitamins, iodine with the minerals, omega-3 with the macros.
+        XCTAssertEqual(list.count, 29)
+        XCTAssertEqual(list.filter { $0.group == .macros }.count, 6)
+        XCTAssertEqual(list.filter { $0.group == .vitamins }.count, 13)
+        XCTAssertEqual(list.filter { $0.group == .minerals }.count, 10)
+        XCTAssertEqual(Set(list.map(\.id)).count, 29, "ids must be unique")
     }
 
     func testProgressCapsAtOneAndStatusThresholds() {
@@ -114,7 +115,7 @@ final class CoreLogicTests: XCTestCase {
         let all = buildNutrientList(from: [], goals: .default) + buildRawList(from: [], isMale: true)
         let summaries = DataGroupSummary.make(from: all, season: "Fall")
         XCTAssertEqual(summaries.map(\.kind), [.macros, .vitamins, .minerals, .raw, .seasonal])
-        XCTAssertEqual(summaries[3].items.map(\.id), ["raw", "org", "chol", "o3", "k2", "iod"])
+        XCTAssertEqual(summaries[3].items.map(\.id), ["raw", "org"], "Raw is a guide plus today's raw share and organ meat")
         XCTAssertTrue(summaries[4].isSeasonal)
         XCTAssertEqual(summaries[4].seasonName, "Fall")
         XCTAssertEqual(Set(DataGroupKind.allCases.map(\.scene)).count, 5, "every card has its own scene")
@@ -163,7 +164,7 @@ final class CoreLogicTests: XCTestCase {
         let raw = list.first { $0.id == "raw" }!, organ = list.first { $0.id == "org" }!
         XCTAssertEqual(raw.current, 300); XCTAssertEqual(raw.goal, 440)    // 60 + 200 + 40 of 440 g
         XCTAssertEqual(organ.current, 100); XCTAssertEqual(organ.goal, 50) // liver + heart
-        XCTAssertEqual(list.first { $0.id == "chol" }!.goal, 425)          // women's adequate intake
+        XCTAssertNil(list.first { $0.id == "chol" }, "choline moved to the Vitamins card")
     }
 
     // MARK: Days, streaks, averages

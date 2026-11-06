@@ -62,12 +62,13 @@ struct ProfileView: View {
                     }
                 }
                 .padding(.horizontal, Bento.margin)
-                .padding(.bottom, 210)   // clears the ask bar and the floating tab bar
+                .padding(.bottom, subscription.isSubscribed ? 210 : 130)   // clears the ask bar (Pro) and the tab bar
             }
             .glassLightFollowsScroll()
             // The ask bar rides just above the tab bar, fixed in place while the page scrolls.
+            // Ask is part of Vitalis Pro: without it the bar isn't shown at all.
             .overlay(alignment: .bottom) {
-                if profile != nil {
+                if profile != nil && subscription.isSubscribed {
                     askBar
                         .padding(.horizontal, 14)
                         .padding(.bottom, 80)   // the tab bar is 62 pt tall, 8 pt off the bottom
@@ -424,9 +425,11 @@ struct ProfileView: View {
         case .energy:
             WeekEnergySheet(profile: profile, meals: weekMeals, days: Self.lastSevenDays)
         case .history:
-            MealHistorySheet(meals: weekMeals, days: Self.lastSevenDays)
+            MealHistorySheet(meals: weekMeals, days: Self.lastSevenDays, goals: NutrientGoals.from(profile))
         case .info:
-            TrendsSheet(profile: profile, meals: weekMeals, waterMl: weekWaterMl() / 7, sunMinutes: weekSunMinutes() / 7,
+            // Water counts drinks and the water in food, the same as Home's tile.
+            TrendsSheet(profile: profile, meals: weekMeals,
+                        waterMl: (weekWaterMl() + FoodWater.millilitres(in: weekMeals)) / 7, sunMinutes: weekSunMinutes() / 7,
                         sunGoal: sunGoal)
         case nil:
             EmptyView()
@@ -970,6 +973,8 @@ private struct WeekEnergySheet: View {
 private struct MealHistorySheet: View {
     let meals: [MealEntry]
     let days: [Date]
+    let goals: NutrientGoals
+    @State private var selected: MealEntry?
 
     var body: some View {
         let cal = Calendar.current
@@ -1000,19 +1005,27 @@ private struct MealHistorySheet: View {
                             .accessibilityElement(children: .combine)
                             VStack(spacing: 0) {
                                 ForEach(Array(list.enumerated()), id: \.element.id) { i, meal in
-                                    HStack(spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(meal.foodName.components(separatedBy: ",").first?.capitalized ?? meal.foodName)
-                                                .font(.ui(size: 15, weight: .medium)).foregroundColor(.white).lineLimit(1)
-                                            Text("\(MealSlot.name(for: meal.date)) · \(meal.date.formatted(date: .omitted, time: .shortened)) · \(Int(meal.servingSize)) g")
-                                                .font(.ui(size: 12)).foregroundColor(.white.opacity(0.65))
+                                    // Tap a meal for everything in it.
+                                    Button { Haptics.selection(); selected = meal } label: {
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(meal.foodName.components(separatedBy: ",").first?.capitalized ?? meal.foodName)
+                                                    .font(.ui(size: 15, weight: .medium)).foregroundColor(.white).lineLimit(1)
+                                                Text("\(MealSlot.name(for: meal.date)) · \(meal.date.formatted(date: .omitted, time: .shortened)) · \(Int(meal.servingSize)) g")
+                                                    .font(.ui(size: 12)).foregroundColor(.white.opacity(0.65))
+                                            }
+                                            Spacer(minLength: 8)
+                                            Text("\(Int(meal.calories).formatted()) kcal").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                                            Image(systemName: "chevron.right").font(.ui(size: 11, weight: .semibold))
+                                                .foregroundColor(.white.opacity(0.5))
                                         }
-                                        Spacer(minLength: 8)
-                                        Text("\(Int(meal.calories).formatted()) kcal").font(.ui(size: 15, weight: .semibold)).foregroundColor(.white)
+                                        .frame(minHeight: 56)
+                                        .contentShape(Rectangle())
                                     }
-                                    .frame(minHeight: 56)
+                                    .buttonStyle(.plain)
                                     .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) } }
                                     .accessibilityElement(children: .combine)
+                                    .accessibilityHint("Shows what was in it")
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -1025,6 +1038,123 @@ private struct MealHistorySheet: View {
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .sheet(item: $selected) { MealDetailSheet(meal: $0, goals: goals) }
+    }
+}
+
+/// One logged meal in full: what and when, where the data came from, energy and macros, its water, whether it was
+/// raw or organ meat, and every vitamin and mineral it gave as a share of the day's target — the biggest first.
+struct MealDetailSheet: View {
+    let meal: MealEntry
+    let goals: NutrientGoals
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let nutrients = (buildNutrientList(from: [meal], goals: goals) + buildRawList(from: [meal], isMale: true))
+            .filter { $0.group != .macros && !["raw", "org"].contains($0.id) && $0.current > 0 }
+            .sorted { $0.share > $1.share }
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(meal.foodName).font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("\(MealSlot.name(for: meal.date)) · \(meal.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())) · \(Int(meal.servingSize)) g")
+                            .font(.ui(size: 13)).foregroundColor(.white.opacity(0.7))
+                        if !meal.source.isEmpty {
+                            Text("Data: \(meal.source)").font(.mono(11, .semibold)).tracking(0.6).textCase(.uppercase)
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.bentoRound)
+                        .accessibilityLabel("Close")
+                }
+
+                if meal.isRawFood || meal.isOrganMeat {
+                    HStack(spacing: 8) {
+                        if meal.isRawFood { tag("Raw") }
+                        if meal.isOrganMeat { tag("Organ meat") }
+                    }
+                }
+
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text(Int(meal.calories).formatted()).font(.display(44)).foregroundColor(.white)
+                    Text("kcal · \(Int((meal.calories / max(goals.calories, 1) * 100).rounded()))% of your day")
+                        .font(.ui(size: 14)).foregroundColor(.white.opacity(0.72))
+                }
+                .accessibilityElement(children: .combine)
+
+                HStack(spacing: 8) {
+                    macro("Protein", meal.protein)
+                    macro("Carbs", meal.carbohydrates)
+                    macro("Fat", meal.totalFat)
+                    macro("Water", FoodWater.grams(in: meal), unit: "ml")
+                }
+
+                Text("Vitamins and minerals").font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
+                    .foregroundColor(.white.opacity(0.72)).padding(.top, 4)
+                VStack(spacing: 0) {
+                    if nutrients.isEmpty {
+                        Text("No vitamins or minerals are recorded for this food.").font(.ui(size: 14))
+                            .foregroundColor(.white.opacity(0.72)).frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                    }
+                    ForEach(Array(nutrients.enumerated()), id: \.element.id) { i, n in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(n.name).font(.ui(size: 15, weight: .medium)).foregroundColor(.white).lineLimit(1)
+                                Spacer(minLength: 8)
+                                Text("\(NutrientRow.dec(n.current)) \(n.unit)").font(.mono(11)).foregroundColor(.white.opacity(0.7))
+                                Text("\(Int((n.current / max(n.goal, 0.0001) * 100).rounded()))%")
+                                    .font(.ui(size: 14, weight: .semibold)).foregroundColor(.white).monospacedDigit()
+                                    .frame(minWidth: 46, alignment: .trailing)
+                            }
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.14))
+                                    Capsule().fill(NutrientStatus(percent: n.share * 100).color)
+                                        .frame(width: geo.size.width * min(n.share, 1))
+                                }
+                            }
+                            .frame(height: 4)
+                        }
+                        .padding(.vertical, 10)
+                        .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1) } }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+                Text("Percent of your daily target from this meal alone.")
+                    .font(.ui(size: 12)).foregroundColor(.white.opacity(0.6))
+            }
+            .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 30)
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
+    }
+
+    private func tag(_ text: String) -> some View {
+        Text(text).font(.ui(size: 13, weight: .semibold)).foregroundColor(Mono.onWhite)
+            .padding(.horizontal, 12).frame(minHeight: 30)
+            .background(Capsule().fill(Color.vitalisLime))
+    }
+
+    private func macro(_ name: String, _ grams: Double, unit: String = "g") -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(name).font(.ui(size: 12)).foregroundColor(.white.opacity(0.7))
+            Text("\(NutrientRow.dec(grams)) \(unit)").font(.ui(size: 16, weight: .semibold)).foregroundColor(.white)
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -1034,6 +1164,10 @@ private struct AskSheet: View {
     let meals: [MealEntry]
     @State private var question = "What has the most iron?"
     @FocusState private var focused: Bool
+    @State private var aiAnswer: String?
+    @State private var aiError: String?
+    @State private var asking = false
+    @State private var asksLeft: Int?
 
     private static let nutrients: [(words: [String], name: String, unit: String, value: (MealEntry) -> Double)] = [
         (["iron"], "Iron", "mg", { $0.iron }),
@@ -1067,26 +1201,68 @@ private struct AskSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Ask").font(.ui(size: 22, weight: .bold)).foregroundColor(.white)
-            TextField("Ask about a nutrient", text: $question)
+            TextField("Ask about food or your log", text: $question)
                 .font(.ui(size: 15)).foregroundColor(.white)
                 .focused($focused)
-                .submitLabel(.search)
+                .submitLabel(.send)
+                .onSubmit { if match == nil { askAI() } }
+                .onChange(of: question) { _, new in
+                    if new.count > VitalisAI.maxQuestionLength { question = String(new.prefix(VitalisAI.maxQuestionLength)) }
+                    aiAnswer = nil; aiError = nil
+                }
                 .padding(.horizontal, 18).frame(minHeight: 52)
                 .vitalisGlass(Capsule())
             if let match {
+                // Ranking your own log is done here on the phone: instant, and it costs nothing.
                 answer(match)
+            } else if let aiAnswer {
+                Text(aiAnswer).font(.ui(size: 15)).foregroundColor(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            } else if let aiError {
+                Text(aiError).font(.ui(size: 14)).foregroundColor(.ncEmber).fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("Name a nutrient — iron, protein, vitamin D, magnesium — and I'll rank what you've logged.")
+                Text("Name a nutrient to rank what you've logged, or ask anything about food and your log.")
                     .font(.ui(size: 14)).foregroundColor(.white.opacity(0.72)).fixedSize(horizontal: false, vertical: true)
             }
+            if match == nil && aiAnswer == nil {
+                Button { askAI() } label: {
+                    ZStack {
+                        if asking { ProgressView().tint(Mono.onWhite) } else { Text("Ask Vitalis") }
+                    }
+                }
+                .buttonStyle(.bentoPrimary)
+                .disabled(asking || question.trimmingCharacters(in: .whitespaces).count < 3)
+            }
             Spacer(minLength: 0)
-            Text("Answers come from the meals you've logged in the last 30 days.")
+            Text(asksLeft.map { "Answers draw on your last 30 days of meals · \($0) questions left today" }
+                 ?? "Answers draw on your last 30 days of meals. General information, not medical advice.")
                 .font(.ui(size: 12)).foregroundColor(.white.opacity(0.6))
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(22)
         .presentationDetents([.medium, .large])
         .glassSheetBackground()
         .presentationCornerRadius(Bento.radius)
+    }
+
+    private func askAI() {
+        guard !asking else { return }
+        asking = true
+        aiError = nil
+        Task {
+            defer { asking = false }
+            do {
+                let reply = try await VitalisAI.ask(question, meals: meals)
+                aiAnswer = reply.answer
+                asksLeft = reply.remaining
+            } catch let failure as VitalisAI.Failure {
+                aiError = failure.message
+                if let left = failure.remaining { asksLeft = left }
+            } catch {
+                aiError = "That didn't work. Try again."
+            }
+        }
     }
 
     private func answer(_ m: (name: String, unit: String, value: (MealEntry) -> Double)) -> some View {
@@ -1824,11 +2000,20 @@ struct GoalsView: View {
         .background { AppBackdrop().ignoresSafeArea() }
         .onChange(of: month) { old, new in forward = new > old }
         .sheet(isPresented: $adding) {
-            GoalEditor(day: selected) { goal in
+            GoalEditor(day: selected) { goal, toCalendar in
                 context.insert(goal)
                 try? context.save()
                 Haptics.success()
-                ToastCenter.shared.show("Goal added", branded: true)
+                guard toCalendar else { ToastCenter.shared.show("Goal added", branded: true); return }
+                Task {
+                    do {
+                        try await GoalCalendar.add(goal)
+                        try? context.save()
+                        ToastCenter.shared.show("Goal added to Calendar", branded: true)
+                    } catch {
+                        ToastCenter.shared.show(error.localizedDescription)
+                    }
+                }
             }
         }
     }
@@ -1899,7 +2084,13 @@ struct GoalsView: View {
                 Text(goal.title).font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
                     .strikethrough(isDone, color: Mono.text.opacity(0.5))
                     .lineLimit(2)
-                Text(goal.scheduleText).font(.ui(size: 12)).foregroundColor(Mono.label).lineLimit(1)
+                HStack(spacing: 5) {
+                    if !goal.calendarEventID.isEmpty {
+                        Image(systemName: "calendar").font(.ui(size: 11)).foregroundColor(Mono.label)
+                            .accessibilityLabel("In Calendar")
+                    }
+                    Text(goal.scheduleText).font(.ui(size: 12)).foregroundColor(Mono.label).lineLimit(1)
+                }
             }
             Spacer(minLength: 8)
             Button {
@@ -1926,13 +2117,27 @@ struct GoalsView: View {
         }
         .contentShape(Rectangle())
         .contextMenu {
+            if goal.calendarEventID.isEmpty {
+                Button {
+                    Task {
+                        do { try await GoalCalendar.add(goal); try? context.save(); ToastCenter.shared.show("Added to Calendar", branded: true) }
+                        catch { ToastCenter.shared.show(error.localizedDescription) }
+                    }
+                } label: { Label("Add to Calendar", systemImage: "calendar.badge.plus") }
+            } else {
+                Button {
+                    GoalCalendar.remove(goal); try? context.save()
+                    ToastCenter.shared.show("Removed from Calendar")
+                } label: { Label("Remove from Calendar", systemImage: "calendar.badge.minus") }
+            }
             Button(role: .destructive) {
+                GoalCalendar.remove(goal)
                 withAnimation(.smooth) { context.delete(goal) }
                 try? context.save()
             } label: { Label("Delete goal", systemImage: "trash") }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityAction(named: "Delete goal") { context.delete(goal); try? context.save() }
+        .accessibilityAction(named: "Delete goal") { GoalCalendar.remove(goal); context.delete(goal); try? context.save() }
     }
 }
 
@@ -1942,7 +2147,9 @@ struct GoalsView: View {
 /// from a start date with an optional end.
 private struct GoalEditor: View {
     let day: Date
-    let onSave: (Goal) -> Void
+    /// The goal, and whether to put it in Apple Calendar.
+    let onSave: (Goal, Bool) -> Void
+    @AppStorage("goalsToCalendar") private var toCalendar = true
     @Environment(\.dismiss) private var dismiss
 
     enum Schedule: Hashable { case once, daily, weekdays }
@@ -1956,7 +2163,7 @@ private struct GoalEditor: View {
     @State private var end: Date
     @FocusState private var typing: Bool
 
-    init(day: Date, onSave: @escaping (Goal) -> Void) {
+    init(day: Date, onSave: @escaping (Goal, Bool) -> Void) {
         self.day = day
         self.onSave = onSave
         let start = max(day, Calendar.current.startOfDay(for: .now))
@@ -2051,6 +2258,14 @@ private struct GoalEditor: View {
                     }
                 }
 
+                Toggle(isOn: $toCalendar) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Add to Apple Calendar").font(.ui(size: 15, weight: .semibold)).foregroundColor(Mono.text)
+                        Text("On each day it's due, in a Vitalis calendar").font(.ui(size: 12)).foregroundColor(Mono.label)
+                    }
+                }
+                .tint(.ncMoss)
+
                 Button("Add goal") { save() }
                     .buttonStyle(.bentoPrimary)
                     .disabled(!canSave)
@@ -2103,7 +2318,7 @@ private struct GoalEditor: View {
         case .weekdays: Goal(title: title.trimmingCharacters(in: .whitespaces), icon: icon, start: date,
                              end: hasEnd ? end : nil, weekdays: Array(weekdays))
         }
-        onSave(goal)
+        onSave(goal, toCalendar)
         dismiss()
     }
 }

@@ -120,7 +120,7 @@ struct FieldLabel: View {
     var body: some View { Text(text).serifCaps(10).foregroundColor(.ncSecondary) }
 }
 
-/// Underlined text field — no box.
+/// A labelled text field in a glass panel, like the goal editor's.
 struct RawField: View {
     let title: String
     @Binding var text: String
@@ -128,13 +128,17 @@ struct RawField: View {
     @FocusState private var focused: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(text: title)
+            Text(title).font(.bentoLabel).foregroundColor(Mono.label)
             TextField("", text: $text)
                 .keyboardType(keyboard)
                 .focused($focused)
-                .font(.ui(size: 17)).foregroundColor(.ncPrimary)
-                .frame(minHeight: 44)
-            Rectangle().fill(Color.ncPrimary.opacity(focused ? 0.8 : 0.22)).frame(height: 1)
+                .font(.ui(size: 17, weight: .medium)).foregroundColor(.ncPrimary)
+                .padding(.horizontal, 16).frame(minHeight: 52)
+                .liquidGlassPanel(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.white.opacity(focused ? 0.45 : 0), lineWidth: 1)
+                }
                 .animation(.easeOut(duration: 0.2), value: focused)
         }
     }

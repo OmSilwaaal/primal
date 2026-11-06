@@ -1,6 +1,7 @@
 import SwiftUI
 import StoreKit
 import SwiftData
+import WidgetKit
 
 struct SettingsView: View {
     /// Friends is hidden for now, so its privacy settings are too.
@@ -16,6 +17,7 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showPayment = false
     @State private var showLegal = false
+    @State private var showSetup = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var subManager = SubscriptionManager.shared
@@ -37,33 +39,8 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header
 
-                    // ── Subscription ────────────────────────────────────────
-                    SettingsSection(title: "Subscription") {
-                        if subManager.isSubscribed {
-                            // Your card first; Manage subscription is on that page.
-                            SettingsRow(icon: "creditcard", title: "Vitalis Pro",
-                                        subtitle: "Active · your card and payment", showsChevron: true) {
-                                showPayment = true
-                            }
-                        } else {
-                            // An explicit button + destination: the older NavigationLink(destination:) could fire on
-                            // its own inside this pushed screen and jump straight to Payment.
-                            SettingsRow(icon: "creditcard", title: "Get Vitalis Pro", subtitle: "Plans and payment",
-                                        showsChevron: true) {
-                                showPayment = true
-                            }
-                        }
-                        SettingsDivider()
-                        SettingsRow(icon: "arrow.clockwise", title: "Restore purchases",
-                                    subtitle: "Bought Pro on another device or Apple Account",
-                                    enabled: !subManager.isWorking) {
-                            Task { await subManager.restorePurchases() }
-                        }
-                        if let error = subManager.errorMessage {
-                            Text(error).font(.ui(size: 13)).foregroundColor(.ncEmber)
-                                .padding(.bottom, 12)
-                        }
-                    }
+                    // ── Membership: the card's state at a glance, tapping through to Payment ───────
+                    membership
 
                     // ── Account ─────────────────────────────────────────────
                     SettingsSection(title: "Account") {
@@ -90,6 +67,16 @@ struct SettingsView: View {
                         if let emailMessage {
                             Text(emailMessage).font(.ui(size: 13)).foregroundColor(.ncSecondary)
                                 .padding(.bottom, 12)
+                        }
+                        SettingsDivider()
+                        // Opens setup right here (signed in or guest) and updates the same profile.
+                        SettingsRow(icon: "arrow.counterclockwise", title: "Redo setup", subtitle: "Run the profile setup again",
+                                    showsChevron: true) {
+                            showSetup = true
+                        }
+                        SettingsDivider()
+                        SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign out", subtitle: nil) {
+                            showSignOutConfirm = true
                         }
                     }
 
@@ -127,19 +114,15 @@ struct SettingsView: View {
                         }
                     }
 
-                    // ── Preferences ─────────────────────────────────────────
-                    SettingsSection(title: "Preferences") {
+                    // ── Preferences: feel and reminders together ────────────
+                    SettingsSection(title: "Preferences",
+                                    footer: reminderDenied ? "Notifications are off for Vitalis. Turn them on in iOS Settings to use reminders." : nil) {
                         SettingsToggleRow(icon: "waveform.path", title: "Haptic feedback",
                                           subtitle: "Taps and confirmations", isOn: $isHapticsEnabled)
                         SettingsDivider()
                         SettingsToggleRow(icon: "speaker.wave.1", title: "Sounds",
                                           subtitle: "A soft knock when you log or hit a goal", isOn: $isSoundEnabled)
-                    }
-
-                    // App icons are hidden for now (AppIconPicker stays in the code).
-
-                    SettingsSection(title: "Reminders",
-                                    footer: reminderDenied ? "Notifications are off for Vitalis. Turn them on in iOS Settings to use reminders." : nil) {
+                        SettingsDivider()
                         SettingsToggleRow(icon: "fork.knife", title: "Evening log",
                                           subtitle: "8 pm · log today's meals and water", isOn: $eveningReminder)
                         SettingsDivider()
@@ -153,14 +136,13 @@ struct SettingsView: View {
                         Task { if !(await Reminders.set(.morningSun, on: on)) { morningReminder = false; reminderDenied = true } }
                     }
 
-                    // ── Session & data ──────────────────────────────────────
-                    SettingsSection(title: "Session") {
-                        SettingsRow(icon: "arrow.counterclockwise", title: "Redo setup", subtitle: "Run the profile setup again") {
-                            hasCompletedOnboarding = false
-                        }
-                        SettingsDivider()
-                        SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign out", subtitle: nil) {
-                            showSignOutConfirm = true
+                    // App icons are hidden for now (AppIconPicker stays in the code).
+
+                    // ── More: the legal pages, then the one destructive action, last ──
+                    SettingsSection(title: "More") {
+                        SettingsRow(icon: "doc.text", title: "Legal & support",
+                                    subtitle: "Privacy, terms, health & safety, contact", showsChevron: true) {
+                            showLegal = true
                         }
                         SettingsDivider()
                         SettingsRow(icon: "trash", title: "Delete account", subtitle: "Permanently erase your account and data",
@@ -170,14 +152,6 @@ struct SettingsView: View {
                         if let deleteError {
                             Text(deleteError).font(.ui(size: 13)).foregroundColor(.ncEmber)
                                 .padding(.bottom, 12)
-                        }
-                    }
-
-                    // ── Legal & support, all in one page, at the very bottom ─
-                    SettingsSection(title: "About") {
-                        SettingsRow(icon: "doc.text", title: "Legal & support",
-                                    subtitle: "Privacy, terms, health & safety, contact", showsChevron: true) {
-                            showLegal = true
                         }
                     }
 
@@ -206,6 +180,7 @@ struct SettingsView: View {
         .sheet(item: $legalDocument) { LegalView(document: $0) }
         .navigationDestination(isPresented: $showPayment) { PaymentView().pushedScreen() }
         .navigationDestination(isPresented: $showLegal) { LegalHubView().pushedScreen() }
+        .navigationDestination(isPresented: $showSetup) { ProfileSetupView().pushedScreen() }
         .sheet(isPresented: $showPaywall) {
             PaywallView(onNotNow: { showPaywall = false }, showsAccountButton: false)
         }
@@ -225,6 +200,48 @@ struct SettingsView: View {
     }
 
     // MARK: - Pieces
+
+    /// Vitalis Pro as a tile: the rune, whether you're a member and until when (or the plans' price), and Restore.
+    private var membership: some View {
+        let monthly = subManager.priceLabel(for: .monthly)
+        let subtitle: String = {
+            if subManager.isSubscribed {
+                if let end = subManager.expirationDate { return "Active · renews \(end.formatted(date: .abbreviated, time: .omitted))" }
+                return "Active"
+            }
+            return monthly.isEmpty ? "Plans and payment" : "From \(monthly)"
+        }()
+        return VStack(alignment: .leading, spacing: 0) {
+            Button { showPayment = true } label: {
+                HStack(spacing: 16) {
+                    AlgizMark().fill(Color.vitalisLime).frame(width: 24, height: 30)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(subManager.isSubscribed ? "Vitalis Pro" : "Get Vitalis Pro")
+                            .font(.ui(size: 20, weight: .bold)).foregroundColor(Mono.text)
+                        Text(subtitle).font(.ui(size: 13)).foregroundColor(Mono.label)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.ui(size: 13, weight: .semibold)).foregroundColor(Mono.label)
+                }
+                .frame(minHeight: 64)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressScaleStyle(scale: 0.98))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(subManager.isSubscribed ? "Vitalis Pro, \(subtitle)" : "Get Vitalis Pro, \(subtitle)")
+            SettingsDivider().padding(.vertical, 6)
+            SettingsRow(icon: "arrow.clockwise", title: "Restore purchases",
+                        subtitle: "Bought Pro on another device or Apple Account", enabled: !subManager.isWorking) {
+                Task { await subManager.restorePurchases() }
+            }
+            if let error = subManager.errorMessage {
+                Text(error).font(.ui(size: 13)).foregroundColor(.ncEmber).padding(.bottom, 8)
+            }
+        }
+        .bentoTile(padding: 18, art: .sprig)
+        .task { if subManager.products.isEmpty { await subManager.loadProducts() } }
+    }
 
     private var header: some View {
         HStack(spacing: 12) {
@@ -269,11 +286,19 @@ struct SettingsView: View {
             deleteError = error
             return
         }
-        // Wipe on-device data too.
+        // Wipe on-device data too: every model, and the widgets' copy of today.
         try? modelContext.delete(model: MealEntry.self)
         try? modelContext.delete(model: DailyHydration.self)
         try? modelContext.delete(model: UserProfile.self)
+        try? modelContext.delete(model: Goal.self)
+        try? modelContext.delete(model: SunSession.self)
+        try? modelContext.delete(model: BiomarkerReading.self)
+        try? modelContext.delete(model: SourceBatch.self)
+        try? modelContext.delete(model: Supplier.self)
+        try? modelContext.delete(model: OutcomeLog.self)
         try? modelContext.save()
+        WidgetSnapshot.clear()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 

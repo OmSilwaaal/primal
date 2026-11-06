@@ -27,9 +27,11 @@ class AuthManager: ObservableObject {
     
     private func startListeningToAuthState() {
         Task {
-            for await (event, session) in await supabase.auth.authStateChanges {
-                self.isAuthenticated = (session != nil)
-                if session != nil { self.setGuest(false) }
+            for await (_, session) in supabase.auth.authStateChanges {
+                // An anonymous session (a guest using AI) isn't an account: they stay a guest.
+                let account = session.map { !$0.user.isAnonymous } ?? false
+                self.isAuthenticated = account
+                if account { self.setGuest(false) }
             }
         }
     }
@@ -114,6 +116,20 @@ class AuthManager: ObservableObject {
             print("Google SignIn Error: \(error)")
         }
         isLoading = false
+    }
+
+    /// A Supabase session for calls that need one (AI). Signed-in accounts already have it; a guest gets an anonymous
+    /// account the first time, so the server can still apply limits per person. False when neither works.
+    func ensureSession() async -> Bool {
+        if supabase.auth.currentSession != nil { return true }
+        guard isGuest else { return false }
+        do {
+            _ = try await supabase.auth.signInAnonymously()
+            return true
+        } catch {
+            print("Anonymous sign-in failed: \(error)")
+            return false
+        }
     }
 
     func continueAsGuest() {

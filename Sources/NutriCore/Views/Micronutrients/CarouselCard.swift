@@ -33,6 +33,12 @@ struct CarouselCard: View {
                                     .font(.mono(11, .semibold)).tracking(0.88).textCase(.uppercase)
                                     .foregroundColor(.white.opacity(0.75))
                             }
+                        } else if kind == .raw {
+                            // Raw is a guide: its number is how much of today's food was eaten raw.
+                            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                                DotMatrixText(text: "\(rawPercent)", pitch: 4)
+                                Text("% eaten raw today").font(.mono(12, .semibold)).foregroundColor(.white.opacity(0.85))
+                            }
                         } else {
                             HStack(alignment: .lastTextBaseline, spacing: 6) {
                                 DotMatrixText(text: "\(summary.score)", pitch: 4)
@@ -50,6 +56,10 @@ struct CarouselCard: View {
                 if summary.isSeasonal {
                     Spacer(minLength: 18)
                     SeasonalList(picks: summary.seasonal)
+                    Spacer(minLength: 18)
+                } else if kind == .raw {
+                    Spacer(minLength: 18)
+                    RawFactsList()
                     Spacer(minLength: 18)
                 } else {
                     // Centred in the space under the title, with equal room above and below.
@@ -77,7 +87,13 @@ struct CarouselCard: View {
         .accessibilityAddTraits(.isButton)
     }
 
+    private var rawPercent: Int {
+        guard let raw = summary.items.first(where: { $0.id == "raw" }), raw.goal > 0 else { return 0 }
+        return Int((raw.current / raw.goal * 100).rounded())
+    }
+
     private var accessibilityText: String {
+        if kind == .raw { return "Raw: \(rawPercent) percent of today's food eaten raw, and a guide to eating raw" }
         if summary.isSeasonal {
             return "Seasonal, \(summary.seasonName): \(summary.seasonalEaten) of \(summary.seasonal.count) in-season foods eaten lately"
         }

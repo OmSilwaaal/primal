@@ -40,3 +40,29 @@ final class GoalTests: XCTestCase {
         XCTAssertFalse(g.isDone(on: day(-1)))
     }
 }
+
+/// How goals become Apple Calendar events (the rule only; adding events needs the person's permission).
+@MainActor
+final class GoalCalendarTests: XCTestCase {
+    private let cal = Calendar.current
+    private func day(_ offset: Int) -> Date { cal.date(byAdding: .day, value: offset, to: cal.startOfDay(for: .now))! }
+
+    func testOneOffHasNoRepeat() {
+        XCTAssertNil(GoalCalendar.recurrence(for: Goal(title: "Liver", icon: "heart", start: day(1), end: day(1))))
+    }
+
+    func testEveryDayRepeatsDailyUntilItsEnd() throws {
+        let rule = try XCTUnwrap(GoalCalendar.recurrence(for: Goal(title: "Sun", icon: "sun.max", start: day(0), end: day(10))))
+        XCTAssertEqual(rule.frequency, .daily)
+        XCTAssertNotNil(rule.recurrenceEnd?.endDate)
+        XCTAssertNil(GoalCalendar.recurrence(for: Goal(title: "Sun", icon: "sun.max", start: day(0)))?.recurrenceEnd)
+    }
+
+    func testChosenWeekdaysRepeatWeeklyOnThoseDays() throws {
+        let goal = Goal(title: "Organ meat", icon: "heart", start: day(0), weekdays: [2, 5])
+        let rule = try XCTUnwrap(GoalCalendar.recurrence(for: goal))
+        XCTAssertEqual(rule.frequency, .weekly)
+        XCTAssertEqual(rule.daysOfTheWeek?.map(\.dayOfTheWeek.rawValue).sorted(), [2, 5])
+        XCTAssertTrue(goal.isDue(on: GoalCalendar.firstDay(of: goal)), "the event starts on a day the goal is due")
+    }
+}

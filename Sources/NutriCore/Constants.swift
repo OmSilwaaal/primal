@@ -16,7 +16,5 @@ enum AppConstants {
     static let supabaseURL = URL(string: "https://ggxpqswpambvbnliopfv.supabase.co")!
     static let supabaseAnonKey = "sb_publishable_aDXvVcLHxuAt86bF5VhfcQ_IHPbKk3a"
     
-    // MARK: - Gemini AI Configuration
-    static let geminiAPIKey = "YOUR_GEMINI_API_KEY_HERE"
-    static let geminiModel = "gemini-2.5-flash"
+    // AI (Claude Haiku 5.5) runs only on the server: the `ai` Edge Function holds the key. Never put a model key here.
 }

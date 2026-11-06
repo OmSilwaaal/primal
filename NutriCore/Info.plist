@@ -36,6 +36,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Vitalis adds your goals to a Vitalis calendar in Apple Calendar, and removes them when you delete a goal.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Vitalis uses the camera to scan barcodes and photograph meals so it can log their nutrition.</string>
 	<key>NSHealthShareUsageDescription</key>

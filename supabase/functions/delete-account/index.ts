@@ -16,7 +16,11 @@ Deno.serve(async (req) => {
       await admin.storage.from("avatars").remove(files.map((f) => `${user.id}/${f.name}`));
     }
 
-    // Cascades to public_profiles, friendships and shared_meals.
+    // AI usage counts and logs aren't keyed to auth.users, so remove them explicitly.
+    await admin.from("ai_log").delete().eq("user_id", user.id);
+    await admin.from("ai_usage").delete().or(`bucket.like.user:${user.id}:%,bucket.eq.minute:${user.id}`);
+
+    // Cascades to public_profiles, friendships, shared_meals and ai_entitlements.
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) throw error;
     return json({ ok: true });

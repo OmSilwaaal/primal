@@ -173,3 +173,43 @@ final class ScanningTests: XCTestCase {
         XCTAssertGreaterThan(entry.zinc, 20)                        // oysters
     }
 }
+
+/// What logging does to the day: liquids and nutrients from every way a food can be added.
+final class LoggingEffectTests: XCTestCase {
+    private func usda(_ description: String, _ nutrients: [Int: Double]) -> FoodSearchResult {
+        FoodSearchResult(fdcId: 1, description: description, dataType: "SR Legacy",
+                         foodNutrients: nutrients.map { FoodNutrientItem(nutrientId: $0.key, value: $0.value) })
+    }
+
+    func testDrinksAndFoodsAddTheirWater() {
+        // Whole milk, raw: 87.7 g water per 100 g (USDA 1051).
+        let milk = MealEntry(from: usda("Milk, whole, raw", [1008: 61, 1051: 87.7, 1003: 3.2, 1004: 3.3, 1005: 4.8]), servingSize: 250)
+        XCTAssertEqual(FoodWater.grams(in: milk), 219.25, accuracy: 0.01)
+        // Ribeye with no water listed: estimated from what isn't protein, fat or carbs.
+        let steak = MealEntry(from: usda("Beef, ribeye, raw", [1008: 254, 1003: 18, 1004: 20]), servingSize: 200)
+        XCTAssertEqual(FoodWater.grams(in: steak), 200 - 36 - 40 - 2, accuracy: 0.01)
+        XCTAssertEqual(FoodWater.millilitres(in: [milk, steak]), 219.25 + 122, accuracy: 0.01)
+    }
+
+    func testPhotoMealChangesTheNutrientProfile() {
+        let goals = NutrientGoals.default
+        let before = buildNutrientList(from: [], goals: goals)
+        let liver = PhotoMeal.Item(name: "Beef liver", usdaQuery: "Beef, liver, raw", grams: 100, raw: true,
+                                   kcal: 135, protein: 20, carbs: 4, fat: 4)
+        let meal = PhotoMeal.combine([(item: liver, match: usda("Beef, variety meats and by-products, liver, raw",
+            [1008: 135, 1003: 20.4, 1178: 59.3, 1106: 4970, 1089: 4.9, 1098: 9.76, 1051: 70.8]))])
+        let entry = MealEntry(from: meal, servingSize: 100)
+        let after = buildNutrientList(from: [entry], goals: goals)
+        func value(_ id: String, _ list: [NutrientInfo]) -> Double { list.first { $0.id == id }!.current }
+        XCTAssertEqual(value("b12", before), 0)
+        XCTAssertEqual(value("b12", after), 59.3, accuracy: 0.01)
+        XCTAssertEqual(value("va", after), 4970, accuracy: 0.01)
+        XCTAssertEqual(value("fe", after), 4.9, accuracy: 0.01)
+        XCTAssertEqual(value("cu", after), 9.76, accuracy: 0.01)
+        XCTAssertEqual(FoodWater.grams(in: entry), 70.8, accuracy: 0.01)   // and its water
+        // The Raw card counts it as raw organ meat.
+        let raw = buildRawList(from: [entry], isMale: true)
+        XCTAssertEqual(raw.first { $0.id == "raw" }!.current, 100)
+        XCTAssertEqual(raw.first { $0.id == "org" }!.current, 100)
+    }
+}

@@ -19,6 +19,8 @@ final class Goal {
     /// Days it was done (start of day).
     var doneDays: [Date] = []
     var created: Date = Date()
+    /// Its event in Apple Calendar (`GoalCalendar`), or empty when it isn't there.
+    var calendarEventID: String = ""
 
     init(title: String, icon: String, start: Date, end: Date? = nil, weekdays: [Int] = []) {
         let cal = Calendar.current

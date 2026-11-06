@@ -51,30 +51,35 @@ struct LegalView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.ncBg.ignoresSafeArea()
-            VStack(spacing: 0) {
-                HStack {
-                    Text(document.title).font(.ui(size: 17, weight: .bold)).foregroundColor(.ncPrimary)
-                    Spacer()
-                    Button("Done") { dismiss() }.buttonStyle(.glass)
-                }
-                .padding(.horizontal, Space.margin)
-                .padding(.vertical, 12)
-                Hairline()
+        // A glass sheet like every other in the app: the title large with a round close button, the text below.
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                Text(document.title).font(.ui(size: 26, weight: .bold)).foregroundColor(Mono.text)
+                    .lineLimit(2).minimumScaleFactor(0.8)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                Button { dismiss() } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.bentoRound)
+                    .accessibilityLabel("Close")
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 24).padding(.bottom, 8)
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                            view(for: block)
-                        }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                        view(for: block)
                     }
-                    .padding(Space.margin)
-                    .padding(.bottom, 40)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.horizontal, 20).padding(.top, 4)
+                .padding(.bottom, 40)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .glassSheetBackground()
+        .presentationCornerRadius(Bento.radius)
         .preferredColorScheme(.dark)
     }
 
@@ -134,7 +139,8 @@ struct LegalLinks: View {
 /// Records that the person agreed to the current Terms, Privacy Policy and Health & Safety Policy. Bump
 /// `currentVersion` whenever any of them changes materially: everyone is asked to agree again.
 enum LegalAcceptance {
-    static let currentVersion = 1
+    /// 2: AI moved to Anthropic's Claude (through our server) and usage limits were added to the Privacy Policy.
+    static let currentVersion = 2
     private static let versionKey = "legalAcceptedVersion"
     private static let dateKey = "legalAcceptedAt"
 
@@ -174,31 +180,32 @@ struct LegalConsentView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
+                    // The three policies in one glass tile, like Legal & support.
                     VStack(spacing: 0) {
-                        Rule()
-                        ForEach(LegalDocument.allCases) { doc in
+                        ForEach(Array(LegalDocument.allCases.enumerated()), id: \.element) { i, doc in
                             Button { shown = doc } label: {
                                 HStack {
-                                    Text(doc.title).font(.ui(size: 15, weight: .bold)).foregroundColor(.ncPrimary)
+                                    Text(doc.title).font(.ui(size: 15, weight: .semibold)).foregroundColor(.ncPrimary)
                                     Spacer()
-                                    Image(systemName: "chevron.right").font(.ui(size: 13)).foregroundColor(.ncSecondary)
+                                    Image(systemName: "chevron.right").font(.ui(size: 12, weight: .semibold)).foregroundColor(Mono.label)
                                 }
                                 .frame(minHeight: 52)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .overlay(alignment: .bottom) { Hairline(opacity: 0.28) }
+                            .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1) } }
                             .accessibilityHint("Opens the full text")
                         }
                     }
+                    .bentoTile(padding: 16)
 
                     Button {
                         Haptics.selection()
                         withAnimation(.snappy) { agreed.toggle() }
                     } label: {
                         HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: agreed ? "checkmark.square.fill" : "square")
-                                .font(.system(size: 22)).foregroundColor(.ncPrimary)
+                            Image(systemName: agreed ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 24)).foregroundColor(agreed ? .vitalisLime : .ncPrimary.opacity(0.7))
                                 .contentTransition(.symbolEffect(.replace))
                             Text("I have read and agree to the Terms of Service, Privacy Policy and Health & Safety Policy. I understand Vitalis LLC does not give medical advice, and I use the app of my own accord and at my own risk.")
                                 .font(.ui(size: 14)).foregroundColor(.ncPrimary).multilineTextAlignment(.leading)
@@ -207,6 +214,7 @@ struct LegalConsentView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .bentoTile(padding: 16)
                     .accessibilityAddTraits(agreed ? .isSelected : [])
 
                     Button("I agree") {

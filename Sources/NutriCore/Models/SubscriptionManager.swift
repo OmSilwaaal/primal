@@ -103,6 +103,21 @@ final class SubscriptionManager: ObservableObject {
         return entitled
     }
 
+    /// The App Store's signed record of the current Pro subscription (JWS), for the server to verify with Apple —
+    /// the server never takes the app's word that someone is Pro. Nil without one.
+    func entitlementJWS() async -> String? {
+        let ids = Set(Plan.allCases.map(\.productID))
+        var latest: (jws: String, expires: Date)?
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result, ids.contains(transaction.productID),
+                  transaction.revocationDate == nil else { continue }
+            let expires = transaction.expirationDate ?? .distantFuture
+            guard expires > Date() else { continue }
+            if latest == nil || expires > latest!.expires { latest = (result.jwsRepresentation, expires) }
+        }
+        return latest?.jws
+    }
+
     /// The subscription is tied to the Apple ID, so this only resets the cache; the next refresh restores it.
     func clearOnSignOut() { setSubscribed(false) }
 

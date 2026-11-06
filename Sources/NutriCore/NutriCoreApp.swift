@@ -4,12 +4,25 @@ import Supabase
 
 @main
 struct NutriCoreApp: App {
+    init() {
+        // SwiftData keeps its store in Application Support (inside the App Group, shared with the widgets). On a
+        // fresh install that folder doesn't exist yet, and Core Data logs a page of errors before recovering, so
+        // make it first.
+        let fm = FileManager.default
+        let folders = [fm.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup)?
+                           .appendingPathComponent("Library/Application Support"),
+                       fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first]
+        for case let folder? in folders { try? fm.createDirectory(at: folder, withIntermediateDirectories: true) }
+    }
+
     var body: some Scene {
         WindowGroup {
             #if DEBUG
             // UI tests and screenshots: straight to the tabs on the sample store (`-uiTestTabs`, optionally
             // `-uiTestTab data`). Compiled out of release builds.
-            if let tab = UITestLaunch.tab {
+            if UITestLaunch.freshStart {
+                root
+            } else if let tab = UITestLaunch.tab {
                 ContentView(initialTab: tab).modelContainer(VitalisPreviewData.container).preferredColorScheme(.dark)
             } else {
                 root
@@ -36,6 +49,17 @@ struct NutriCoreApp: App {
 
 #if DEBUG
 enum UITestLaunch {
+    /// `-uiTestFresh`: forget sign-in, onboarding, consent and the guest paywall, so the first-run path shows.
+    static let freshStart: Bool = {
+        guard ProcessInfo.processInfo.arguments.contains("-uiTestFresh") else { return false }
+        // Written as explicit "off" values (not removed), so nothing in another defaults domain can show through.
+        let defaults = UserDefaults.standard
+        for key in ["isGuest", "hasCompletedOnboarding", "guestDismissedPaywall"] { defaults.set(false, forKey: key) }
+        defaults.set(0, forKey: "legalAcceptedVersion")
+        defaults.removeObject(forKey: "legalAcceptedAt")
+        return true
+    }()
+
     static var tab: AppTab? {
         let args = ProcessInfo.processInfo.arguments
         guard args.contains("-uiTestTabs") else { return nil }

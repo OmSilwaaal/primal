@@ -94,8 +94,14 @@ final class BarcodeLookupService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.setValue("Vitalis-iOS/1.0 (nutrition tracker)", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 15
-        let (data, _) = try await URLSession.shared.data(for: request)
+        request.timeoutInterval = 10
+        // Open Food Facts is occasionally slow for a moment: one retry after a timeout.
+        let data: Data
+        do {
+            data = try await URLSession.shared.data(for: request).0
+        } catch let error as URLError where error.code == .timedOut {
+            data = try await URLSession.shared.data(for: request).0
+        }
 
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               (root["status"] as? Int) == 1,

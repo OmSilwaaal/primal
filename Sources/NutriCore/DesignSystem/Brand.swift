@@ -92,12 +92,12 @@ struct LaunchHandoff: View {
             withAnimation(.easeOut(duration: 0.25)) { leaving = true }
             try? await Task.sleep(for: .milliseconds(280))
         } else {
-            try? await Task.sleep(for: .milliseconds(120))
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.72)) { upright = true }
-            try? await Task.sleep(for: .milliseconds(560))
+            // Short: the rune turns upright and fades in under half a second, so the app is in your hands fast.
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) { upright = true }
+            try? await Task.sleep(for: .milliseconds(240))
             Haptics.tap()
-            withAnimation(.easeInOut(duration: 0.5)) { leaving = true }
-            try? await Task.sleep(for: .milliseconds(520))
+            withAnimation(.easeOut(duration: 0.22)) { leaving = true }
+            try? await Task.sleep(for: .milliseconds(230))
         }
         Self.played = true
         gone = true

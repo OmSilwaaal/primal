@@ -103,6 +103,28 @@ enum Backdrop: String, CaseIterable {
     case forest, desert, ocean, fog, night
 
     var assetName: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() + "Dark" }
+    /// The same photo already blurred (40% size, radius 9), rendered once at build time so launch never waits on
+    /// Core Image: ~25 KB to decode instead of a full blur on the main thread.
+    /// How strongly the glass light takes on this photo's colour. The night sky and the ocean are dark and cool, so
+    /// their light is pushed to a richer, more saturated tone; the others keep the photo's own.
+    var lightVibrance: (saturationBoost: Double, minimumSaturation: Double) {
+        switch self {
+        case .night: (2.4, 0.62)
+        case .ocean: (2.1, 0.58)
+        default: (1.5, 0.2)
+        }
+    }
+
+    /// Colour lift for the photo itself, so the glass over it reads clearly blue rather than grey.
+    var photoSaturation: Double {
+        switch self {
+        case .night: 1.5
+        case .ocean: 1.35
+        default: 1
+        }
+    }
+
+    var blurredAssetName: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() + "Blur" }
 
     static let current: Backdrop = {
         let key = "lastBackdrop"
@@ -122,6 +144,10 @@ extension Backdrop {
     /// Any scene's photo, blurred the same way and cached (thread-safe), for the Data tab's per-card scenes.
     nonisolated static func blurred(_ scene: Backdrop) -> UIImage? {
         if let hit = blurCache.object(forKey: scene.rawValue as NSString) { return hit }
+        if let ready = UIImage(named: scene.blurredAssetName) {
+            blurCache.setObject(ready, forKey: scene.rawValue as NSString)
+            return ready
+        }
         guard let source = UIImage(named: scene.assetName), let cg = source.cgImage else { return nil }
         let input = CIImage(cgImage: cg).transformed(by: CGAffineTransform(scaleX: 0.4, y: 0.4))
         let blurred = input.clampedToExtent()
@@ -202,6 +228,7 @@ private struct SceneLayers: View, Animatable {
             .frame(width: size.width, height: size.height)
             // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
             .offset(x: -max(0, size.height * 2 / 3 - size.width) * 0.12)
+            .saturation(scene.photoSaturation)
             .clipped()
     }
 }
@@ -228,6 +255,7 @@ struct AppBackdrop: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         // Crop at 62% across rather than centred (the photo is 2:3, wider than a phone).
                         .offset(x: -max(0, geo.size.height * 2 / 3 - geo.size.width) * 0.12)
+                        .saturation(Backdrop.current.photoSaturation)
                         .opacity(intensity)
                         .clipped()
                 }
@@ -289,9 +317,9 @@ struct SectionLabel: View {
     }
 }
 
-/// 2 pt Paper rule that opens a list.
+/// The divider that opens a list: a soft 1 pt line, like the rows inside glass tiles.
 struct Rule: View {
-    var body: some View { Rectangle().fill(Color.ncPrimary).frame(height: 2) }
+    var body: some View { Rectangle().fill(Color.ncPrimary.opacity(0.18)).frame(height: 1) }
 }
 
 struct Hairline: View {

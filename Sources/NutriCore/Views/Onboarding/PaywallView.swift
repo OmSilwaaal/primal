@@ -27,7 +27,7 @@ struct PaywallView: View {
                         }
                         Text("Vitalis Pro").font(.display(40)).foregroundColor(Mono.text)
                             .accessibilityAddTraits(.isHeader)
-                        Text("Everything Vitalis measures, with nothing held back.")
+                        Text("AI that knows your log, and more photo scans.")
                             .font(.bentoBody).foregroundColor(Mono.label)
                     }
                     .padding(.top, 20).padding(.bottom, 6)
@@ -35,11 +35,10 @@ struct PaywallView: View {
                     // Included
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Included").font(.bentoLabel).foregroundColor(Mono.label).padding(.bottom, 4)
-                        feature("barcode.viewfinder", "Food scanner", "Barcode and AI photo logging", first: true)
-                        feature("shield.lefthalf.filled", "Raw-food safety", "Risk score, freezer log, recalls")
-                        feature("chart.bar", "Full nutrient tracking", "Liver budget, gaps, biomarkers")
-                        feature("heart", "Apple Health sync", "Activity, daylight, body measures")
-                        feature("app.badge", "App icons", "Nine icons for your Home Screen")
+                        // Only what Pro actually adds (App Review rejects listing features that aren't there).
+                        feature("camera.viewfinder", "AI photo scanning", "30 plate photos a day, matched to USDA (free: 4)", first: true)
+                        feature("sparkles", "Ask Vitalis", "Questions about food and your log, answered by AI")
+                        feature("checkmark.seal", "Everything else stays free", "Logging, barcodes, Data, goals and Apple Health")
                     }
                     .bentoTile(padding: 18, art: .leaf)
 
